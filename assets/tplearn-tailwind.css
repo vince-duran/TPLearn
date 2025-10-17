@@ -1,0 +1,83 @@
+/* Custom TPLearn Colors and Overrides */
+/* This file should be loaded AFTER tailwind.min.css */
+
+/* Custom TPLearn color definitions */
+:root {
+  --tplearn-green: #10b981;
+  --tplearn-light-green: #34d399;
+}
+
+/* Background color utilities */
+.bg-tplearn-green {
+  background-color: var(--tplearn-green) !important;
+}
+
+.bg-tplearn-light-green {
+  background-color: var(--tplearn-light-green) !important;
+}
+
+/* Text color utilities */
+.text-tplearn-green {
+  color: var(--tplearn-green) !important;
+}
+
+.text-tplearn-light-green {
+  color: var(--tplearn-light-green) !important;
+}
+
+/* Border color utilities */
+.border-tplearn-green {
+  border-color: var(--tplearn-green) !important;
+}
+
+.border-tplearn-light-green {
+  border-color: var(--tplearn-light-green) !important;
+}
+
+/* Ring color utilities for focus states */
+.ring-tplearn-green {
+  --tw-ring-color: var(--tplearn-green) !important;
+}
+
+.ring-tplearn-light-green {
+  --tw-ring-color: var(--tplearn-light-green) !important;
+}
+
+/* Focus ring utilities */
+.focus\:ring-tplearn-green:focus {
+  --tw-ring-color: var(--tplearn-green) !important;
+}
+
+.focus\:border-tplearn-green:focus {
+  border-color: var(--tplearn-green) !important;
+}
+
+/* Hover utilities */
+.hover\:bg-tplearn-green:hover {
+  background-color: var(--tplearn-green) !important;
+}
+
+.hover\:text-tplearn-green:hover {
+  color: var(--tplearn-green) !important;
+}
+
+/* Additional responsive and state utilities as needed */
+@media (min-width: 768px) {
+  .md\:bg-tplearn-green {
+    background-color: var(--tplearn-green) !important;
+  }
+  
+  .md\:text-tplearn-green {
+    color: var(--tplearn-green) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:bg-tplearn-green {
+    background-color: var(--tplearn-green) !important;
+  }
+  
+  .lg\:text-tplearn-green {
+    color: var(--tplearn-green) !important;
+  }
+}

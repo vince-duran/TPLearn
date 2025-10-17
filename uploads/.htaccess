@@ -1,0 +1,10 @@
+# Protect upload directory
+Options -Indexes
+
+# Allow only specific file types
+<FilesMatch "\.(php|php3|php4|php5|phtml|pl|py|jsp|asp|sh|cgi)$">
+    Deny from all
+</FilesMatch>
+
+# Set maximum file size (adjust as needed)
+LimitRequestBody 52428800  # 50MB limit

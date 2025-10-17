@@ -1,0 +1,6 @@
+{
+    "name": "tplearn/app",
+    "require": {
+        "phpmailer/phpmailer": "6.8"
+    }
+}

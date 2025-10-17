@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Path Test</title>
+</head>
+<body>
+    <h1>Test API Path from Tutor Dashboard</h1>
+    
+    <div>
+        <button onclick="testRelativePath()">Test ../../api/get-assignment-submissions.php</button>
+        <button onclick="testAbsolutePath()">Test /TPLearn/api/get-assignment-submissions.php</button>
+    </div>
+    
+    <div id="results" style="margin-top: 20px; font-family: monospace; white-space: pre-wrap;"></div>
+    
+    <script>
+        function testRelativePath() {
+            testPath('../../api/get-assignment-submissions.php?material_id=11', 'Relative Path');
+        }
+        
+        function testAbsolutePath() {
+            testPath('/TPLearn/api/get-assignment-submissions.php?material_id=11', 'Absolute Path');
+        }
+        
+        function testPath(url, pathType) {
+            const results = document.getElementById('results');
+            results.innerHTML += `\n=== Testing ${pathType}: ${url} ===\n`;
+            
+            fetch(url)
+                .then(response => {
+                    results.innerHTML += `${pathType} Response Status: ${response.status}\n`;
+                    results.innerHTML += `${pathType} Response URL: ${response.url}\n`;
+                    return response.text();
+                })
+                .then(text => {
+                    results.innerHTML += `${pathType} Response Length: ${text.length} characters\n`;
+                    results.innerHTML += `${pathType} Response Preview: ${text.substring(0, 200)}...\n`;
+                    
+                    try {
+                        const data = JSON.parse(text);
+                        results.innerHTML += `${pathType} JSON Parse: SUCCESS\n`;
+                        results.innerHTML += `${pathType} Success: ${data.success}\n`;
+                        if (data.success) {
+                            results.innerHTML += `${pathType} Assignment Title: ${data.assignment?.title}\n`;
+                        } else {
+                            results.innerHTML += `${pathType} Error: ${data.error}\n`;
+                        }
+                    } catch (e) {
+                        results.innerHTML += `${pathType} JSON Parse: FAILED - ${e.message}\n`;
+                    }
+                })
+                .catch(error => {
+                    results.innerHTML += `${pathType} Fetch Error: ${error.message}\n`;
+                });
+        }
+        
+        // Test both paths on load
+        window.onload = function() {
+            testRelativePath();
+            setTimeout(testAbsolutePath, 1000);
+        };
+    </script>
+</body>
+</html>

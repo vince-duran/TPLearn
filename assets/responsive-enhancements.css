@@ -1,0 +1,265 @@
+/* TPLearn Responsive Enhancements */
+
+/* Custom responsive utilities for very small screens */
+@media (max-width: 374px) {
+  .text-responsive-xs {
+    font-size: 0.75rem;
+  }
+  
+  .p-responsive-xs {
+    padding: 0.5rem;
+  }
+  
+  .gap-responsive-xs {
+    gap: 0.5rem;
+  }
+  
+  .sidebar-mobile {
+    width: 280px;
+  }
+}
+
+/* Enhanced mobile table styles */
+@media (max-width: 640px) {
+  .table-mobile-stack td {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .table-mobile-stack td:first-child {
+    border-top: 1px solid #e5e7eb;
+    margin-top: 1rem;
+  }
+  
+  .table-mobile-stack td:last-child {
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 0.5rem;
+  }
+  
+  .card-mobile-spacing {
+    margin: 0.5rem;
+    padding: 1rem;
+  }
+}
+
+/* Enhanced touch targets for mobile */
+@media (max-width: 768px) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .btn-mobile {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .nav-mobile {
+    padding: 1rem;
+  }
+}
+
+/* Grid responsive enhancements */
+@media (min-width: 640px) and (max-width: 768px) {
+  .grid-tablet-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .grid-tablet-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Sidebar responsive improvements */
+@media (max-width: 1024px) {
+  .sidebar-overlay {
+    backdrop-filter: blur(4px);
+  }
+  
+  .main-content-mobile {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* Typography scaling */
+@media (max-width: 480px) {
+  .heading-responsive {
+    font-size: 1.25rem;
+    line-height: 1.5;
+  }
+  
+  .subheading-responsive {
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+}
+
+/* Card responsive improvements */
+@media (max-width: 640px) {
+  .card-responsive {
+    margin: 0.5rem 0;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .card-header-mobile {
+    padding: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .card-body-mobile {
+    padding: 1rem;
+  }
+}
+
+/* Form responsive improvements */
+@media (max-width: 640px) {
+  .form-mobile input,
+  .form-mobile select,
+  .form-mobile textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.75rem;
+  }
+  
+  .form-group-mobile {
+    margin-bottom: 1rem;
+  }
+  
+  .btn-group-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .btn-group-mobile button {
+    width: 100%;
+  }
+}
+
+/* Status badge responsive */
+@media (max-width: 640px) {
+  .status-badge-mobile {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Navigation improvements */
+@media (max-width: 1024px) {
+  .nav-item-mobile {
+    padding: 0.75rem 1rem;
+    margin: 0.25rem 0;
+  }
+  
+  .nav-text-mobile {
+    font-size: 0.875rem;
+  }
+}
+
+/* Content spacing improvements */
+@media (max-width: 640px) {
+  .content-spacing-mobile {
+    padding: 1rem 0.5rem;
+  }
+  
+  .section-spacing-mobile {
+    margin: 1rem 0;
+  }
+}
+
+/* Utility classes for responsive design */
+.hide-mobile {
+  display: block;
+}
+
+@media (max-width: 640px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+.show-mobile {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .show-mobile {
+    display: block !important;
+  }
+}
+
+.hide-tablet {
+  display: block;
+}
+
+@media (max-width: 1024px) {
+  .hide-tablet {
+    display: none !important;
+  }
+}
+
+.show-tablet {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .show-tablet {
+    display: block !important;
+  }
+}
+
+/* Flex responsive utilities */
+@media (max-width: 640px) {
+  .flex-mobile-col {
+    flex-direction: column !important;
+  }
+  
+  .items-mobile-start {
+    align-items: flex-start !important;
+  }
+  
+  .justify-mobile-start {
+    justify-content: flex-start !important;
+  }
+}
+
+/* Accessibility improvements for mobile */
+@media (max-width: 768px) {
+  .focus-visible-mobile:focus {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+  }
+  
+  .tap-highlight-none {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Print styles */
+@media print {
+  .print-hidden {
+    display: none !important;
+  }
+  
+  .sidebar,
+  .mobile-menu-overlay,
+  .mobile-menu-button {
+    display: none !important;
+  }
+  
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}

@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* TPLearn Custom Components */
+@layer components {
+  .tplearn-btn-primary {
+    @apply bg-gradient-to-r from-tplearn-green to-tplearn-light-green text-white py-3 px-6 rounded-lg hover:from-tplearn-green-600 hover:to-tplearn-green transition-all duration-200 font-semibold;
+  }
+  
+  .tplearn-input {
+    @apply w-full border border-gray-300 px-4 py-3 rounded-lg focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green transition-colors duration-200;
+  }
+  
+  .tplearn-card {
+    @apply bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden;
+  }
+  
+  .tplearn-card-header {
+    @apply bg-gradient-to-r from-tplearn-green to-tplearn-light-green px-8 py-6;
+  }
+
+  .stat-card {
+    @apply bg-white rounded-xl shadow-md border border-gray-100 p-6 transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  .welcome-card {
+    @apply bg-gradient-to-r from-tplearn-green to-tplearn-light-green rounded-2xl p-8 text-white relative overflow-hidden;
+  }
+
+  .program-card {
+    @apply bg-white rounded-lg shadow-md border border-gray-100 p-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  .activity-item {
+    @apply flex items-center p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150;
+  }
+
+  .progress-bar {
+    @apply bg-gray-200 rounded-full h-2 overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply bg-gradient-to-r from-tplearn-green to-tplearn-light-green h-full rounded-full transition-all duration-300;
+  }
+}
