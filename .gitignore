@@ -14,9 +14,28 @@ config/database.php
 includes/db.php
 
 # Upload directories with user data
-uploads/*
+uploads/
 !uploads/.htaccess
-!uploads/*/
+
+# Binary files that shouldn't be versioned
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.docx
+*.xlsx
+*.pptx
+
+# Archive and debug files
+_archive/
+debug_*
+test_*
+*_debug.*
+*_test.*
+quick_*
+temp_*
 
 # Logs
 *.log
