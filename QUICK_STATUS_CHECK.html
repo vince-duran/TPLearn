@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Status Check</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-8 mb-8">
+            <h1 class="text-4xl font-bold mb-4">⚡ Quick Status Check</h1>
+            <p class="text-xl">Let's verify the current state of your system</p>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4">🔍 Test 1: Check if Assessment Exists</h2>
+            <button onclick="testAssessment()" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-bold">
+                Run Test
+            </button>
+            <div id="test1Result" class="mt-4 p-4 bg-gray-900 rounded hidden"></div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4">📊 Test 2: Check if Submissions Exist</h2>
+            <button onclick="testSubmissions()" class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-bold">
+                Run Test
+            </button>
+            <div id="test2Result" class="mt-4 p-4 bg-gray-900 rounded hidden"></div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4">🎯 Test 3: Test Assessment API</h2>
+            <input type="number" id="assessmentId" placeholder="Enter Assessment ID (e.g., 242)" 
+                   class="bg-gray-900 text-white px-4 py-2 rounded w-64 mr-4" value="242">
+            <button onclick="testAPI()" class="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-bold">
+                Test API
+            </button>
+            <div id="test3Result" class="mt-4 p-4 bg-gray-900 rounded hidden"></div>
+        </div>
+
+        <div class="bg-yellow-900 border-2 border-yellow-500 rounded-lg p-6">
+            <h2 class="text-2xl font-bold mb-4">📝 Next Steps</h2>
+            <div id="nextSteps" class="space-y-3">
+                <p>Run the tests above to see the current status...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function testAssessment() {
+            const result = document.getElementById('test1Result');
+            result.classList.remove('hidden');
+            result.innerHTML = '<p class="text-yellow-400">⏳ Testing...</p>';
+
+            fetch('/TPLearn/api/check_all_assessment_submissions.php')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.total_count > 0) {
+                        result.innerHTML = `
+                            <p class="text-green-400 text-xl font-bold mb-2">✅ SUCCESS!</p>
+                            <p class="mb-2">Found ${data.total_count} submission(s) in database:</p>
+                            <ul class="list-disc list-inside space-y-1 text-sm">
+                                ${data.submissions.slice(0, 5).map(s => 
+                                    `<li>${s.student_name} → ${s.assessment_title} (Grade: ${s.grade || 'Not graded'})</li>`
+                                ).join('')}
+                            </ul>
+                            ${data.total_count > 5 ? `<p class="text-xs text-gray-400 mt-2">...and ${data.total_count - 5} more</p>` : ''}
+                        `;
+                        updateNextSteps('has_data');
+                    } else {
+                        result.innerHTML = `
+                            <p class="text-red-400 text-xl font-bold mb-2">❌ NO SUBMISSIONS FOUND</p>
+                            <p class="mb-4">The assessment_submissions table is empty.</p>
+                            <a href="/TPLearn/create_test_assessment_submissions.php" 
+                               class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded inline-block">
+                                ➕ Create Test Submissions
+                            </a>
+                        `;
+                        updateNextSteps('no_data');
+                    }
+                })
+                .catch(err => {
+                    result.innerHTML = `
+                        <p class="text-red-400 text-xl font-bold mb-2">❌ ERROR</p>
+                        <p>${err.message}</p>
+                    `;
+                });
+        }
+
+        function testSubmissions() {
+            const result = document.getElementById('test2Result');
+            result.classList.remove('hidden');
+            result.innerHTML = '<p class="text-yellow-400">⏳ Testing...</p>';
+
+            fetch('/TPLearn/debug_assessment_submission_issue.php')
+                .then(r => r.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const body = doc.body.textContent;
+                    
+                    if (body.includes('✅')) {
+                        result.innerHTML = `
+                            <p class="text-green-400 text-xl font-bold mb-2">✅ Diagnostic Complete</p>
+                            <p class="mb-2">Check the full diagnostic page for details:</p>
+                            <a href="/TPLearn/debug_assessment_submission_issue.php" target="_blank"
+                               class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded inline-block">
+                                View Full Report
+                            </a>
+                        `;
+                    } else {
+                        result.innerHTML = `
+                            <p class="text-yellow-400 text-xl font-bold mb-2">⚠️ Check Required</p>
+                            <a href="/TPLearn/debug_assessment_submission_issue.php" target="_blank"
+                               class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded inline-block">
+                                View Diagnostic Report
+                            </a>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    result.innerHTML = `
+                        <p class="text-red-400 text-xl font-bold mb-2">❌ ERROR</p>
+                        <p>${err.message}</p>
+                    `;
+                });
+        }
+
+        function testAPI() {
+            const assessmentId = document.getElementById('assessmentId').value;
+            const result = document.getElementById('test3Result');
+            result.classList.remove('hidden');
+            result.innerHTML = '<p class="text-yellow-400">⏳ Testing API...</p>';
+
+            fetch(`/TPLearn/api/get-assessment-submissions.php?material_id=${assessmentId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        result.innerHTML = `
+                            <p class="text-green-400 text-xl font-bold mb-4">✅ API WORKS!</p>
+                            <div class="space-y-2 text-sm">
+                                <p><strong>Assessment:</strong> ${data.assessment.title}</p>
+                                <p><strong>Max Score:</strong> ${data.assessment.max_score} pts</p>
+                                <p><strong>Due Date:</strong> ${data.assessment.due_date_formatted}</p>
+                                <p><strong>Submissions:</strong> ${data.submissions.length}</p>
+                                ${data.statistics ? `
+                                    <p><strong>Graded:</strong> ${data.statistics.graded_count}</p>
+                                    <p><strong>Pending:</strong> ${data.statistics.pending_count}</p>
+                                    <p><strong>Average Grade:</strong> ${data.statistics.average_grade || 'N/A'}</p>
+                                ` : ''}
+                            </div>
+                            ${data.submissions.length === 0 ? `
+                                <p class="text-yellow-400 mt-4">No submissions yet. Create test data!</p>
+                                <a href="/TPLearn/create_test_assessment_submissions.php" 
+                                   class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded inline-block mt-2">
+                                    ➕ Create Test Submissions
+                                </a>
+                            ` : ''}
+                        `;
+                        if (data.submissions.length > 0) {
+                            updateNextSteps('api_works');
+                        } else {
+                            updateNextSteps('no_data');
+                        }
+                    } else {
+                        result.innerHTML = `
+                            <p class="text-red-400 text-xl font-bold mb-2">❌ API ERROR</p>
+                            <p class="mb-4">${data.error}</p>
+                            ${data.error.includes('not found') ? `
+                                <p class="text-yellow-400">Try a different assessment ID or check the diagnostic:</p>
+                                <a href="/TPLearn/debug_assessment_submission_issue.php" target="_blank"
+                                   class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded inline-block mt-2">
+                                    View Diagnostic
+                                </a>
+                            ` : ''}
+                        `;
+                    }
+                })
+                .catch(err => {
+                    result.innerHTML = `
+                        <p class="text-red-400 text-xl font-bold mb-2">❌ NETWORK ERROR</p>
+                        <p>${err.message}</p>
+                    `;
+                });
+        }
+
+        function updateNextSteps(status) {
+            const nextSteps = document.getElementById('nextSteps');
+            
+            if (status === 'has_data') {
+                nextSteps.innerHTML = `
+                    <p class="text-green-400 text-xl font-bold mb-3">✅ Great! Submissions exist!</p>
+                    <p class="mb-4">Next steps:</p>
+                    <ol class="list-decimal list-inside space-y-2">
+                        <li>Open the tutor stream</li>
+                        <li>Press F12 to open console</li>
+                        <li>Click "Submissions" on an attached assessment</li>
+                        <li>Check if modal opens correctly with data</li>
+                    </ol>
+                    <a href="/TPLearn/dashboards/tutor/tutor-program-stream.php?program_id=32&program=New+Prog" 
+                       target="_blank"
+                       class="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg inline-block mt-4 font-bold">
+                        🚀 Test in Tutor Stream
+                    </a>
+                `;
+            } else if (status === 'no_data') {
+                nextSteps.innerHTML = `
+                    <p class="text-yellow-400 text-xl font-bold mb-3">⚠️ No submissions found</p>
+                    <p class="mb-4">You need to create test data first:</p>
+                    <ol class="list-decimal list-inside space-y-2">
+                        <li>Click the button below to create test submissions</li>
+                        <li>Then come back and test the API again</li>
+                        <li>Then test in tutor stream</li>
+                    </ol>
+                    <a href="/TPLearn/create_test_assessment_submissions.php" 
+                       class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg inline-block mt-4 font-bold">
+                        ➕ Create Test Submissions Now
+                    </a>
+                `;
+            } else if (status === 'api_works') {
+                nextSteps.innerHTML = `
+                    <p class="text-green-400 text-xl font-bold mb-3">✅ API is working!</p>
+                    <p class="mb-4">Now test the UI:</p>
+                    <ol class="list-decimal list-inside space-y-2">
+                        <li>Open tutor stream (link below)</li>
+                        <li>Press F12 to open Developer Console</li>
+                        <li>Click "Submissions" button on attached assessment</li>
+                        <li>Watch the console logs (look for 🔍 📡 ✅ icons)</li>
+                        <li>Verify modal opens with correct data</li>
+                    </ol>
+                    <a href="/TPLearn/dashboards/tutor/tutor-program-stream.php?program_id=32&program=New+Prog" 
+                       target="_blank"
+                       class="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg inline-block mt-4 font-bold">
+                        🚀 Test in Tutor Stream
+                    </a>
+                    <a href="/TPLearn/LIVE_DEBUGGER.html" 
+                       target="_blank"
+                       class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg inline-block mt-4 font-bold ml-4">
+                        🔴 Use Live Debugger
+                    </a>
+                `;
+            }
+        }
+
+        // Auto-run first test on load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('%c⚡ Quick Status Check Loaded', 'color: yellow; font-size: 16px; font-weight: bold');
+            console.log('Run tests above to check system status');
+        });
+    </script>
+</body>
+</html>

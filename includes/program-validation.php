@@ -225,5 +225,75 @@ function formatProgramData($data) {
         $formatted['tutor_id'] = (int)$data['tutor_id'] ?: null;
     }
 
+    // Handle cover image upload
+    if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
+        // New file uploaded
+        $formatted['cover_image'] = handleCoverImageUpload($_FILES['cover_image']);
+    } elseif (isset($data['remove_cover_image']) && $data['remove_cover_image'] === 'true') {
+        // User wants to remove the cover image
+        $formatted['cover_image'] = null;
+    } elseif (isset($data['existing_cover_image']) && !empty($data['existing_cover_image'])) {
+        // Preserve existing cover image during edit
+        $formatted['cover_image'] = $data['existing_cover_image'];
+    } elseif (isset($data['cover_image'])) {
+        // Keep existing cover image path for updates (fallback)
+        $formatted['cover_image'] = $data['cover_image'];
+    }
+
     return $formatted;
+}
+
+/**
+ * Handle cover image upload for programs
+ * @param array $file $_FILES array element for cover_image
+ * @return string|null Relative file path or null on failure
+ */
+function handleCoverImageUpload($file) {
+    // Validate file
+    if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
+        error_log("Cover image upload error: " . ($file['error'] ?? 'File not provided'));
+        return null;
+    }
+
+    // Check file type
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    $mimeType = mime_content_type($file['tmp_name']);
+    if (!in_array($mimeType, $allowedTypes)) {
+        error_log("Cover image upload error: Invalid file type - " . $mimeType);
+        return null;
+    }
+
+    // Check file size (5MB limit)
+    $maxSize = 5 * 1024 * 1024; // 5MB
+    if ($file['size'] > $maxSize) {
+        error_log("Cover image upload error: File too large - " . $file['size'] . " bytes");
+        return null;
+    }
+
+    // Create upload directory if it doesn't exist  
+    $uploadDir = 'uploads/program_covers/';
+    $projectRoot = dirname(__DIR__); // This gets us back to /TPLearn/ from /TPLearn/includes/
+    $absoluteUploadDir = $projectRoot . '/' . $uploadDir;
+    
+    if (!is_dir($absoluteUploadDir)) {
+        if (!mkdir($absoluteUploadDir, 0755, true)) {
+            error_log("Cover image upload error: Could not create upload directory");
+            return null;
+        }
+    }
+
+    // Generate unique filename
+    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = 'cover_' . uniqid() . '_' . time() . '.' . $extension;
+    $relativePath = $uploadDir . $filename;
+    $absolutePath = $absoluteUploadDir . $filename;
+
+    // Move uploaded file
+    if (move_uploaded_file($file['tmp_name'], $absolutePath)) {
+        error_log("Cover image uploaded successfully: " . $relativePath);
+        return $relativePath;
+    } else {
+        error_log("Cover image upload error: Could not move uploaded file");
+        return null;
+    }
 }

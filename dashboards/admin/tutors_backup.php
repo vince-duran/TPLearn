@@ -241,9 +241,9 @@ $tutorsCount = count($tutors);
                   </tr>
                 <?php else: ?>
                   <?php foreach ($tutors as $index => $tutor):
-                    // Generate avatar colors and initials
-                    $avatarColors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-pink-500', 'bg-orange-500', 'bg-indigo-500', 'bg-red-500'];
-                    $avatarColor = $avatarColors[$index % count($avatarColors)];
+                    // Generate avatar colors and initials - All avatars are now green
+                    $avatarColors = ['bg-green-500'];
+                    $avatarColor = $avatarColors[0];
 
                     // Get initials from name
                     $nameParts = explode(' ', $tutor['name']);
@@ -737,7 +737,8 @@ $tutorsCount = count($tutors);
           const tutorId = this.getAttribute('data-tutor-id');
           const tutorName = this.getAttribute('data-tutor-name');
           
-          if (confirm(`Are you sure you want to approve ${tutorName} as a tutor?`)) {
+          TPAlert.confirm('Confirm Action', `Are you sure you want to approve ${tutorName} as a tutor?`).then(result => {
+        if (result.isConfirmed) {
             updateTutorStatus(tutorId, 'active', 'approved');
           }
         });
@@ -749,7 +750,8 @@ $tutorsCount = count($tutors);
           const tutorId = this.getAttribute('data-tutor-id');
           const tutorName = this.getAttribute('data-tutor-name');
           
-          if (confirm(`Are you sure you want to reject ${tutorName}'s tutor application?`)) {
+          TPAlert.confirm('Confirm Action', `Are you sure you want to reject ${tutorName}'s tutor application?`).then(result => {
+        if (result.isConfirmed) {
             updateTutorStatus(tutorId, 'inactive', 'rejected');
           }
         });
@@ -770,15 +772,15 @@ $tutorsCount = count($tutors);
         .then(data => {
           if (data.success) {
             // Show success message and reload page
-            alert(`Tutor ${action} successfully!`);
+            TPAlert.info('Information', `Tutor ${action} successfully!`);
             window.location.reload();
           } else {
-            alert(`Error: ${data.message || 'Failed to update tutor status'}`);
+            TPAlert.info('Information', `Error: ${data.message || 'Failed to update tutor status'}`);
           }
         })
         .catch(error => {
           console.error('Error:', error);
-          alert('An error occurred while updating tutor status');
+          TPAlert.error('Error', 'An error occurred while updating tutor status');
         });
       }
     });

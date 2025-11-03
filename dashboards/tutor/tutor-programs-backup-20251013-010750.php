@@ -1677,7 +1677,7 @@ $currentDate = date('l, F j, Y');
           loadAttendanceData(programId);
         } else {
           console.error('Attendance modal not found');
-          alert('Attendance feature is not available');
+          TPAlert.info('Information', 'Attendance feature is not available');
         }
       } catch (error) {
         console.error('Error in markAttendance:', error);
@@ -1723,7 +1723,7 @@ $currentDate = date('l, F j, Y');
           window.currentUploadProgramId = programId;
         } else {
           console.error('Upload materials modal not found');
-          alert('Upload materials feature is not available');
+          TPAlert.info('Information', 'Upload materials feature is not available');
         }
       } catch (error) {
         console.error('Error in uploadMaterials:', error);
@@ -2235,7 +2235,7 @@ $currentDate = date('l, F j, Y');
     }
 
     function markAllPresent() {
-      const confirmation = confirm('Mark all students as present for this session?');
+      const confirmation = (await TPAlert.confirm('Confirm Action', 'Mark all students as present for this session?')).isConfirmed;
       
       if (!confirmation) {
         return;
@@ -2262,7 +2262,7 @@ $currentDate = date('l, F j, Y');
     }
     
     function markAllAbsent() {
-      const confirmation = confirm('Mark all students as absent for this session?');
+      const confirmation = (await TPAlert.confirm('Confirm Action', 'Mark all students as absent for this session?')).isConfirmed;
       
       if (!confirmation) {
         return;
@@ -2418,7 +2418,7 @@ $currentDate = date('l, F j, Y');
         return;
       }
       
-      const confirmation = confirm(`Send absence notifications to ${absentStudents.length} students?\\n\\n${absentStudents.map(s => s.name).join('\\n')}`);
+      const confirmation = (await TPAlert.confirm('Confirm Action', `Send absence notifications to ${absentStudents.length} students?\\n\\n${absentStudents.map(s => s.name)).isConfirmed.join('\\n')}`);
       
       if (confirmation) {
         // Show loading state
@@ -3649,7 +3649,7 @@ $currentDate = date('l, F j, Y');
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Error connecting to server');
+        TPAlert.error('Error', 'Error connecting to server');
       });
     }
 
@@ -3782,7 +3782,7 @@ $currentDate = date('l, F j, Y');
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          alert('Message sent successfully!');
+          TPAlert.success('Success', 'Message sent successfully!');
           closeStudentContactModal();
         } else {
           alert('Error sending message: ' + (data.message || 'Unknown error'));
@@ -3790,7 +3790,7 @@ $currentDate = date('l, F j, Y');
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Error connecting to server');
+        TPAlert.error('Error', 'Error connecting to server');
       });
     });
 
@@ -3960,7 +3960,7 @@ $currentDate = date('l, F j, Y');
     }
 
     function viewStudentProgress(studentId) {
-      alert(`Viewing progress for student ID: ${studentId || currentStudentId}`);
+      TPAlert.info('Information', `Viewing progress for student ID: ${studentId || currentStudentId}`);
       // This would show detailed progress charts
     }
 
@@ -4561,7 +4561,7 @@ $currentDate = date('l, F j, Y');
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Error connecting to server');
+        TPAlert.error('Error', 'Error connecting to server');
       });
     }
 
@@ -4755,11 +4755,11 @@ $currentDate = date('l, F j, Y');
     }
 
     function exportSchedule() {
-      alert('Schedule export functionality would be implemented here');
+      TPAlert.info('Information', 'Schedule export functionality would be implemented here');
     }
 
     function syncCalendar() {
-      alert('External calendar sync functionality would be implemented here');
+      TPAlert.info('Information', 'External calendar sync functionality would be implemented here');
     }
 
     function selectCalendarDate(date) {
@@ -4781,7 +4781,7 @@ $currentDate = date('l, F j, Y');
         const formatted = date.toLocaleDateString('en-US', { 
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
         });
-        alert(`No sessions scheduled for ${formatted}. Would you like to add a session?`);
+        TPAlert.info('Information', `No sessions scheduled for ${formatted}. Would you like to add a session?`);
       }
     }
 
@@ -4799,7 +4799,7 @@ $currentDate = date('l, F j, Y');
         return `• ${session.program_name} - ${timeText}`;
       }).join('\\n');
       
-      alert(`Sessions for ${formatted}:\\n\\n${sessionsList}`);
+      TPAlert.info('Information', `Sessions for ${formatted}:\\n\\n${sessionsList}`);
       
       // Future enhancement: Show in a proper modal with action buttons
       // openDaySessionModal(date, sessions);
@@ -4821,12 +4821,12 @@ $currentDate = date('l, F j, Y');
           
         const sessionDate = session.session_date ? session.session_date.split(' ')[0] : 'Date TBD';
         
-        alert(`Session Details:\\n\\nProgram: ${session.program_name}\\nDate: ${sessionDate}\\nTime: ${timeText}${endTimeText ? ' - ' + endTimeText : ''}\\nStatus: ${session.status || 'scheduled'}`);
+        TPAlert.info('Information', `Session Details:\\n\\nProgram: ${session.program_name}\\nDate: ${sessionDate}\\nTime: ${timeText}${endTimeText ? ' - ' + endTimeText : ''}\\nStatus: ${session.status || 'scheduled'}`);
         
         // Future enhancement: Open session management modal
         // openSessionManagementModal(sessionId, session);
       } else {
-        alert('Loading session details...');
+        TPAlert.info('Information', 'Loading session details...');
       }
     }
 
@@ -4843,23 +4843,24 @@ $currentDate = date('l, F j, Y');
     // Note: startSession() is defined above
     
     function joinSession() {
-      alert('Joining session...');
+      TPAlert.info('Information', 'Joining session...');
       // Implementation would handle joining online session
     }
 
     function endSession() {
-      alert('Ending session...');
+      TPAlert.info('Information', 'Ending session...');
       // Implementation would handle session end logic
     }
 
     function markSessionAttendance() {
-      alert('Opening attendance marking...');
+      TPAlert.info('Information', 'Opening attendance marking...');
       // Implementation would open attendance modal
     }
 
     function cancelSession() {
-      if (confirm('Are you sure you want to cancel this session?')) {
-        alert('Session cancelled');
+      TPAlert.confirm('Confirm Action', 'Are you sure you want to cancel this session?').then(result => {
+        if (result.isConfirmed) {
+        TPAlert.info('Information', 'Session cancelled');
         // Implementation would handle session cancellation
       }
     }
@@ -4895,7 +4896,7 @@ $currentDate = date('l, F j, Y');
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          alert(currentSessionId ? 'Session updated successfully!' : 'Session created successfully!');
+          TPAlert.info('Information', currentSessionId ? 'Session updated successfully!' : 'Session created successfully!');
           closeAddEditSessionModal();
           loadCalendarData(); // Reload calendar data
         } else {
@@ -4904,7 +4905,7 @@ $currentDate = date('l, F j, Y');
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Error connecting to server');
+        TPAlert.error('Error', 'Error connecting to server');
       });
     });
 
@@ -4915,12 +4916,12 @@ $currentDate = date('l, F j, Y');
 
     // Header functions
     function openNotifications() {
-      alert('Opening notifications...');
+      TPAlert.info('Information', 'Opening notifications...');
       // In a real application, this would open notifications panel
     }
 
     function openMessages() {
-      alert('Opening messages...');
+      TPAlert.info('Information', 'Opening messages...');
       // In a real application, this would open messages panel
     }
 
@@ -5391,11 +5392,11 @@ ${session.description ? 'Description: ' + session.description : ''}
 ${session.video_link ? 'Video Link Available' : 'In-Person Session'}
       `;
       
-      alert(sessionInfo.trim());
+      TPAlert.info('Information', sessionInfo.trim());
     }at ${session.time} (${session.students} students)`
       ).join('\n');
       
-      alert(`Sessions for ${date.toLocaleDateString()}:\n\n${sessionsList}`);
+      TPAlert.info('Information', `Sessions for ${date.toLocaleDateString()}:\n\n${sessionsList}`);
     }
 
     // Program filtering functions

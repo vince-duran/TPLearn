@@ -1,0 +1,730 @@
+// TPLearn Database Schema - Comprehensive ERD for dbdiagram.io
+// Copy and paste this code into https://dbdiagram.io/d to generate the visual ERD
+// Created: October 29, 2025 - Complete System Analysis
+// Updated with all discovered features and enhanced relationships
+
+Project TPLearn {
+  database_type: 'MySQL'
+  Note: '''
+    TPLearn - Tisa at Pisara's Academic and Tutorial Services
+    Complete Learning Management System Database Schema
+    
+    CORE FUNCTIONALITIES COVERED:
+    
+    🔐 USER MANAGEMENT & AUTHENTICATION
+    - Multi-role user system (Admin, Tutor, Student)
+    - Structured User ID system (TPA/TPS/TPT-YYYY-XXX)
+    - Email verification and password reset
+    - Login attempt tracking and security
+    - CSRF protection and session management
+    
+    📚 ACADEMIC PROGRAM MANAGEMENT
+    - Program creation and management
+    - Course materials and document storage
+    - Assignment and assessment delivery system
+    - Grading and feedback mechanisms
+    - Student enrollment and progress tracking
+    
+    💰 PAYMENT & BILLING SYSTEM
+    - Multiple payment methods (Cash, GCash, Bank Transfer)
+    - Payment validation with attachment support
+    - Installment payment plans
+    - Payment history and reporting
+    - Financial audit trails
+    
+    🎓 LEARNING & ASSESSMENT
+    - Assignment submission and grading
+    - Assessment creation and evaluation
+    - Grade management and transcripts
+    - Late submission handling
+    - Student progress analytics
+    
+    🎥 LIVE SESSION MANAGEMENT
+    - Jitsi Meet integration for virtual classes
+    - Meeting scheduling and management
+    - Attendance tracking for live sessions
+    - Session recordings and playback
+    
+    📱 COMMUNICATION SYSTEM
+    - System notifications and alerts
+    - Email verification and messaging
+    - User activity monitoring
+    - Admin announcements
+    
+    📊 ADMINISTRATION & REPORTING
+    - Student and tutor management
+    - Payment validation and approval
+    - System activity logs and auditing
+    - Comprehensive reporting dashboard
+    - Data export capabilities
+    
+    🔧 TECHNICAL FEATURES
+    - File upload management with validation
+    - Database triggers for data integrity
+    - Duplicate prevention mechanisms
+    - Performance optimization with indexes
+    - Secure session management
+    
+    User ID Format: TP[A/T/S]YYYY-XXX
+    - TP = Tisa and Pisara (organization)
+    - A/T/S = Admin/Tutor/Student (role)
+    - YYYY = Year created
+    - XXX = 3 random digits for uniqueness
+  '''
+}
+
+// ========================================
+// ENUMS FOR TYPE SAFETY AND CONSISTENCY
+// ========================================
+
+enum user_role {
+  admin
+  tutor
+  student
+}
+
+enum user_status {
+  active
+  inactive
+  pending
+}
+
+enum enrollment_status {
+  pending
+  active
+  completed
+  cancelled
+}
+
+enum payment_method {
+  cash
+  gcash
+  bank_transfer
+  paypal
+  other
+}
+
+enum payment_status {
+  pending
+  validated
+  rejected
+}
+
+enum material_type {
+  document
+  video
+  image
+  slides
+  assignment
+  assessment
+  other
+}
+
+enum submission_status {
+  submitted
+  graded
+  returned
+  resubmit
+}
+
+enum meeting_status {
+  scheduled
+  active
+  completed
+  cancelled
+}
+
+enum notification_type {
+  info
+  success
+  warning
+  error
+}
+
+enum upload_purpose {
+  profile_picture
+  document
+  assignment
+  payment_proof
+  program_material
+  assessment_submission
+  other
+}
+
+// ====================================
+// CORE USER MANAGEMENT TABLES
+// ====================================
+
+Table users {
+  id int [pk, increment, note: '🔑 Primary key for internal references']
+  user_id varchar(20) [unique, not null, note: '🆔 Structured ID: TP[A/T/S]YYYY-XXX (e.g., TPS2025-847)']
+  username varchar(50) [unique, not null, note: '👤 Unique username for login']
+  email varchar(100) [unique, not null, note: '📧 Email address with verification support']
+  password varchar(255) [not null, note: '🔒 Hashed password using PHP password_hash()']
+  role user_role [default: 'student', note: '🎭 User role for access control']
+  status user_status [default: 'active', note: '✅ Account status']
+  email_verified tinyint(1) [default: 0, note: '✉️ Email verification status']
+  created_at timestamp [default: `current_timestamp()`, note: '📅 Account creation timestamp']
+  updated_at timestamp [default: `current_timestamp()`, note: '🔄 Last modification timestamp']
+  last_login timestamp [null, note: '🕐 Last successful login timestamp']
+  
+  indexes {
+    (user_id) [unique, name: 'idx_user_id']
+    (username) [unique, name: 'idx_username']
+    (email) [unique, name: 'idx_email']
+    (role) [name: 'idx_role']
+    (status) [name: 'idx_status']
+    (email_verified) [name: 'idx_email_verified']
+    (created_at) [name: 'idx_created_at']
+  }
+  
+  Note: '🏛️ CENTRAL AUTHENTICATION HUB - All user accounts and authentication data'
+}
+
+Table student_profiles {
+  id int [pk, increment]
+  user_id int [not null, note: '🔗 CONNECTS TO: users table (CASCADE DELETE)']
+  first_name varchar(50) [not null, note: '👤 Student first name']
+  last_name varchar(50) [not null, note: '👤 Student last name'] 
+  middle_name varchar(50) [note: '👤 Student middle name (optional)']
+  birthday date [note: '🎂 Date of birth for age calculation']
+  age int [note: '🔢 Calculated or manually entered age']
+  is_pwd boolean [default: false, note: '♿ Person with disability status']
+  address text [note: '🏠 Complete home address']
+  medical_notes text [note: '🩺 Medical conditions or special needs']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (first_name, last_name) [unique, name: 'unique_student_fullname']
+    (first_name, last_name) [name: 'idx_full_name']
+    (user_id) [name: 'idx_user_id']
+  }
+  
+  Note: '👨‍🎓 STUDENT PROFILES - Extended info for student users with duplicate prevention'
+}
+
+Table parent_profiles {
+  id int [pk, increment]
+  student_user_id int [not null, note: '🔗 CONNECTS TO: users table (CASCADE DELETE)']
+  full_name varchar(100) [not null, note: '👨‍👩‍👧‍👦 Parent or guardian full name']
+  facebook_name varchar(100) [note: '📘 Facebook profile name for contact']
+  contact_number varchar(20) [not null, note: '📞 Primary contact number']
+  address text [note: '🏠 Parent address (may differ from student)']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: '👪 PARENT/GUARDIAN INFO - Emergency contacts and communication'
+}
+
+Table tutor_profiles {
+  id int [pk, increment]
+  user_id int [not null, note: '🔗 CONNECTS TO: users table (CASCADE DELETE)']
+  first_name varchar(50) [not null, note: '👨‍🏫 Tutor first name']
+  last_name varchar(50) [not null, note: '👨‍🏫 Tutor last name']
+  specializations text [note: '🎯 Teaching subject areas and expertise']
+  bio text [note: '📝 Professional biography and qualifications']
+  contact_number varchar(20) [note: '📞 Direct contact number']
+  address text [note: '🏠 Home address']
+  hourly_rate decimal(10,2) [note: '💰 Standard hourly teaching rate']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (first_name, last_name) [unique, name: 'unique_tutor_fullname']
+    (first_name, last_name) [name: 'idx_full_name']
+    (user_id) [name: 'idx_user_id']
+  }
+  
+  Note: '👨‍🏫 TUTOR PROFILES - Extended info with specialization tracking'
+}
+
+// ====================================
+// PROGRAM AND ENROLLMENT MANAGEMENT
+// ====================================
+
+Table programs {
+  id int [pk, increment]
+  name varchar(100) [not null, note: '📚 Program title and identifier']
+  description text [note: '📝 Detailed program description and objectives']
+  duration_weeks int [note: '⏱️ Expected program duration in weeks']
+  fee decimal(10,2) [note: '💰 Standard program fee']
+  status user_status [default: 'active', note: '✅ Program availability status']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  Note: '📚 ACADEMIC PROGRAMS - Courses offered by TPLearn'
+}
+
+Table enrollments {
+  id int [pk, increment]
+  student_user_id int [not null, note: '🔗 CONNECTS TO: users (student) - CASCADE DELETE']
+  program_id int [not null, note: '🔗 CONNECTS TO: programs - CASCADE DELETE']
+  tutor_user_id int [note: '🔗 CONNECTS TO: users (tutor) - SET NULL']
+  enrollment_date date [not null, note: '📅 Date of enrollment']
+  start_date date [note: '🚀 Program start date']
+  end_date date [note: '🏁 Expected completion date']
+  status enrollment_status [default: 'pending', note: '📊 Current enrollment status']
+  total_fee decimal(10,2) [note: '💰 Total fee for this enrollment']
+  notes text [note: '📝 Additional enrollment notes']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (student_user_id) [name: 'idx_student']
+    (program_id) [name: 'idx_program']
+    (tutor_user_id) [name: 'idx_tutor']
+    (status) [name: 'idx_status']
+  }
+  
+  Note: '🎓 STUDENT ENROLLMENTS - Links students to programs with tutors'
+}
+
+// ====================================
+// LEARNING MATERIALS AND CONTENT
+// ====================================
+
+Table program_materials {
+  id int [pk, increment]
+  program_id int [not null, note: '🔗 CONNECTS TO: programs - CASCADE DELETE']
+  file_upload_id int [not null, note: '🔗 CONNECTS TO: file_uploads - CASCADE DELETE']
+  title varchar(255) [not null, note: '📋 Material title or name']
+  description text [note: '📝 Material description and learning objectives']
+  material_type material_type [default: 'document', note: '📄 Type of learning material']
+  due_date datetime [note: '⏰ Due date for assignments/assessments']
+  max_score decimal(5,2) [default: 100.00, note: '💯 Maximum score for graded materials']
+  allow_late_submission boolean [default: true, note: '⏱️ Allow submissions after due date']
+  assignment_instructions text [note: '📝 Detailed instructions for assignments']
+  is_required boolean [default: false, note: '⚠️ Required for course completion']
+  sort_order int [default: 0, note: '🔢 Display order in course materials']
+  visibility varchar(20) [default: 'students', note: '👀 Who can view this material']
+  created_by int [not null, note: '🔗 CONNECTS TO: users (creator) - RESTRICT DELETE']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (program_id) [name: 'idx_program']
+    (material_type) [name: 'idx_type']
+    (due_date) [name: 'idx_due_date']
+    (created_by) [name: 'idx_creator']
+  }
+  
+  Note: '📚 COURSE MATERIALS - Learning content, assignments, and assessments'
+}
+
+// ====================================
+// ASSIGNMENT AND ASSESSMENT SYSTEM
+// ====================================
+
+Table assignment_submissions {
+  id int [pk, increment]
+  assignment_id int [not null, note: '🔗 Assignment being submitted to']
+  student_id int [not null, note: '🔗 Student submitting work']
+  file_upload_id int [note: '🔗 Submitted file (optional)']
+  submission_text text [note: 'Text submission or additional comments']
+  submitted_at timestamp [default: `current_timestamp()`, note: 'Submission timestamp']
+  is_late boolean [default: false, note: 'Submitted after due date']
+  grade decimal(5,2) [note: 'Grade awarded (out of max_score)']
+  max_score decimal(5,2) [default: 100.00, note: 'Maximum possible score']
+  feedback text [note: 'Tutor feedback and comments']
+  status submission_status [default: 'submitted', note: 'Current submission status']
+  graded_by int [note: '🔗 Tutor who graded the submission']
+  graded_at timestamp [note: 'Grading completion timestamp']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (assignment_id, student_id) [unique, name: 'unique_submission']
+    (assignment_id) [name: 'idx_assignment']
+    (student_id) [name: 'idx_student']
+    (status) [name: 'idx_status']
+    (submitted_at) [name: 'idx_submitted_date']
+  }
+  
+  Note: '📝 ASSIGNMENT SUBMISSIONS - Student work with grading and feedback'
+}
+
+Table assessment_submissions {
+  id int [pk, increment]
+  assessment_id int [not null, note: '🔗 Assessment being submitted to']
+  student_id int [not null, note: '🔗 Student taking assessment']
+  file_upload_id int [note: '🔗 Assessment submission file']
+  submission_text text [note: 'Text answers or comments']
+  is_late boolean [default: false, note: 'Submitted after due date']
+  status submission_status [default: 'submitted', note: 'Assessment status']
+  grade decimal(5,2) [note: 'Assessment score']
+  feedback text [note: 'Detailed feedback from tutor']
+  graded_by int [note: '🔗 Tutor who graded assessment']
+  graded_at datetime [note: 'When assessment was graded']
+  submitted_at datetime [default: `current_timestamp()`, note: 'Submission timestamp']
+  updated_at datetime [note: 'Last update timestamp']
+  
+  indexes {
+    (assessment_id, student_id) [unique, name: 'unique_assessment_student']
+    (assessment_id) [name: 'idx_assessment_id']
+    (student_id) [name: 'idx_student_id']
+    (status) [name: 'idx_status']
+  }
+  
+  Note: '📊 ASSESSMENT SUBMISSIONS - Student evaluations and tests'
+}
+
+// ====================================
+// PAYMENT AND BILLING SYSTEM
+// ====================================
+
+Table payments {
+  id int [pk, increment]
+  enrollment_id int [not null, note: '🔗 Associated enrollment']
+  amount decimal(10,2) [not null, note: 'Payment amount']
+  payment_date date [not null, note: 'Date payment was made']
+  payment_method payment_method [default: 'cash', note: 'Method of payment']
+  reference_number varchar(100) [note: 'Transaction reference or receipt number']
+  status payment_status [default: 'pending', note: 'Payment validation status']
+  notes text [note: 'Additional payment notes']
+  validated_by int [note: '🔗 Admin who validated payment']
+  validated_at timestamp [note: 'Payment validation timestamp']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (enrollment_id) [name: 'idx_enrollment']
+    (payment_date) [name: 'idx_payment_date']
+    (status) [name: 'idx_status']
+    (validated_by) [name: 'idx_validator']
+  }
+  
+  Note: '💰 PAYMENT RECORDS - Multi-method payment processing with validation'
+}
+
+Table payment_attachments {
+  id int [pk, increment]
+  payment_id int [not null, note: '🔗 Associated payment record']
+  filename varchar(255) [not null, note: 'Stored filename']
+  original_name varchar(255) [not null, note: 'Original uploaded filename']
+  file_size int [not null, note: 'File size in bytes']
+  mime_type varchar(100) [not null, note: 'File MIME type']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: '📎 PAYMENT ATTACHMENTS - Receipt and proof files for validation'
+}
+
+// ====================================
+// LIVE SESSION MANAGEMENT (JITSI)
+// ====================================
+
+Table jitsi_meetings {
+  id int [pk, increment]
+  program_id int [not null, note: '🔗 Associated program']
+  tutor_id int [not null, note: '🔗 Meeting host tutor']
+  meeting_id varchar(255) [unique, not null, note: 'Jitsi meeting identifier']
+  meeting_url varchar(500) [not null, note: 'Full Jitsi meeting URL']
+  title varchar(255) [not null, note: 'Meeting title/topic']
+  description text [note: 'Meeting description and agenda']
+  scheduled_date date [not null, note: 'Meeting date']
+  scheduled_time time [not null, note: 'Meeting start time']
+  duration_minutes int [default: 60, note: 'Expected meeting duration']
+  status meeting_status [default: 'scheduled', note: 'Current meeting status']
+  max_participants int [default: 50, note: 'Maximum allowed participants']
+  is_recorded boolean [default: false, note: 'Whether meeting is recorded']
+  meeting_password varchar(100) [note: 'Meeting access password']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (program_id, scheduled_date) [name: 'idx_program_date']
+    (tutor_id) [name: 'idx_tutor']
+    (status) [name: 'idx_status']
+    (meeting_id) [unique, name: 'idx_meeting_id']
+  }
+  
+  Note: '🎥 LIVE MEETINGS - Jitsi Meet integration for virtual classes'
+}
+
+Table jitsi_participants {
+  id int [pk, increment]
+  meeting_id int [not null, note: '🔗 Associated meeting']
+  user_id int [not null, note: '🔗 Participant user']
+  joined_at timestamp [default: `current_timestamp()`, note: 'When user joined']
+  left_at timestamp [note: 'When user left (if applicable)']
+  duration_minutes int [default: 0, note: 'Total participation time']
+  status varchar(20) [default: 'no_show', note: 'Participation status']
+  
+  indexes {
+    (meeting_id, user_id) [unique, name: 'unique_meeting_user']
+    (meeting_id) [name: 'idx_meeting']
+    (user_id) [name: 'idx_user']
+  }
+  
+  Note: '📊 ATTENDANCE TRACKING - Live session participation records'
+}
+
+// ====================================
+// FILE MANAGEMENT SYSTEM
+// ====================================
+
+Table file_uploads {
+  id int [pk, increment]
+  user_id int [not null, note: '🔗 User who uploaded the file']
+  filename varchar(255) [not null, note: 'Stored filename on server']
+  original_filename varchar(255) [not null, note: 'Original filename from user']
+  file_path varchar(500) [not null, note: 'Full path to stored file']
+  file_size int [not null, note: 'File size in bytes']
+  mime_type varchar(100) [not null, note: 'File MIME type for validation']
+  upload_purpose upload_purpose [default: 'document', note: 'Purpose of file upload']
+  related_id int [note: 'References enrollment_id, payment_id, etc.']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (user_id, upload_purpose) [name: 'idx_user_type']
+    (related_id) [name: 'idx_related']
+    (created_at) [name: 'idx_created_at']
+  }
+  
+  Note: '📁 FILE STORAGE - Centralized file management with purpose tracking'
+}
+
+// ====================================
+// COMMUNICATION AND NOTIFICATIONS
+// ====================================
+
+Table notifications {
+  id int [pk, increment]
+  user_id int [not null, note: '🔗 Notification recipient']
+  title varchar(255) [not null, note: 'Notification title/subject']
+  message text [not null, note: 'Notification content/body']
+  type notification_type [default: 'info', note: 'Notification type for styling']
+  is_read boolean [default: false, note: 'Whether notification has been read']
+  action_url varchar(500) [note: 'Optional URL for notification action']
+  created_at timestamp [default: `current_timestamp()`]
+  read_at timestamp [note: 'When notification was marked as read']
+  
+  indexes {
+    (user_id, is_read) [name: 'idx_user_read']
+    (created_at) [name: 'idx_created_at']
+    (type) [name: 'idx_type']
+  }
+  
+  Note: '🔔 NOTIFICATIONS - System alerts and user communication'
+}
+
+// ====================================
+// SECURITY AND AUDIT SYSTEM
+// ====================================
+
+Table activity_logs {
+  id int [pk, increment]
+  user_id int [not null, note: '🔗 User who performed action']
+  action varchar(100) [not null, note: 'Action type or description']
+  details text [note: 'Detailed action information']
+  ip_address varchar(45) [note: 'User IP address (IPv4/IPv6)']
+  user_agent text [note: 'User browser/device information']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (user_id, action) [name: 'idx_user_action']
+    (created_at) [name: 'idx_created_at']
+    (action) [name: 'idx_action']
+  }
+  
+  Note: '📋 AUDIT TRAIL - Comprehensive user action tracking for security'
+}
+
+Table login_attempts {
+  id int [pk, increment]
+  username varchar(100) [not null, note: 'Attempted username']
+  attempts int [default: 1, note: 'Number of failed attempts']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (username) [unique, name: 'unique_username']
+    (created_at) [name: 'idx_created_at']
+  }
+  
+  Note: 'Failed login attempt tracking for security and brute force prevention'
+}
+
+Table password_resets {
+  id int [pk, increment]
+  user_id int [not null, note: '🔗 User requesting password reset']
+  token varchar(255) [not null, note: 'Secure reset token']
+  expires_at timestamp [not null, note: 'Token expiration time']
+  used_at timestamp [note: 'When token was used (if applicable)']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (token) [name: 'idx_token']
+    (expires_at) [name: 'idx_expires']
+    (user_id) [name: 'idx_user']
+  }
+  
+  Note: '🔐 PASSWORD RESETS - Secure token management with expiration'
+}
+
+// ====================================
+// SYSTEM CONFIGURATION
+// ====================================
+
+Table system_settings {
+  id int [pk, increment]
+  setting_key varchar(100) [unique, not null, note: 'Configuration key']
+  setting_value text [note: 'Configuration value']
+  setting_type varchar(20) [default: 'string', note: 'Value type (string, number, boolean, json)']
+  description text [note: 'Setting description and purpose']
+  updated_by int [note: '🔗 Admin who last updated setting']
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  Note: '⚙️ SYSTEM CONFIG - Application settings and preferences'
+}
+
+// ====================================
+// LEGACY COMPATIBILITY TABLES
+// ====================================
+
+Table sessions {
+  id int [pk, increment]
+  enrollment_id int [not null, note: '🔗 Associated enrollment']
+  session_date date [not null, note: 'Date of session']
+  start_time time [not null, note: 'Session start time']
+  end_time time [not null, note: 'Session end time']
+  status varchar(20) [default: 'scheduled', note: 'Session status']
+  notes text [note: 'Session notes and observations']
+  student_attended boolean [default: false, note: 'Student attendance flag']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: '📅 LEGACY SESSIONS - Traditional session tracking (being replaced by Jitsi)'
+}
+
+// ========================================
+// VISUAL RELATIONSHIP MAP
+// ========================================
+
+// 🔗 EXPLICIT RELATIONSHIP DEFINITIONS
+// Organized to minimize visual overlap and improve navigation
+
+// === CORE USER RELATIONSHIPS (Hub Pattern) ===
+Ref: users.id < student_profiles.user_id [delete: cascade]
+Ref: users.id < parent_profiles.student_user_id [delete: cascade]
+Ref: users.id < tutor_profiles.user_id [delete: cascade]
+
+// === ACADEMIC FLOW (Left to Right) ===
+Ref: programs.id < enrollments.program_id [delete: cascade]
+Ref: users.id < enrollments.student_user_id [delete: cascade]
+Ref: users.id < enrollments.tutor_user_id [delete: set null]
+
+// === LEARNING MATERIALS CHAIN ===
+Ref: programs.id < program_materials.program_id [delete: cascade]
+Ref: users.id < program_materials.created_by [delete: restrict]
+Ref: file_uploads.id < program_materials.file_upload_id [delete: cascade]
+
+// === SUBMISSION WORKFLOWS ===
+Ref: program_materials.id < assignment_submissions.assignment_id [delete: cascade]
+Ref: users.id < assignment_submissions.student_id [delete: cascade]
+Ref: users.id < assignment_submissions.graded_by [delete: set null]
+Ref: file_uploads.id < assignment_submissions.file_upload_id [delete: set null]
+
+Ref: program_materials.id < assessment_submissions.assessment_id [delete: cascade]
+Ref: users.id < assessment_submissions.student_id [delete: cascade]
+Ref: users.id < assessment_submissions.graded_by [delete: set null]
+Ref: file_uploads.id < assessment_submissions.file_upload_id [delete: set null]
+
+// === PAYMENT PROCESSING CHAIN ===
+Ref: enrollments.id < payments.enrollment_id [delete: cascade]
+Ref: users.id < payments.validated_by [delete: set null]
+Ref: payments.id < payment_attachments.payment_id [delete: cascade]
+
+// === LIVE SESSIONS FLOW ===
+Ref: programs.id < jitsi_meetings.program_id [delete: cascade]
+Ref: users.id < jitsi_meetings.tutor_id [delete: cascade]
+Ref: jitsi_meetings.id < jitsi_participants.meeting_id [delete: cascade]
+Ref: users.id < jitsi_participants.user_id [delete: cascade]
+
+// === FILE MANAGEMENT ===
+Ref: users.id < file_uploads.user_id [delete: cascade]
+
+// === COMMUNICATION & SECURITY ===
+Ref: users.id < notifications.user_id [delete: cascade]
+Ref: users.id < activity_logs.user_id [delete: cascade]
+Ref: users.id < password_resets.user_id [delete: cascade]
+Ref: users.id < system_settings.updated_by [delete: set null]
+
+// === LEGACY SYSTEM ===
+Ref: enrollments.id < sessions.enrollment_id [delete: cascade]
+
+// ========================================
+// TABLE GROUPS FOR OPTIMAL VISUAL LAYOUT
+// ========================================
+
+TableGroup "👤 User Management" {
+  users
+  student_profiles
+  parent_profiles
+  tutor_profiles
+  login_attempts
+}
+
+TableGroup "📚 Academic Core" {
+  programs
+  enrollments
+  program_materials
+}
+
+TableGroup "📝 Submissions & Grading" {
+  assignment_submissions
+  assessment_submissions
+}
+
+TableGroup "💰 Financial Management" {
+  payments
+  payment_attachments
+}
+
+TableGroup "🎥 Virtual Sessions" {
+  jitsi_meetings
+  jitsi_participants
+  sessions
+}
+
+TableGroup "📁 Infrastructure" {
+  file_uploads
+  notifications
+  activity_logs
+  password_resets
+  system_settings
+}
+
+// ========================================
+// RELATIONSHIP DOCUMENTATION & LAYOUT GUIDE
+// ========================================
+
+// 📐 OPTIMAL LAYOUT STRATEGY:
+// 
+// 1. CENTRAL HUB: Place 'users' table in the center
+// 2. LEFT SIDE: User profiles (student_profiles, parent_profiles, tutor_profiles)
+// 3. RIGHT SIDE: Academic flow (programs → enrollments → materials)
+// 4. BOTTOM LEFT: Payment system (payments, payment_attachments)
+// 5. BOTTOM RIGHT: Live sessions (jitsi_meetings, jitsi_participants)
+// 6. TOP: Infrastructure tables (file_uploads, notifications, logs)
+// 
+// 🔗 RELATIONSHIP FLOW PATTERNS:
+//
+// 👤 USER HUB PATTERN:
+//    users (center) → all profile tables (left)
+//    users (center) → enrollments (right)
+//    users (center) → notifications/logs (top)
+//
+// 📚 ACADEMIC PIPELINE (LEFT-TO-RIGHT):
+//    programs → enrollments → payments
+//    programs → program_materials → submissions
+//
+// 💰 PAYMENT CHAIN (BOTTOM):
+//    enrollments → payments → payment_attachments
+//
+// 🎥 SESSION MANAGEMENT (BOTTOM-RIGHT):
+//    programs → jitsi_meetings → jitsi_participants
+//
+// 📁 FILE ECOSYSTEM (TOP):
+//    users → file_uploads → program_materials
+//    file_uploads → submission tables
+//
+// � TECHNICAL NOTES:
+//    - DELETE CASCADE: Parent-child relationships
+//    - SET NULL: Optional references (tutors, graders)
+//    - RESTRICT: Audit trail preservation (creators)
+//    - Unique constraints prevent data duplication
+//    - Indexes optimize query performance

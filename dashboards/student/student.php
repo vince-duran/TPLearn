@@ -27,14 +27,15 @@ $student_data = array_merge([
   'overall_progress' => 0,
   'enrolled_programs' => 0,
   'sessions_today' => 0,
-  'unread_messages' => 0
+  'pending_payments' => 0,
+  'overdue_payments' => 0
 ], $student_data);
 
 // Get available programs for student
 $programs = getStudentPrograms($user_id);
 
-// Get recent activities/sessions for student
-$activities = getStudentRecentActivities($user_id, 8);
+// Get upcoming assessments/assignments for student
+$upcoming_items = getStudentUpcomingAssessments($user_id, 8);
 
 ?>
 <!DOCTYPE html>
@@ -133,15 +134,8 @@ $activities = getStudentRecentActivities($user_id, 8);
     <!-- Main Content -->
     <div class="lg:ml-64 flex-1">
       <?php 
-      require_once '../../includes/header.php';
-      renderHeader(
-        'Student Dashboard',
-        '',
-        'student',
-        $student_data['name'] ?? 'Student',
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
-      );
+      require_once '../../includes/student-header-standard.php';
+      renderStudentHeader('Student Dashboard', 'Welcome to your learning portal');
       ?>
 
       <!-- Main Content Area -->
@@ -171,47 +165,62 @@ $activities = getStudentRecentActivities($user_id, 8);
             $first_name = explode(' ', $student_data['name'])[0];
             ?>
             <h2 class="text-3xl font-bold mb-2">Good <?php echo $greeting; ?>, <?php echo htmlspecialchars($first_name); ?>!</h2>
-            <p class="text-white/90">You have <?php echo $student_data['sessions_today']; ?> session today and <?php echo $student_data['unread_messages']; ?> unread messages.</p>
+            <p class="text-white/90">You have <?php echo $student_data['sessions_today']; ?> session today and <?php echo $student_data['pending_payments']; ?> pending payments.</p>
           </div>
         </div>
         <!-- Stats Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <!-- Enrolled Programs -->
           <div class="stat-card p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div class="p-3 bg-green-100 rounded-lg">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600">Enrolled Programs</p>
+                <p class="text-3xl font-bold text-gray-900" id="enrolled-programs"><?php echo $student_data['enrolled_programs']; ?></p>
+              </div>
+              <div class="bg-green-100 p-3 rounded-full">
                 <?= statusIcon('check-circle', 'success', 'lg') ?>
               </div>
-              <span class="text-sm text-green-600 font-medium">Active</span>
             </div>
-            <h3 class="text-2xl font-bold text-gray-900 mb-1" id="enrolled-programs"><?php echo $student_data['enrolled_programs']; ?></h3>
-            <p class="text-gray-600 text-sm">Enrolled Programs</p>
           </div>
 
           <!-- Sessions Today -->
           <div class="stat-card p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div class="p-3 bg-blue-100 rounded-lg">
-                <?= icon('clock', 'w-6 h-6 text-blue-600') ?>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600">Sessions Today</p>
+                <p class="text-3xl font-bold text-gray-900" id="sessions-today"><?php echo $student_data['sessions_today']; ?></p>
               </div>
-              <span class="text-sm text-blue-600 font-medium">Today</span>
+              <div class="bg-blue-100 p-3 rounded-full">
+                <?= icon('clock', 'lg text-blue-600') ?>
+              </div>
             </div>
-            <h3 class="text-2xl font-bold text-gray-900 mb-1" id="sessions-today"><?php echo $student_data['sessions_today']; ?></h3>
-            <p class="text-gray-600 text-sm">Sessions Today</p>
           </div>
 
-          <!-- Unread Messages -->
-          <div class="stat-card p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div class="p-3 bg-purple-100 rounded-lg">
-                <?= icon('envelope', 'w-6 h-6 text-purple-600') ?>
+          <!-- Pending Payments -->
+          <div class="stat-card p-6 cursor-pointer" onclick="window.location.href='student-payments.php'">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600">Pending Payments</p>
+                <p class="text-3xl font-bold text-gray-900" id="pending-payments"><?php echo $student_data['pending_payments']; ?></p>
               </div>
-              <span class="text-sm text-purple-600 font-medium">New</span>
+              <div class="bg-orange-100 p-3 rounded-full">
+                <?= icon('credit-card', 'lg text-orange-600') ?>
+              </div>
             </div>
-            <h3 class="text-2xl font-bold text-gray-900 mb-1" id="unread-messages"><?php echo $student_data['unread_messages']; ?></h3>
-            <p class="text-gray-600 text-sm">Unread Messages</p>
           </div>
 
+          <!-- Overdue Payments -->
+          <div class="stat-card p-6 cursor-pointer" onclick="window.location.href='student-payments.php'">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600">Overdue Payments</p>
+                <p class="text-3xl font-bold text-gray-900" id="overdue-payments"><?php echo $student_data['overdue_payments']; ?></p>
+              </div>
+              <div class="bg-red-100 p-3 rounded-full">
+                <?= icon('exclamation-triangle', 'lg text-red-600') ?>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Programs and Activities Row -->
@@ -271,55 +280,63 @@ $activities = getStudentRecentActivities($user_id, 8);
             </div>
           </div>
 
-          <!-- Recent Activities -->
+          <!-- Upcoming Assessment/Assignment -->
           <div class="lg:col-span-1">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="p-6 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900">Recent Activities</h3>
+                <h3 class="text-lg font-semibold text-gray-900">Upcoming Assessment/Assignment</h3>
               </div>
-              <div class="divide-y divide-gray-200" id="activities-container">
-                <?php if (empty($activities)): ?>
+              <div class="divide-y divide-gray-200" id="upcoming-container">
+                <?php if (empty($upcoming_items)): ?>
                   <div class="p-6 text-center text-gray-500">
                     <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
-                    <p>No recent activities</p>
-                    <p class="text-sm">Your activities will appear here</p>
+                    <p>No upcoming items</p>
+                    <p class="text-sm">Your assignments and assessments will appear here</p>
                   </div>
                 <?php else: ?>
-                  <?php foreach ($activities as $activity): ?>
+                  <?php foreach ($upcoming_items as $item): ?>
                     <div class="activity-item">
                       <div class="flex-shrink-0 mr-3">
-                        <?php if ($activity['icon'] === 'academic-cap'): ?>
+                        <?php if ($item['icon'] === 'clipboard-document-check'): ?>
                           <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                           </div>
-                        <?php elseif ($activity['icon'] === 'video-camera'): ?>
+                        <?php elseif ($item['icon'] === 'document-text'): ?>
                           <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                            <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
-                            </svg>
-                          </div>
-                        <?php elseif ($activity['icon'] === 'trophy'): ?>
-                          <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                            <svg class="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
                           </div>
                         <?php else: ?>
                           <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                            <svg class="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
-                              <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+                            <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
                           </div>
                         <?php endif; ?>
                       </div>
                       <div class="flex-1 min-w-0">
-                        <p class="text-sm text-gray-900 font-medium"><?php echo $activity['message']; ?></p>
-                        <p class="text-xs text-gray-500"><?php echo $activity['time']; ?></p>
+                        <div class="flex items-center justify-between mb-1">
+                          <p class="text-sm text-gray-900 font-medium"><?php echo htmlspecialchars($item['type'] . ': ' . $item['title']); ?></p>
+                          <?php
+                          // Determine submission status tag color and text
+                          $status_class = match($item['submission_status']) {
+                            'submitted' => 'bg-green-100 text-green-800',
+                            'draft' => 'bg-yellow-100 text-yellow-800', 
+                            'in_progress' => 'bg-blue-100 text-blue-800',
+                            default => 'bg-gray-100 text-gray-800'
+                          };
+                          ?>
+                          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium <?php echo $status_class; ?>">
+                            <?php echo htmlspecialchars($item['submission_display']); ?>
+                          </span>
+                        </div>
+                        <p class="text-xs text-gray-600"><?php echo htmlspecialchars($item['program']); ?></p>
+                        <p class="text-xs <?php echo strpos($item['time'], 'Overdue') !== false ? 'text-red-500 font-medium' : 'text-gray-500'; ?>"><?php echo htmlspecialchars($item['time']); ?></p>
                       </div>
                     </div>
                   <?php endforeach; ?>
@@ -362,62 +379,25 @@ $activities = getStudentRecentActivities($user_id, 8);
       overlay.addEventListener('click', closeMobileMenu);
     }
 
-    // Notification functions
-    function openNotifications() {
-      const modal = document.createElement('div');
-      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-      modal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold">Notifications</h3>
-            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-          <div class="space-y-3">
-            <div class="p-3 bg-blue-50 rounded-lg">
-              <p class="text-sm text-blue-800">New assignment posted in Math Excellence</p>
-              <p class="text-xs text-blue-600 mt-1">1 hour ago</p>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
+    // Notification dropdown functions
+    function toggleNotificationDropdown() {
+      const dropdown = document.getElementById('notification-dropdown');
+      if (dropdown) {
+        dropdown.classList.toggle('hidden');
+      }
     }
 
-    function openMessages() {
-      const modal = document.createElement('div');
-      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-      modal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold">Messages</h3>
-            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-          <div class="space-y-3">
-            <div class="p-3 bg-gray-50 rounded-lg">
-              <p class="text-sm text-gray-800">Message from Mark Santos about your progress</p>
-              <p class="text-xs text-gray-600 mt-1">2 hours ago</p>
-            </div>
-            <div class="p-3 bg-gray-50 rounded-lg">
-              <p class="text-sm text-gray-800">Reminder: English Literature session tomorrow</p>
-              <p class="text-xs text-gray-600 mt-1">5 hours ago</p>
-            </div>
-            <div class="p-3 bg-gray-50 rounded-lg">
-              <p class="text-sm text-gray-800">Payment confirmation for Math Excellence program</p>
-              <p class="text-xs text-gray-600 mt-1">1 day ago</p>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-    }
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(event) {
+      const notificationDropdown = document.getElementById('notification-dropdown');
+      const notificationButton = event.target.closest('button[onclick="toggleNotificationDropdown()"]');
+      
+      if (notificationDropdown && !notificationButton && !notificationDropdown.contains(event.target)) {
+        notificationDropdown.classList.add('hidden');
+      }
+    });
+
+
 
     // Close modal when clicking outside
     document.addEventListener('click', function(event) {

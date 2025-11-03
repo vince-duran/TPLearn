@@ -1,0 +1,796 @@
+// TPLearn Database Schema - Complete ERD for dbdiagram.io
+// Copy and paste this code into https://dbdiagram.io/d to generate the visual ERD
+// Created: October 15, 2025 - Complete System Analysis
+// Updated with all discovered tables including Jitsi meetings, email verification, and communication systems
+
+Project TPLearn {
+  database_type: 'MySQL'
+  Note: '''
+    TPLearn - Tisa at Pisara's Academic and Tutorial Services
+    Complete Learning Management System Database Schema
+    
+    This comprehensive database supports:
+    - User management with role-based access control (Admin, Tutor, Student)
+    - Program management and student enrollment
+    - Assessment and assignment delivery system
+    - Payment processing with installment support
+    - File management and document storage
+    - Live session management with Jitsi Meet integration
+    - Communication and messaging system
+    - Email verification and security features
+    - Attendance tracking and reporting
+    - System administration and audit logging
+    
+    User ID Format: TP[A/T/S]YYYY-XXX
+    - TP = Tisa and Pisara (organization)
+    - A/T/S = Admin/Tutor/Student (role)
+    - YYYY = Year created
+    - XXX = 3 random digits for uniqueness
+  '''
+}
+
+// ====================================
+// CORE USER MANAGEMENT TABLES
+// ====================================
+
+Table users {
+  id int [pk, increment, note: 'Primary key for internal references']
+  user_id varchar(20) [unique, not null, note: 'Structured ID: TP[A/T/S]YYYY-XXX']
+  username varchar(50) [unique, not null, note: 'Unique username for login']
+  email varchar(100) [unique, not null, note: 'Unique email address']
+  password varchar(255) [not null, note: 'Hashed password using PHP password_hash()']
+  role user_role [default: 'student', note: 'User role for access control']
+  status user_status [default: 'active', note: 'Account status']
+  email_verified tinyint(1) [default: 0, note: 'Email verification status']
+  created_at timestamp [default: `current_timestamp()`, note: 'Account creation timestamp']
+  updated_at timestamp [default: `current_timestamp()`, note: 'Last modification timestamp']
+  last_login timestamp [null, note: 'Last successful login']
+  
+  indexes {
+    (user_id) [unique, name: 'idx_user_id']
+    (username) [unique, name: 'idx_username']
+    (email) [unique, name: 'idx_email']
+    (role) [name: 'idx_role']
+    (status) [name: 'idx_status']
+    (email_verified) [name: 'idx_email_verified']
+    (created_at) [name: 'idx_created_at']
+  }
+  
+  Note: 'Central authentication table with structured user IDs and email verification'
+}
+
+Table student_profiles {
+  id int [pk, increment]
+  user_id int [ref: > users.id, not null, note: 'Student user reference']
+  first_name varchar(50) [not null, note: 'Student first name']
+  last_name varchar(50) [not null, note: 'Student last name']
+  middle_name varchar(50) [note: 'Student middle name']
+  birthday date [note: 'Date of birth']
+  age int [note: 'Calculated age']
+  is_pwd boolean [default: false, note: 'Person with disability flag']
+  address text [note: 'Home address']
+  medical_notes text [note: 'Special medical considerations']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (first_name, last_name) [unique, name: 'unique_student_fullname']
+    (first_name, last_name) [name: 'idx_full_name']
+    (first_name) [name: 'idx_first_name']
+    (last_name) [name: 'idx_last_name']
+  }
+  
+  Note: 'Extended profile information for student users with duplicate name prevention'
+}
+
+Table tutor_profiles {
+  id int [pk, increment]
+  user_id int [ref: > users.id, not null, note: 'Tutor user reference']
+  first_name varchar(50) [not null, note: 'Tutor first name']
+  last_name varchar(50) [not null, note: 'Tutor last name']
+  specializations text [note: 'Teaching specialization areas']
+  bio text [note: 'Professional biography']
+  contact_number varchar(20) [note: 'Direct contact number']
+  address text [note: 'Home address']
+  hourly_rate decimal(10,2) [note: 'Hourly teaching rate']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (first_name, last_name) [unique, name: 'unique_tutor_fullname']
+    (first_name, last_name) [name: 'idx_full_name']
+    (first_name) [name: 'idx_first_name']
+    (last_name) [name: 'idx_last_name']
+  }
+  
+  Note: 'Extended profile information for tutor users with qualifications'
+}
+
+Table parent_profiles {
+  id int [pk, increment]
+  student_user_id int [ref: > users.id, not null, note: 'Associated student']
+  full_name varchar(100) [not null, note: 'Parent/Guardian full name']
+  facebook_name varchar(100) [note: 'Facebook profile name']
+  contact_number varchar(20) [not null, note: 'Parent contact number']
+  address text [note: 'Parent address']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Parent/Guardian information for student accounts'
+}
+
+// ====================================
+// PROGRAM MANAGEMENT TABLES
+// ====================================
+
+Table programs {
+  id int [pk, increment]
+  name varchar(100) [not null, note: 'Program title']
+  description text [note: 'Detailed program description']
+  duration_weeks int [note: 'Program duration in weeks']
+  fee decimal(10,2) [note: 'Total program fee']
+  status program_status [default: 'active', note: 'Program availability status']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Educational programs offered by the system'
+}
+
+Table program_materials {
+  id int [pk, increment]
+  program_id int [ref: > programs.id, not null, note: 'Associated program']
+  title varchar(255) [not null, note: 'Material title']
+  description text [note: 'Material description']
+  material_type material_type_enum [not null, note: 'Type of material']
+  content text [note: 'Material content']
+  order_number int [default: 0, note: 'Display order']
+  is_required boolean [default: true, note: 'Required material flag']
+  due_days int [note: 'Days after enrollment to complete']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (program_id, order_number) [name: 'idx_program_order']
+    (material_type) [name: 'idx_material_type']
+  }
+  
+  Note: 'Learning materials and assignments for programs'
+}
+
+Table program_sessions {
+  id int [pk, increment]
+  program_id int [ref: > programs.id, not null, note: 'Associated program']
+  title varchar(255) [not null, note: 'Session title']
+  description text [note: 'Session description']
+  session_number int [not null, note: 'Session sequence number']
+  duration_minutes int [default: 60, note: 'Session duration']
+  learning_objectives text [note: 'Learning objectives']
+  materials_needed text [note: 'Required materials']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (program_id, session_number) [unique, name: 'unique_program_session']
+  }
+  
+  Note: 'Structured learning sessions within programs'
+}
+
+// ====================================
+// ENROLLMENT MANAGEMENT TABLES
+// ====================================
+
+Table enrollments {
+  id int [pk, increment]
+  student_user_id int [ref: > users.id, not null, note: 'Enrolled student']
+  program_id int [ref: > programs.id, not null, note: 'Program reference']
+  tutor_user_id int [ref: > users.id, note: 'Assigned tutor']
+  enrollment_date date [not null, note: 'Date of enrollment']
+  start_date date [note: 'Actual program start date']
+  end_date date [note: 'Actual program end date']
+  status enrollment_status [default: 'pending', note: 'Enrollment status']
+  total_fee decimal(10,2) [note: 'Total amount due']
+  notes text [note: 'Additional enrollment notes']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Student enrollment records linking students to programs'
+}
+
+Table sessions {
+  id int [pk, increment]
+  program_id int [ref: > programs.id, not null, note: 'Associated program']
+  session_date date [not null, note: 'Session date']
+  start_time time [note: 'Session start time']
+  end_time time [note: 'Session end time']
+  status session_status [default: 'scheduled', note: 'Session status']
+  topic varchar(255) [note: 'Session topic']
+  notes text [note: 'Session notes']
+  tutor_user_id int [ref: > users.id, note: 'Session tutor']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (program_id, session_date) [unique, name: 'unique_session']
+    (program_id, session_date) [name: 'idx_sessions_program_date']
+  }
+  
+  Note: 'Individual learning sessions for tracking and scheduling'
+}
+
+Table attendance {
+  id int [pk, increment]
+  session_id int [ref: > sessions.id, not null, note: 'Associated session']
+  student_user_id int [ref: > users.id, not null, note: 'Student attendee']
+  status attendance_status [default: 'absent', note: 'Attendance status']
+  arrival_time time [note: 'When student arrived']
+  notes text [note: 'Attendance notes']
+  marked_by int [ref: > users.id, not null, note: 'Tutor who marked attendance']
+  marked_at timestamp [default: `current_timestamp()`, note: 'When attendance was recorded']
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (session_id, student_user_id) [unique, name: 'unique_attendance']
+    (session_id) [name: 'idx_attendance_session']
+    (student_user_id) [name: 'idx_attendance_student']
+    (status) [name: 'idx_attendance_status']
+  }
+  
+  Note: 'Detailed attendance tracking for sessions'
+}
+
+// ====================================
+// LIVE SESSION MANAGEMENT (JITSI)
+// ====================================
+
+Table jitsi_meetings {
+  id int [pk, increment]
+  program_id int [ref: > programs.id, not null, note: 'Associated program']
+  tutor_id int [ref: > users.id, not null, note: 'Meeting host tutor']
+  meeting_id varchar(255) [unique, not null, note: 'Jitsi meeting identifier']
+  meeting_url varchar(500) [not null, note: 'Full Jitsi meeting URL']
+  title varchar(255) [not null, note: 'Meeting title']
+  description text [note: 'Meeting description']
+  scheduled_date date [not null, note: 'Meeting date']
+  scheduled_time time [not null, note: 'Meeting start time']
+  duration_minutes int [default: 60, note: 'Meeting duration']
+  status meeting_status [default: 'scheduled', note: 'Meeting status']
+  max_participants int [default: 50, note: 'Maximum attendees']
+  is_recorded boolean [default: false, note: 'Recording flag']
+  meeting_password varchar(100) [note: 'Meeting password']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (program_id, scheduled_date) [name: 'idx_program_date']
+    (tutor_id) [name: 'idx_tutor']
+    (status) [name: 'idx_status']
+    (meeting_id) [unique, name: 'idx_meeting_id']
+  }
+  
+  Note: 'Jitsi Meet integration for live online sessions'
+}
+
+Table jitsi_participants {
+  id int [pk, increment]
+  meeting_id int [ref: > jitsi_meetings.id, not null, note: 'Associated meeting']
+  user_id int [ref: > users.id, not null, note: 'Participant user']
+  joined_at timestamp [default: `current_timestamp()`, note: 'Join time']
+  left_at timestamp [note: 'Leave time']
+  duration_minutes int [default: 0, note: 'Session duration']
+  status participant_status [default: 'no_show', note: 'Participation status']
+  
+  indexes {
+    (meeting_id, user_id) [unique, name: 'unique_meeting_user']
+    (meeting_id) [name: 'idx_meeting']
+    (user_id) [name: 'idx_user']
+  }
+  
+  Note: 'Track attendance and participation in live sessions'
+}
+
+// ====================================
+// ASSESSMENT SYSTEM TABLES
+// ====================================
+
+Table assignments {
+  id int [pk, increment]
+  program_id int [ref: > programs.id, not null, note: 'Associated program']
+  material_id int [ref: > program_materials.id, not null, note: 'Associated material']
+  title varchar(255) [not null, note: 'Assignment title']
+  description text [note: 'Assignment description']
+  instructions text [note: 'Detailed instructions']
+  max_score int [default: 100, note: 'Maximum points']
+  passing_score int [default: 60, note: 'Minimum passing score']
+  due_date date [note: 'Submission deadline']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (due_date) [name: 'idx_due_date']
+  }
+  
+  Note: 'Assignment definitions with scoring criteria'
+}
+
+Table assignment_submissions {
+  id int [pk, increment]
+  assignment_id int [ref: > assignments.id, not null, note: 'Associated assignment']
+  student_user_id int [ref: > users.id, not null, note: 'Submitting student']
+  enrollment_id int [ref: > enrollments.id, not null, note: 'Associated enrollment']
+  submission_text text [note: 'Text submission content']
+  submission_date timestamp [default: `current_timestamp()`, note: 'Submission timestamp']
+  status submission_status [default: 'draft', note: 'Submission status']
+  score int [note: 'Assigned score']
+  feedback text [note: 'Instructor feedback']
+  graded_by int [ref: > users.id, note: 'Grader reference']
+  graded_at timestamp [note: 'Grading timestamp']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (status, submission_date) [name: 'idx_status_date']
+  }
+  
+  Note: 'Student assignment submissions with grading workflow'
+}
+
+Table material_assessments {
+  id int [pk, increment]
+  material_id int [ref: > program_materials.id, not null, note: 'Associated material']
+  student_user_id int [ref: > users.id, not null, note: 'Student reference']
+  enrollment_id int [ref: > enrollments.id, not null, note: 'Associated enrollment']
+  status completion_status [default: 'not_started', note: 'Completion status']
+  completion_date timestamp [note: 'Completion timestamp']
+  notes text [note: 'Progress notes']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (material_id, student_user_id, enrollment_id) [unique, name: 'unique_assessment']
+  }
+  
+  Note: 'Material completion tracking for students'
+}
+
+Table assessment_submissions {
+  id int [pk, increment]
+  material_id int [ref: > program_materials.id, not null, note: 'Associated material']
+  student_user_id int [ref: > users.id, not null, note: 'Submitting student']
+  enrollment_id int [ref: > enrollments.id, not null, note: 'Associated enrollment']
+  submission_type submission_type_enum [not null, note: 'Submission format']
+  submission_content text [not null, note: 'Submission content']
+  submitted_at timestamp [default: `current_timestamp()`]
+  status submission_review_status [default: 'pending', note: 'Review status']
+  feedback text [note: 'Instructor feedback']
+  reviewed_by int [ref: > users.id, note: 'Reviewer reference']
+  reviewed_at timestamp [note: 'Review timestamp']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (status, submitted_at) [name: 'idx_status_date']
+  }
+  
+  Note: 'General material submissions and reviews'
+}
+
+Table grades {
+  id int [pk, increment]
+  enrollment_id int [ref: > enrollments.id, not null, note: 'Associated enrollment']
+  student_user_id int [ref: > users.id, not null, note: 'Student reference']
+  assignment_id int [ref: > assignments.id, not null, note: 'Graded assignment']
+  score decimal(5,2) [not null, note: 'Raw score achieved']
+  max_score decimal(5,2) [not null, note: 'Maximum possible score']
+  percentage decimal(5,2) [note: 'Calculated percentage (GENERATED)']
+  notes text [note: 'Grading notes']
+  graded_by int [ref: > users.id, not null, note: 'Grader reference']
+  created_at timestamp [default: `current_timestamp()`]
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (enrollment_id, student_user_id) [name: 'idx_enrollment_student']
+  }
+  
+  Note: 'Gradebook entries with calculated percentages'
+}
+
+// ====================================
+// PAYMENT MANAGEMENT TABLES
+// ====================================
+
+Table payments {
+  id int [pk, increment]
+  enrollment_id int [ref: > enrollments.id, not null, note: 'Associated enrollment']
+  amount decimal(10,2) [not null, note: 'Payment amount']
+  payment_date date [not null, note: 'Date payment was made']
+  payment_method payment_method_enum [default: 'cash', note: 'Payment method used']
+  reference_number varchar(100) [note: 'Transaction reference']
+  status payment_status [default: 'pending', note: 'Payment validation status']
+  notes text [note: 'Payment notes']
+  installment_number int [note: 'Installment sequence number']
+  total_installments int [note: 'Total planned installments']
+  validated_by int [ref: > users.id, note: 'Admin who validated payment']
+  validated_at timestamp [note: 'Validation timestamp']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Payment transactions with installment support'
+}
+
+Table payment_attachments {
+  id int [pk, increment]
+  payment_id int [ref: > payments.id, not null, note: 'Associated payment']
+  filename varchar(255) [not null, note: 'System filename']
+  original_name varchar(255) [not null, note: 'Original filename']
+  file_size int [not null, note: 'File size in bytes']
+  mime_type varchar(100) [not null, note: 'File MIME type']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Payment receipt and proof attachments'
+}
+
+// ====================================
+// FILE AND COMMUNICATION TABLES
+// ====================================
+
+Table file_uploads {
+  id int [pk, increment]
+  user_id int [ref: > users.id, not null, note: 'File uploader']
+  filename varchar(255) [not null, note: 'System filename']
+  original_filename varchar(255) [not null, note: 'Original file name']
+  file_path varchar(500) [not null, note: 'Storage path']
+  file_size int [not null, note: 'File size in bytes']
+  mime_type varchar(100) [not null, note: 'File MIME type']
+  upload_type upload_type_enum [default: 'document', note: 'Upload category']
+  related_id int [note: 'Related entity ID']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (user_id, upload_type) [name: 'idx_user_type']
+    (related_id) [name: 'idx_related']
+  }
+  
+  Note: 'Centralized file management with metadata'
+}
+
+Table communication_history {
+  id int [pk, increment]
+  sender_user_id int [ref: > users.id, not null, note: 'Message sender']
+  recipient_user_id int [ref: > users.id, not null, note: 'Message recipient']
+  message_type varchar(50) [default: 'general', note: 'Message category']
+  subject varchar(255) [not null, note: 'Message subject']
+  content text [not null, note: 'Message content']
+  sent_at timestamp [default: `current_timestamp()`, note: 'Send timestamp']
+  read_at timestamp [note: 'Read timestamp']
+  
+  indexes {
+    (sender_user_id) [name: 'idx_sender']
+    (recipient_user_id) [name: 'idx_recipient']
+    (sent_at) [name: 'idx_sent_at']
+  }
+  
+  Note: 'Internal messaging system between users'
+}
+
+Table notifications {
+  id int [pk, increment]
+  user_id int [ref: > users.id, not null, note: 'Notification recipient']
+  title varchar(255) [not null, note: 'Notification title']
+  message text [not null, note: 'Notification content']
+  type notification_type [default: 'info', note: 'Notification type']
+  is_read boolean [default: false, note: 'Read status']
+  action_url varchar(500) [note: 'Action link URL']
+  created_at timestamp [default: `current_timestamp()`]
+  read_at timestamp [note: 'Read timestamp']
+  
+  indexes {
+    (user_id, is_read) [name: 'idx_user_read']
+    (created_at) [name: 'idx_created_at']
+  }
+  
+  Note: 'System notifications and alerts'
+}
+
+// ====================================
+// SECURITY AND AUTHENTICATION TABLES
+// ====================================
+
+Table email_verifications {
+  id int [pk, increment]
+  user_id int [ref: > users.id, not null, note: 'User being verified']
+  email varchar(255) [not null, note: 'Email to verify']
+  token varchar(64) [unique, not null, note: 'Verification token']
+  expires_at datetime [not null, note: 'Token expiration']
+  verified_at datetime [note: 'Verification timestamp']
+  created_at datetime [default: `current_timestamp()`]
+  
+  indexes {
+    (token) [unique, name: 'idx_token']
+    (email) [name: 'idx_email']
+    (expires_at) [name: 'idx_expires']
+  }
+  
+  Note: 'Email verification system for user registration'
+}
+
+Table password_resets {
+  id int [pk, increment]
+  user_id int [ref: > users.id, not null, note: 'User requesting reset']
+  token varchar(255) [not null, note: 'Reset token']
+  expires_at timestamp [not null, note: 'Token expiration']
+  used_at timestamp [note: 'Token usage timestamp']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (token) [name: 'idx_token']
+    (expires_at) [name: 'idx_expires']
+  }
+  
+  Note: 'Password reset token management'
+}
+
+Table login_attempts {
+  id int [pk, increment]
+  username varchar(100) [unique, not null, note: 'Login username']
+  attempts int [default: 1, note: 'Failed attempt count']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Failed login attempt tracking for security'
+}
+
+Table activity_logs {
+  id int [pk, increment]
+  user_id int [ref: > users.id, not null, note: 'User performing action']
+  action varchar(100) [not null, note: 'Action performed']
+  details text [note: 'Action details']
+  ip_address varchar(45) [note: 'User IP address']
+  user_agent text [note: 'Browser user agent']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  indexes {
+    (user_id, action) [name: 'idx_user_action']
+    (created_at) [name: 'idx_created_at']
+  }
+  
+  Note: 'System activity and audit logging'
+}
+
+// ====================================
+// SYSTEM ADMINISTRATION TABLES
+// ====================================
+
+Table system_settings {
+  id int [pk, increment]
+  setting_key varchar(100) [unique, not null, note: 'Setting identifier']
+  setting_value text [note: 'Setting value']
+  setting_type setting_type_enum [default: 'string', note: 'Value data type']
+  description text [note: 'Setting description']
+  updated_by int [ref: > users.id, note: 'Last updater']
+  updated_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'System configuration and settings'
+}
+
+// ====================================
+// ENUMS DEFINITION
+// ====================================
+
+Enum user_role {
+  admin
+  tutor
+  student
+}
+
+Enum user_status {
+  active
+  inactive
+  pending
+}
+
+Enum program_status {
+  active
+  inactive
+}
+
+Enum enrollment_status {
+  pending
+  active
+  completed
+  cancelled
+}
+
+Enum session_status {
+  scheduled
+  ongoing
+  completed
+  cancelled
+}
+
+Enum attendance_status {
+  present
+  absent
+  late
+  excused
+}
+
+Enum meeting_status {
+  scheduled
+  active
+  completed
+  cancelled
+}
+
+Enum participant_status {
+  joined
+  left
+  kicked
+  no_show
+}
+
+Enum payment_method_enum {
+  cash
+  gcash
+  bank_transfer
+  bpi
+  seabank
+  other
+}
+
+Enum payment_status {
+  pending
+  validated
+  rejected
+}
+
+Enum material_type_enum {
+  document
+  video
+  quiz
+  assignment
+}
+
+Enum submission_status {
+  draft
+  submitted
+  graded
+  returned
+}
+
+Enum submission_type_enum {
+  text
+  file
+  link
+}
+
+Enum submission_review_status {
+  pending
+  approved
+  rejected
+}
+
+Enum completion_status {
+  not_started
+  in_progress
+  completed
+}
+
+Enum upload_type_enum {
+  profile_photo
+  document
+  payment_proof
+  assignment
+}
+
+Enum notification_type {
+  info
+  success
+  warning
+  error
+}
+
+Enum setting_type_enum {
+  string
+  number
+  boolean
+  json
+}
+
+// ====================================
+// TABLE RELATIONSHIPS SUMMARY
+// ====================================
+
+// User Management Relationships
+// users -> student_profiles (1:1)
+// users -> tutor_profiles (1:1)
+// users -> parent_profiles (1:many via student_user_id)
+
+// Program Management Relationships
+// programs -> program_materials (1:many)
+// programs -> program_sessions (1:many)
+// programs -> enrollments (1:many)
+
+// Enrollment & Sessions Relationships
+// enrollments -> sessions (via program_id)
+// sessions -> attendance (1:many)
+// enrollments -> assignment_submissions (1:many)
+// enrollments -> material_assessments (1:many)
+
+// Assessment System Relationships
+// program_materials -> assignments (1:1 for assignment materials)
+// assignments -> assignment_submissions (1:many)
+// assignments -> grades (1:many)
+// program_materials -> assessment_submissions (1:many)
+// program_materials -> material_assessments (1:many)
+
+// Payment System Relationships
+// enrollments -> payments (1:many)
+// payments -> payment_attachments (1:many)
+
+// Live Session Relationships
+// programs -> jitsi_meetings (1:many)
+// jitsi_meetings -> jitsi_participants (1:many)
+// users -> jitsi_participants (1:many)
+
+// File & Communication Relationships
+// users -> file_uploads (1:many)
+// users -> communication_history (many:many via sender/recipient)
+// users -> notifications (1:many)
+
+// Security & Administration Relationships
+// users -> email_verifications (1:many)
+// users -> password_resets (1:many)
+// users -> activity_logs (1:many)
+// users -> system_settings (via updated_by)
+
+// ====================================
+// TABLE GROUPS FOR ORGANIZATION
+// ====================================
+
+TableGroup "User Management" {
+  users
+  student_profiles
+  tutor_profiles
+  parent_profiles
+}
+
+TableGroup "Program Management" {
+  programs
+  program_materials
+  program_sessions
+}
+
+TableGroup "Enrollment & Sessions" {
+  enrollments
+  sessions
+  attendance
+}
+
+TableGroup "Live Sessions (Jitsi)" {
+  jitsi_meetings
+  jitsi_participants
+}
+
+TableGroup "Assessment System" {
+  assignments
+  assignment_submissions
+  material_assessments
+  assessment_submissions
+  grades
+}
+
+TableGroup "Payment System" {
+  payments
+  payment_attachments
+}
+
+TableGroup "File & Communication" {
+  file_uploads
+  communication_history
+  notifications
+}
+
+TableGroup "Security & Authentication" {
+  email_verifications
+  password_resets
+  login_attempts
+  activity_logs
+}
+
+TableGroup "System Administration" {
+  system_settings
+}

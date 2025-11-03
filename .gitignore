@@ -14,8 +14,9 @@ config/database.php
 includes/db.php
 
 # Upload directories with user data
-uploads/
+uploads/*
 !uploads/.htaccess
+!uploads/*/
 
 # Logs
 *.log

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix MySQL XAMPP Error</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-red-900 via-orange-900 to-yellow-900 min-h-screen p-8">
+    <div class="max-w-5xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 mb-8">
+            <h1 class="text-5xl font-bold text-red-600 mb-4">🔧 Fix MySQL Error in XAMPP</h1>
+            <div class="bg-red-100 border-l-4 border-red-500 p-4 mb-6">
+                <p class="text-red-800 font-bold">Error: MySQL shutdown unexpectedly</p>
+                <p class="text-red-700 text-sm mt-1">This may be due to a blocked port, missing dependencies, improper privileges, a crash, or a shutdown by another method.</p>
+            </div>
+        </div>
+
+        <!-- Quick Fix -->
+        <div class="bg-green-50 border-4 border-green-500 rounded-xl p-8 mb-8 shadow-2xl">
+            <h2 class="text-3xl font-bold text-green-900 mb-4">⚡ QUICK FIX (Try This First)</h2>
+            <div class="space-y-4">
+                <div class="bg-white rounded-lg p-6">
+                    <h3 class="text-xl font-bold text-green-800 mb-3">Step 1: Stop Any Running MySQL Processes</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                        <li>Open <strong>Task Manager</strong> (Ctrl + Shift + Esc)</li>
+                        <li>Go to <strong>Details</strong> tab</li>
+                        <li>Look for <strong>mysqld.exe</strong> or <strong>mariadb.exe</strong></li>
+                        <li>Right-click → <strong>End Task</strong></li>
+                        <li>Close Task Manager</li>
+                    </ol>
+                </div>
+
+                <div class="bg-white rounded-lg p-6">
+                    <h3 class="text-xl font-bold text-green-800 mb-3">Step 2: Start MySQL in XAMPP</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                        <li>In XAMPP Control Panel, find <strong>MySQL</strong></li>
+                        <li>Make sure it's stopped (if not, click <strong>Stop</strong>)</li>
+                        <li>Wait 5 seconds</li>
+                        <li>Click <strong>Start</strong></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alternative Solutions -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-xl p-6">
+                <div class="bg-blue-600 text-white rounded-lg p-4 mb-4">
+                    <h3 class="text-2xl font-bold">Solution 2</h3>
+                    <p class="text-blue-100">Reset MySQL Data</p>
+                </div>
+                <div class="space-y-3 text-gray-700">
+                    <p class="font-bold text-red-600">⚠️ This will reset your databases!</p>
+                    <ol class="list-decimal list-inside space-y-2">
+                        <li>Stop XAMPP completely</li>
+                        <li>Go to <code class="bg-gray-200 px-2 py-1 rounded">C:\xampp\mysql\data</code></li>
+                        <li>Rename <strong>data</strong> to <strong>data_old</strong></li>
+                        <li>Copy <code class="bg-gray-200 px-2 py-1 rounded">C:\xampp\mysql\backup</code> folder</li>
+                        <li>Rename copied folder to <strong>data</strong></li>
+                        <li>Start MySQL in XAMPP</li>
+                    </ol>
+                    <p class="text-sm text-yellow-700 mt-3">💡 To restore your databases, copy folders from data_old to data</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-xl p-6">
+                <div class="bg-purple-600 text-white rounded-lg p-4 mb-4">
+                    <h3 class="text-2xl font-bold">Solution 3</h3>
+                    <p class="text-purple-100">Change MySQL Port</p>
+                </div>
+                <div class="space-y-3 text-gray-700">
+                    <p>If port 3306 is used by another service:</p>
+                    <ol class="list-decimal list-inside space-y-2">
+                        <li>In XAMPP, click <strong>Config</strong> next to MySQL</li>
+                        <li>Select <strong>my.ini</strong></li>
+                        <li>Find: <code class="bg-gray-200 px-2 py-1 rounded">port=3306</code></li>
+                        <li>Change to: <code class="bg-gray-200 px-2 py-1 rounded">port=3307</code></li>
+                        <li>Save file</li>
+                        <li>Start MySQL in XAMPP</li>
+                    </ol>
+                    <p class="text-sm text-blue-700 mt-3">💡 Remember to update your PHP connection strings to use port 3307</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Check Port Usage -->
+        <div class="bg-gray-800 text-white rounded-xl shadow-xl p-8 mb-8">
+            <h2 class="text-2xl font-bold mb-4">🔍 Check What's Using Port 3306</h2>
+            <p class="mb-4">Run this in PowerShell (as Administrator):</p>
+            <div class="bg-gray-900 p-4 rounded-lg mb-4">
+                <code class="text-green-400 font-mono">netstat -ano | findstr :3306</code>
+            </div>
+            <p class="text-sm text-gray-300">If you see output, a process is using port 3306.</p>
+            <p class="text-sm text-gray-300 mt-2">To kill that process (replace XXXX with the PID shown):</p>
+            <div class="bg-gray-900 p-4 rounded-lg mt-2">
+                <code class="text-red-400 font-mono">taskkill /PID XXXX /F</code>
+            </div>
+        </div>
+
+        <!-- View Error Log -->
+        <div class="bg-yellow-50 border-2 border-yellow-500 rounded-xl p-8 mb-8">
+            <h2 class="text-2xl font-bold text-yellow-900 mb-4">📋 View MySQL Error Log</h2>
+            <p class="text-yellow-800 mb-4">To see exactly what went wrong:</p>
+            <ol class="list-decimal list-inside space-y-2 text-yellow-900">
+                <li>Go to: <code class="bg-yellow-200 px-2 py-1 rounded">C:\xampp\mysql\data\</code></li>
+                <li>Look for a file ending in <strong>.err</strong> (e.g., <code>DESKTOP-ABC.err</code>)</li>
+                <li>Open it with Notepad</li>
+                <li>Scroll to the bottom</li>
+                <li>Look for error messages (usually in red)</li>
+            </ol>
+            <p class="text-sm text-yellow-700 mt-4">💡 The error log tells you the exact reason MySQL won't start</p>
+        </div>
+
+        <!-- Testing Guide -->
+        <div class="bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl p-8 shadow-2xl">
+            <h2 class="text-3xl font-bold mb-4">✅ After MySQL Starts Successfully</h2>
+            <p class="text-xl mb-6">Continue with the Assessment Submissions testing:</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <a href="/TPLearn/QUICK_STATUS_CHECK.html" 
+                   class="bg-white text-blue-900 text-center py-4 rounded-lg font-bold hover:bg-blue-50 transition">
+                    1️⃣ Quick Status Check
+                </a>
+                <a href="/TPLearn/create_test_assessment_submissions.php" 
+                   class="bg-white text-green-900 text-center py-4 rounded-lg font-bold hover:bg-green-50 transition">
+                    2️⃣ Create Test Data
+                </a>
+                <a href="/TPLearn/dashboards/tutor/tutor-program-stream.php?program_id=32&program=New+Prog" 
+                   class="bg-white text-purple-900 text-center py-4 rounded-lg font-bold hover:bg-purple-50 transition">
+                    3️⃣ Test Tutor Stream
+                </a>
+            </div>
+        </div>
+
+        <div class="text-center mt-8">
+            <p class="text-white text-lg">Need more help? Check the error log or contact support.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -69,3 +69,53 @@ $current_page = basename($_SERVER['PHP_SELF']);
   color: #10b981;
 }
 </style>
+
+<!-- Mobile Menu JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const mobileMenuButton = document.getElementById('mobile-menu-button');
+  const mobileCloseButton = document.getElementById('mobile-close-button');
+  const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+  const sidebar = document.getElementById('sidebar');
+  
+  // Function to open mobile menu
+  function openMobileMenu() {
+    if (sidebar && mobileMenuOverlay) {
+      sidebar.classList.remove('-translate-x-full');
+      mobileMenuOverlay.classList.remove('hidden');
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+  }
+  
+  // Function to close mobile menu
+  function closeMobileMenu() {
+    if (sidebar && mobileMenuOverlay) {
+      sidebar.classList.add('-translate-x-full');
+      mobileMenuOverlay.classList.add('hidden');
+      document.body.style.overflow = ''; // Restore scrolling
+    }
+  }
+  
+  // Event listener for hamburger menu button
+  if (mobileMenuButton) {
+    mobileMenuButton.addEventListener('click', openMobileMenu);
+  }
+  
+  // Event listener for close button
+  if (mobileCloseButton) {
+    mobileCloseButton.addEventListener('click', closeMobileMenu);
+  }
+  
+  // Event listener for overlay click
+  if (mobileMenuOverlay) {
+    mobileMenuOverlay.addEventListener('click', closeMobileMenu);
+  }
+  
+  // Close menu when window is resized to desktop size
+  window.addEventListener('resize', function() {
+    if (window.innerWidth >= 1024) { // lg breakpoint
+      closeMobileMenu();
+    }
+  });
+});
+</script>

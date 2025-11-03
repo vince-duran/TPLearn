@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assessment vs Assignment Submission - Fixed!</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+  <div class="max-w-5xl mx-auto">
+    <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg shadow-lg p-8 mb-8">
+      <h1 class="text-4xl font-bold mb-3">✅ Fixed: Separate Modals for Assessments & Assignments</h1>
+      <p class="text-purple-100 text-lg">Now attached assessments open their own dedicated submission modal!</p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-6 mb-8">
+      <!-- Assignment Modal -->
+      <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="bg-green-600 text-white p-4">
+          <h2 class="text-xl font-bold flex items-center">
+            <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z"></path>
+              <path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"></path>
+            </svg>
+            Regular Assignment
+          </h2>
+        </div>
+        <div class="p-6">
+          <h3 class="font-semibold text-gray-900 mb-3">Opens: "Submit Assignment" Modal</h3>
+          <ul class="space-y-2 text-sm">
+            <li class="flex items-start">
+              <span class="text-green-600 font-bold mr-2">✓</span>
+              <span>Green theme</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-green-600 font-bold mr-2">✓</span>
+              <span>Title: "Submit Assignment"</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-green-600 font-bold mr-2">✓</span>
+              <span>Function: submitAssignment()</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-green-600 font-bold mr-2">✓</span>
+              <span>Button: Green "Submit Assignment"</span>
+            </li>
+          </ul>
+          <div class="mt-4 p-3 bg-green-50 rounded border border-green-200">
+            <code class="text-xs">onclick="submitAssignment(id)"</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assessment Modal -->
+      <div class="bg-white rounded-lg shadow-lg overflow-hidden ring-4 ring-purple-400">
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4">
+          <h2 class="text-xl font-bold flex items-center">
+            <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path>
+            </svg>
+            Attached Assessment
+          </h2>
+        </div>
+        <div class="p-6">
+          <h3 class="font-semibold text-purple-900 mb-3">Opens: "Submit Assessment" Modal 🎉</h3>
+          <ul class="space-y-2 text-sm">
+            <li class="flex items-start">
+              <span class="text-purple-600 font-bold mr-2">✓</span>
+              <span>Purple theme</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-purple-600 font-bold mr-2">✓</span>
+              <span>Title: "Submit Assessment"</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-purple-600 font-bold mr-2">✓</span>
+              <span>Function: submitAssessment()</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-purple-600 font-bold mr-2">✓</span>
+              <span>Button: Purple "Submit Assessment"</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-purple-600 font-bold mr-2">✓</span>
+              <span>Assessment icon & gradient design</span>
+            </li>
+          </ul>
+          <div class="mt-4 p-3 bg-purple-50 rounded border border-purple-200">
+            <code class="text-xs">onclick="submitAssessment(id)"</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6">
+      <h2 class="text-xl font-semibold text-blue-900 mb-3">🔧 Changes Made</h2>
+      <div class="space-y-3 text-sm">
+        <div class="bg-white p-4 rounded shadow">
+          <h3 class="font-semibold text-blue-800 mb-2">1. Added New Assessment Modal</h3>
+          <p class="text-gray-700 mb-2">Created <code class="bg-gray-100 px-2 py-1 rounded">assessmentSubmissionModal</code> with:</p>
+          <ul class="list-disc ml-5 space-y-1 text-gray-600">
+            <li>Purple/indigo gradient header with assessment icon</li>
+            <li>Purple-themed upload area</li>
+            <li>Separate form ID: <code>assessmentSubmissionForm</code></li>
+            <li>Purple "Submit Assessment" button with checkmark icon</li>
+          </ul>
+        </div>
+
+        <div class="bg-white p-4 rounded shadow">
+          <h3 class="font-semibold text-blue-800 mb-2">2. Created Assessment Functions</h3>
+          <ul class="list-disc ml-5 space-y-1 text-gray-600">
+            <li><code>submitAssessment(assessmentId)</code> - Opens assessment modal</li>
+            <li><code>closeAssessmentSubmissionModal()</code> - Closes modal</li>
+            <li><code>handleAssessmentFileSelect(input)</code> - Handles file upload</li>
+            <li><code>removeAssessmentFile()</code> - Removes selected file</li>
+          </ul>
+        </div>
+
+        <div class="bg-white p-4 rounded shadow">
+          <h3 class="font-semibold text-blue-800 mb-2">3. Updated Submit Button</h3>
+          <p class="text-gray-700">Changed attached assessment button from:</p>
+          <pre class="bg-red-50 p-2 rounded mt-1 text-xs border border-red-200">onclick="submitAssignment('${assessment.id}')"</pre>
+          <p class="text-gray-700 mt-2">To:</p>
+          <pre class="bg-green-50 p-2 rounded mt-1 text-xs border border-green-200">onclick="submitAssessment('${assessment.id}')"</pre>
+        </div>
+
+        <div class="bg-white p-4 rounded shadow">
+          <h3 class="font-semibold text-blue-800 mb-2">4. Form Submission Handler</h3>
+          <p class="text-gray-700">Added form handler for <code>assessmentSubmissionForm</code> that:</p>
+          <ul class="list-disc ml-5 space-y-1 text-gray-600">
+            <li>Validates file upload</li>
+            <li>Shows purple loading state</li>
+            <li>Submits to same API (works because we created assignment records)</li>
+            <li>Shows success message and refreshes page</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">🧪 Test the Fix</h2>
+      
+      <div class="space-y-4">
+        <div class="border-l-4 border-purple-500 pl-4 bg-purple-50 p-4 rounded-r">
+          <h3 class="font-semibold text-purple-900 mb-2">Test Attached Assessment:</h3>
+          <ol class="list-decimal ml-5 space-y-1 text-sm text-gray-700">
+            <li>Go to student program stream (your screenshot page)</li>
+            <li>Find material with "Attached Assessments" section</li>
+            <li>Click <strong class="text-purple-700">"Submit"</strong> on assessment (e.g., "1 DURAN ElFiliibusterismo")</li>
+            <li><strong class="text-purple-700">Should open: Purple "Submit Assessment" modal</strong> ✅</li>
+            <li>Upload a file and submit</li>
+            <li>Should see success message</li>
+          </ol>
+        </div>
+
+        <div class="border-l-4 border-green-500 pl-4 bg-green-50 p-4 rounded-r">
+          <h3 class="font-semibold text-green-900 mb-2">Test Regular Assignment:</h3>
+          <ol class="list-decimal ml-5 space-y-1 text-sm text-gray-700">
+            <li>Find a regular assignment in the stream</li>
+            <li>Click <strong class="text-green-700">"Submit Assignment"</strong> button</li>
+            <li><strong class="text-green-700">Should open: Green "Submit Assignment" modal</strong> ✅</li>
+            <li>Upload a file and submit</li>
+            <li>Should see success message</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="mt-6 grid grid-cols-2 gap-4">
+        <a href="dashboards/student/program-stream.php?program_id=32&program=New+Prog" 
+           class="bg-purple-600 text-white px-6 py-4 rounded-lg hover:bg-purple-700 text-center font-semibold">
+          🎓 Test as Student<br>
+          <span class="text-sm font-normal">Try Assessment Submission</span>
+        </a>
+        <a href="fix_assessment_submissions.php" 
+           class="bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 text-center font-semibold">
+          🔧 Run Migration<br>
+          <span class="text-sm font-normal">Fix Existing Assessments</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6 border border-green-200">
+      <h2 class="text-xl font-semibold text-gray-900 mb-3">✅ Summary</h2>
+      <div class="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <h3 class="font-semibold text-green-800 mb-2">Before (❌ Problem):</h3>
+          <ul class="space-y-1 text-gray-700">
+            <li>• Attached assessments opened "Submit Assignment" modal</li>
+            <li>• Confusing for users</li>
+            <li>• No visual distinction</li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="font-semibold text-purple-800 mb-2">After (✅ Fixed):</h3>
+          <ul class="space-y-1 text-gray-700">
+            <li>• Attached assessments open "Submit Assessment" modal</li>
+            <li>• Clear purple theme with assessment icon</li>
+            <li>• Separate functions and forms</li>
+            <li>• Better user experience</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-8 text-center text-gray-600">
+      <p class="text-sm">Issue fixed! Assessments now have their own dedicated submission modal 🎉</p>
+    </div>
+  </div>
+</body>
+</html>

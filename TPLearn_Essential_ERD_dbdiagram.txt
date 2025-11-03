@@ -1,0 +1,364 @@
+// TPLearn Essential Database Schema - dbdiagram.io ERD
+// Copy and paste this code into https://dbdiagram.io/d to generate the visual ERD
+// Focused on core business logic tables and essential relationships
+
+Project TPLearn {
+  database_type: 'MySQL'
+  Note: '''
+    TPLearn - Tisa at Pisara's Academic and Tutorial Services
+    Essential Learning Management System Database Schema
+    
+    This streamlined ERD focuses on the core business functionality:
+    - User Management (Admin, Tutor, Student roles)
+    - Program Management and Enrollment
+    - Assessment and Assignment System
+    - Payment Processing
+    - Session Management and Attendance
+    - File Management
+    
+    User ID Format: TP[A/T/S]YYYY-XXX
+    Example: TPS2025-847 (Student), TPT2025-156 (Tutor), TPA2025-001 (Admin)
+  '''
+}
+
+// ====================================
+// CORE TABLES
+// ====================================
+
+Table users {
+  id int [pk, increment, note: 'Primary key']
+  user_id varchar(20) [unique, not null, note: 'Structured ID: TP[A/T/S]YYYY-XXX']
+  username varchar(50) [unique, not null, note: 'Login username']
+  email varchar(100) [unique, not null, note: 'Email address']
+  password varchar(255) [not null, note: 'Hashed password']
+  role user_role [default: 'student', note: 'User role']
+  status user_status [default: 'active', note: 'Account status']
+  created_at timestamp [default: `current_timestamp()`]
+  last_login timestamp [null, note: 'Last login time']
+  
+  Note: 'Central user authentication and management'
+}
+
+Table student_profiles {
+  id int [pk, increment]
+  user_id int [ref: > users.id, not null]
+  first_name varchar(50) [not null]
+  last_name varchar(50) [not null]
+  middle_name varchar(50)
+  birthday date
+  age int
+  address text
+  is_pwd boolean [default: false, note: 'Person with disability']
+  medical_notes text
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Student profile information'
+}
+
+Table tutor_profiles {
+  id int [pk, increment]
+  user_id int [ref: > users.id, not null]
+  first_name varchar(50) [not null]
+  last_name varchar(50) [not null]
+  specializations text
+  bio text
+  contact_number varchar(20)
+  hourly_rate decimal(10,2)
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Tutor profile and qualifications'
+}
+
+Table programs {
+  id int [pk, increment]
+  name varchar(100) [not null, note: 'Program name']
+  description text
+  duration_weeks int [note: 'Program duration']
+  fee decimal(10,2) [note: 'Total program fee']
+  status program_status [default: 'active']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Educational programs offered'
+}
+
+Table enrollments {
+  id int [pk, increment]
+  student_user_id int [ref: > users.id, not null, note: 'Enrolled student']
+  program_id int [ref: > programs.id, not null]
+  tutor_user_id int [ref: > users.id, note: 'Assigned tutor']
+  enrollment_date date [not null]
+  start_date date
+  end_date date
+  status enrollment_status [default: 'pending']
+  total_fee decimal(10,2)
+  notes text
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Student program enrollments'
+}
+
+Table program_materials {
+  id int [pk, increment]
+  program_id int [ref: > programs.id, not null]
+  title varchar(255) [not null]
+  description text
+  material_type material_type [not null, note: 'Type of learning material']
+  content text
+  order_number int [default: 0, note: 'Display order']
+  is_required boolean [default: true]
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Learning materials within programs'
+}
+
+Table assignments {
+  id int [pk, increment]
+  program_id int [ref: > programs.id, not null]
+  material_id int [ref: > program_materials.id, not null]
+  title varchar(255) [not null]
+  description text
+  instructions text
+  max_score int [default: 100]
+  due_date date
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Assignments linked to program materials'
+}
+
+Table assignment_submissions {
+  id int [pk, increment]
+  assignment_id int [ref: > assignments.id, not null]
+  student_user_id int [ref: > users.id, not null]
+  enrollment_id int [ref: > enrollments.id, not null]
+  submission_text text
+  submission_date timestamp [default: `current_timestamp()`]
+  status submission_status [default: 'draft']
+  score int
+  feedback text
+  graded_by int [ref: > users.id, note: 'Grading tutor']
+  graded_at timestamp
+  
+  Note: 'Student assignment submissions and grading'
+}
+
+Table sessions {
+  id int [pk, increment]
+  program_id int [ref: > programs.id, not null]
+  tutor_user_id int [ref: > users.id, not null]
+  session_date date [not null]
+  start_time time
+  end_time time
+  status session_status [default: 'scheduled']
+  topic varchar(255)
+  notes text
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Scheduled learning sessions'
+}
+
+Table attendance {
+  id int [pk, increment]
+  session_id int [ref: > sessions.id, not null]
+  student_user_id int [ref: > users.id, not null]
+  status attendance_status [default: 'absent']
+  arrival_time time
+  notes text
+  marked_by int [ref: > users.id, not null, note: 'Tutor marking attendance']
+  marked_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Session attendance tracking'
+}
+
+Table payments {
+  id int [pk, increment]
+  enrollment_id int [ref: > enrollments.id, not null]
+  amount decimal(10,2) [not null]
+  payment_date date [not null]
+  payment_method payment_method [default: 'cash']
+  reference_number varchar(100)
+  status payment_status [default: 'pending']
+  installment_number int
+  total_installments int
+  validated_by int [ref: > users.id, note: 'Admin validator']
+  validated_at timestamp
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Payment transactions with installment support'
+}
+
+Table payment_attachments {
+  id int [pk, increment]
+  payment_id int [ref: > payments.id, not null]
+  filename varchar(255) [not null]
+  original_name varchar(255) [not null]
+  file_size int [not null]
+  mime_type varchar(100) [not null]
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Payment receipt attachments'
+}
+
+Table file_uploads {
+  id int [pk, increment]
+  user_id int [ref: > users.id, not null]
+  filename varchar(255) [not null]
+  original_filename varchar(255) [not null]
+  file_path varchar(500) [not null]
+  file_size int [not null]
+  mime_type varchar(100) [not null]
+  upload_type upload_type [default: 'document']
+  related_id int [note: 'Reference to related entity']
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Centralized file management system'
+}
+
+Table grades {
+  id int [pk, increment]
+  enrollment_id int [ref: > enrollments.id, not null]
+  student_user_id int [ref: > users.id, not null]
+  assignment_id int [ref: > assignments.id, not null]
+  score decimal(5,2) [not null]
+  max_score decimal(5,2) [not null]
+  percentage decimal(5,2) [note: 'Calculated percentage']
+  notes text
+  graded_by int [ref: > users.id, not null]
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'Grade book entries'
+}
+
+Table notifications {
+  id int [pk, increment]
+  user_id int [ref: > users.id, not null]
+  title varchar(255) [not null]
+  message text [not null]
+  type notification_type [default: 'info']
+  is_read boolean [default: false]
+  action_url varchar(500)
+  created_at timestamp [default: `current_timestamp()`]
+  
+  Note: 'System notifications for users'
+}
+
+// ====================================
+// ENUMS
+// ====================================
+
+Enum user_role {
+  admin
+  tutor
+  student
+}
+
+Enum user_status {
+  active
+  inactive
+  pending
+}
+
+Enum program_status {
+  active
+  inactive
+}
+
+Enum enrollment_status {
+  pending
+  active
+  completed
+  cancelled
+}
+
+Enum material_type {
+  document
+  video
+  quiz
+  assignment
+}
+
+Enum submission_status {
+  draft
+  submitted
+  graded
+  returned
+}
+
+Enum session_status {
+  scheduled
+  ongoing
+  completed
+  cancelled
+}
+
+Enum attendance_status {
+  present
+  absent
+  late
+  excused
+}
+
+Enum payment_method {
+  cash
+  gcash
+  bank_transfer
+  bpi
+  seabank
+  other
+}
+
+Enum payment_status {
+  pending
+  validated
+  rejected
+}
+
+Enum upload_type {
+  profile_photo
+  document
+  payment_proof
+  assignment
+}
+
+Enum notification_type {
+  info
+  success
+  warning
+  error
+}
+
+// ====================================
+// TABLE GROUPS FOR VISUAL ORGANIZATION
+// ====================================
+
+TableGroup "Core User Management" {
+  users
+  student_profiles
+  tutor_profiles
+}
+
+TableGroup "Academic Programs" {
+  programs
+  program_materials
+  enrollments
+}
+
+TableGroup "Learning & Assessment" {
+  assignments
+  assignment_submissions
+  grades
+}
+
+TableGroup "Sessions & Attendance" {
+  sessions
+  attendance
+}
+
+TableGroup "Financial Management" {
+  payments
+  payment_attachments
+}
+
+TableGroup "File & Communication" {
+  file_uploads
+  notifications
+}

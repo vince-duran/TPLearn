@@ -15,6 +15,14 @@ if (!$program_id) {
   exit();
 }
 
+// Get current user data from session
+$user_id = $_SESSION['user_id'] ?? null;
+$user_name = $_SESSION['name'] ?? 'Student';
+
+// Get student data for display name
+$student_data = getStudentDashboardData($user_id);
+$display_name = $student_data['name'] ?? $user_name;
+
 // Get program data from database or session
 if (isset($_SESSION['enrollment_program']) && $_SESSION['enrollment_program']['id'] == $program_id) {
   $program = $_SESSION['enrollment_program'];
@@ -179,52 +187,10 @@ $cashSettings = getCashPaymentInstructions();
 
     <!-- Main Content -->
     <div class="lg:ml-64 flex-1">
-      <!-- Top Header -->
-      <header class="bg-white shadow-sm border-b border-gray-200 px-4 lg:px-6 py-4">
-        <div class="flex justify-between items-center">
-          <div class="flex items-center">
-            <!-- Mobile menu button -->
-            <button id="mobile-menu-button" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-tplearn-green mr-3">
-              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <div>
-              <h1 class="text-xl lg:text-2xl font-bold text-gray-800">Enrollment</h1>
-            </div>
-          </div>
-          <div class="flex items-center space-x-4">
-            <!-- Notifications -->
-            <div class="relative">
-              <button onclick="openNotifications()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"></path>
-                </svg>
-              </button>
-              <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">1</span>
-            </div>
-
-            <!-- Messages -->
-            <div class="relative">
-              <button onclick="openMessages()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
-                </svg>
-              </button>
-              <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
-            </div>
-
-            <!-- Profile -->
-            <div class="flex items-center space-x-2">
-              <span class="text-sm font-medium text-gray-700">Maria Santos</span>
-              <div class="w-8 h-8 bg-tplearn-green rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                M
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <?php 
+      require_once '../../includes/student-header-standard.php';
+      renderStudentHeader('Payment Method', 'Choose your preferred payment method');
+      ?>
 
       <!-- Main Content Area -->
       <main class="p-6 max-w-4xl mx-auto">
@@ -675,6 +641,130 @@ $cashSettings = getCashPaymentInstructions();
     // Initialize
     updateSubmitButton();
     updatePaymentInstructions('ewallet'); // Load default payment method instructions
+
+    // Notification dropdown functions
+    function toggleNotifications() {
+      const dropdown = document.getElementById('notification-dropdown');
+      dropdown.classList.toggle('hidden');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+      const dropdown = document.getElementById('notification-dropdown');
+      const button = event.target.closest('button[onclick="toggleNotifications()"]');
+      
+      if (!button && !dropdown.contains(event.target)) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    // Filter notifications
+    function filterNotifications(type) {
+      const allButton = document.getElementById('filter-all');
+      const unreadButton = document.getElementById('filter-unread');
+      const notifications = document.querySelectorAll('.notification-item');
+      const noNotificationsMsg = document.getElementById('no-notifications');
+      
+      // Update button styles
+      if (type === 'all') {
+        allButton.className = 'px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors';
+        unreadButton.className = 'px-3 py-1 text-xs font-medium rounded-full text-gray-600 hover:bg-gray-100 transition-colors';
+      } else {
+        unreadButton.className = 'px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors';
+        allButton.className = 'px-3 py-1 text-xs font-medium rounded-full text-gray-600 hover:bg-gray-100 transition-colors';
+      }
+      
+      let visibleCount = 0;
+      
+      // Filter notifications
+      notifications.forEach(notification => {
+        if (type === 'all') {
+          notification.style.display = 'block';
+          visibleCount++;
+        } else if (type === 'unread' && notification.classList.contains('unread')) {
+          notification.style.display = 'block';
+          visibleCount++;
+        } else {
+          notification.style.display = 'none';
+        }
+      });
+      
+      // Show/hide no notifications message
+      if (noNotificationsMsg) {
+        noNotificationsMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+      }
+    }
+
+    // Handle notification click
+    function handleNotificationClick(url, element) {
+      // Mark as read
+      markNotificationAsRead(element);
+      
+      // Wait a bit then navigate
+      setTimeout(() => {
+        window.location.href = url;
+      }, 100);
+    }
+
+    // Mark notification as read
+    function markNotificationAsRead(element) {
+      const notificationId = element.dataset.id || Math.random().toString(36).substr(2, 9);
+      
+      // Mark as read in localStorage
+      let readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
+      if (!readNotifications.includes(notificationId)) {
+        readNotifications.push(notificationId);
+        localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+      }
+      
+      // Update visual state
+      markNotificationAsReadVisually(element);
+    }
+
+    // Mark notification as read visually
+    function markNotificationAsReadVisually(element) {
+      element.classList.remove('unread');
+      element.classList.add('read');
+      
+      // Remove unread indicator
+      const unreadDot = element.querySelector('.bg-blue-500');
+      if (unreadDot) {
+        unreadDot.remove();
+      }
+      
+      // Update notification count
+      updateNotificationCount();
+    }
+
+    // Update notification count badge
+    function updateNotificationCount() {
+      const unreadNotifications = document.querySelectorAll('.notification-item.unread');
+      const badge = document.querySelector('.bg-red-500');
+      
+      if (unreadNotifications.length === 0) {
+        if (badge) {
+          badge.style.display = 'none';
+        }
+      } else {
+        if (badge) {
+          badge.textContent = unreadNotifications.length;
+          badge.style.display = 'flex';
+        }
+      }
+    }
+
+    // Initialize notification read states from localStorage
+    document.addEventListener('DOMContentLoaded', function() {
+      const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
+      const allNotifications = document.querySelectorAll('.notification-item');
+      
+      allNotifications.forEach((notification) => {
+        const notificationId = notification.dataset.id || notification.querySelector('.notification-message')?.textContent?.trim();
+        if (readNotifications.includes(notificationId)) {
+          markNotificationAsReadVisually(notification);
+        }
+      });
+    });
   </script>
 </body>
 

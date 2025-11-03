@@ -93,67 +93,22 @@ function getMaterialTypeDisplay($type) {
 
     <!-- Main Content Area -->
     <div class="flex-1 lg:ml-64">
-      <!-- Top Header -->
-      <header class="bg-white shadow-sm border-b border-gray-200 px-4 lg:px-6 py-4">
-        <div class="flex justify-between items-center">
-          <div class="flex items-center">
-            <!-- Mobile menu button -->
-            <button id="mobile-menu-button" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-tplearn-green mr-3">
-              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+      <?php 
+      require_once '../../includes/student-header-standard.php';
+      renderStudentHeader($program_name . ' Stream', 'Explore course materials, assignments, and live sessions');
+      ?>
 
+      <!-- Program Header -->
+      <div class="bg-white border-b border-gray-200 px-4 lg:px-6 py-6">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center space-x-4">
             <!-- Back to Programs -->
-            <a href="student-academics.php" class="flex items-center text-gray-600 hover:text-gray-900 mr-4 transition-colors">
+            <a href="student-academics.php" class="flex items-center text-gray-600 hover:text-gray-900 transition-colors">
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
               </svg>
               Back to Programs
             </a>
-          </div>
-
-          <div class="flex items-center space-x-4">
-            <!-- Notifications -->
-            <div class="relative">
-              <button onclick="openNotifications()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"></path>
-                </svg>
-              </button>
-              <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
-            </div>
-
-            <!-- Messages -->
-            <div class="relative">
-              <button onclick="openMessages()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
-                </svg>
-              </button>
-              <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">2</span>
-            </div>
-
-            <!-- Profile -->
-            <div class="flex items-center space-x-2">
-              <span class="text-sm font-medium text-gray-700"><?php echo htmlspecialchars($student_name); ?></span>
-              <div class="w-8 h-8 bg-tplearn-green rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                <?php echo strtoupper(substr($student_name, 0, 1)); ?>
-              </div>
-            </div>
-
-
-          </div>
-        </div>
-      </header>
-
-      <!-- Program Header -->
-      <div class="bg-white border-b border-gray-200 px-4 lg:px-6 py-6">
-        <div class="flex justify-between items-center">
-          <div>
-            <h1 class="text-2xl lg:text-3xl font-bold text-gray-900"><?php echo htmlspecialchars($program_name); ?> Stream</h1>
-            <p class="text-gray-600 mt-1"><?php echo htmlspecialchars($program_description); ?></p>
           </div>
           <div class="text-right">
             <div class="text-sm text-gray-500">Enrollment Status</div>
@@ -315,7 +270,7 @@ function getMaterialTypeDisplay($type) {
                             <!-- View Submission Button -->
                             <button onclick="viewAssignmentSubmission('<?php echo $material['material_id']; ?>')" class="bg-blue-500 text-white hover:bg-blue-600 text-sm font-medium px-3 py-1 rounded flex items-center">
                               <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 616 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                               </svg>
                               View Submission
@@ -375,7 +330,7 @@ function getMaterialTypeDisplay($type) {
           if (empty($materials)): 
           ?>
           <!-- No content available -->
-          <div class="bg-white rounded-lg border border-gray-200 p-6 text-center">
+          <div id="noContentMessage" class="bg-white rounded-lg border border-gray-200 p-6 text-center">
             <div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
               <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
@@ -2307,14 +2262,6 @@ function getMaterialTypeDisplay($type) {
     }
 
     // Header functions
-    function openNotifications() {
-      showNotification('info', 'Notifications', 'Opening notifications feature...');
-    }
-
-    function openMessages() {
-      showNotification('info', 'Messages', 'Opening messages feature...');
-    }
-
     function backToDashboard() {
       window.location.href = 'student-dashboard.php';
     }
@@ -2694,6 +2641,13 @@ function getMaterialTypeDisplay($type) {
         if (result.success && result.meetings && result.meetings.length > 0) {
           console.log('Found', result.meetings.length, 'live sessions');
           displayLiveSessionsInAllContent(result.meetings);
+          
+          // Hide "No Content Available" message if it exists since we have live sessions
+          const noContentDiv = document.getElementById('noContentMessage');
+          if (noContentDiv) {
+            noContentDiv.style.display = 'none';
+          }
+          
           // After adding Live Sessions, sort all content by Latest to Old
           sortAllContentByLatestToOld();
         } else {

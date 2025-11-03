@@ -3,6 +3,28 @@ require_once '../../includes/auth.php';
 require_once '../../includes/data-helpers.php';
 requireRole('student');
 
+// Payment method display function
+function getPaymentMethodDisplay($method) {
+  $methodMap = [
+    // Cash payments
+    'cash' => 'Cash',
+    
+    // E-Wallet payments
+    'gcash' => 'E-Wallet',
+    'maya' => 'E-Wallet',
+    'ewallet' => 'E-Wallet',
+    
+    // Bank transfers
+    'bpi' => 'Bank Transfer',
+    'bdo' => 'Bank Transfer',
+    'seabank' => 'Bank Transfer',
+    'bank' => 'Bank Transfer',
+    'bank_transfer' => 'Bank Transfer'
+  ];
+  
+  return $methodMap[$method] ?? 'Not specified';
+}
+
 // Get current student's payments
 $student_username = $_SESSION['username'];
 $student_payments = getStudentPayments($student_username);
@@ -36,14 +58,22 @@ if ($student_payments && is_array($student_payments)) {
         $completed_payments[] = $payment; // Validated payments go to history
         break;
       case 'pending_validation':
+      case 'overdue_pending_validation':
         $pending_validation++;
         $pending_payments[] = $payment; // Pending payments need action
         break;
       case 'rejected':
+      case 'overdue_rejected':
         $rejected_count++;
         $pending_payments[] = $payment; // Rejected payments need resubmission
         break;
+      case 'locked':
+        $overdue_count++; // Count locked payments as overdue for display purposes
+        $pending_payments[] = $payment; // Locked payments need immediate action - highest priority
+        break;
       case 'overdue':
+      case 'overdue_pending_validation':
+      case 'overdue_rejected':
         $overdue_count++;
         $pending_payments[] = $payment; // Overdue payments need immediate action - highest priority
         break;
@@ -111,7 +141,26 @@ function isInstallmentPayable($currentPayment, $allPayments)
   <link rel="stylesheet" href="../../assets/tailwind.min.css?v=<?= filemtime(__DIR__ . '/../../assets/tailwind.min.css') ?>">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
+  <!-- SweetAlert2 CSS and JS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
   <style>
+    /* Tab styles */
+    .tab-active {
+      border-bottom: 2px solid #10b981;
+      color: #10b981;
+    }
+
+    .tab-inactive {
+      color: #6b7280;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab-inactive:hover {
+      color: #374151;
+    }
+
     /* Custom styles for payments table */
     .payment-row {
       transition: all 0.2s ease;
@@ -236,36 +285,67 @@ function isInstallmentPayable($currentPayment, $allPayments)
       <!-- Fixed Header -->
       <div class="flex-shrink-0">
         <?php 
-        require_once '../../includes/header.php';
-        renderHeader(
-          'Payments',
-          $currentDate,
-          'student',
-          $_SESSION['name'] ?? 'Student',
-          [], // notifications array - to be implemented
-          []  // messages array - to be implemented
-        );
+        require_once '../../includes/student-header-standard.php';
+        renderStudentHeader('Payments', 'View your payment history and manage transactions');
         ?>
 
-        <!-- Tab Navigation - Connected to Header -->
-        <div class="bg-white border-b border-gray-200 px-4 lg:px-6">
-          <nav class="flex space-x-8">
-            <button id="make-payment-tab" onclick="switchTab('make-payment')" class="py-4 px-1 border-b-2 border-tplearn-green text-tplearn-green font-medium text-sm whitespace-nowrap">
-              Make Payment
-            </button>
-            <button id="payment-history-tab" onclick="switchTab('payment-history')" class="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
-              Payment History
-            </button>
-          </nav>
-        </div>
       </div>
 
       <!-- Scrollable Main Content Area -->
       <main class="flex-1 p-4 lg:p-6">
 
-        <!-- Make Payment Tab -->
-        <div id="make-payment-content" class="tab-content">
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <!-- Search and Filter Section -->
+        <div class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div class="p-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-6 flex-wrap min-w-0">
+                <!-- Search Input -->
+                <div class="relative flex-shrink-0">
+                  <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
+                  </svg>
+                  <input type="text" id="payment-search" placeholder="Search payments..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent" style="width: 280px;">
+                </div>
+
+                <!-- Status Filter -->
+                <div class="relative flex-shrink-0" style="min-width: 140px; z-index: 50;">
+                  <select id="payment-status-filter" class="bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent w-full" style="position: relative; z-index: 50; -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none;">
+                    <option value="">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="validated">Validated</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="processing">Processing</option>
+                  </select>
+                  <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="currentColor" viewBox="0 0 20 20" style="z-index: 51;">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Clear Filters Button -->
+              <button id="clear-search" onclick="clearSearch()" class="px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 hover:border-tplearn-green focus:outline-none focus:ring-2 focus:ring-green-400">
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Navigation and Content Container -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+          <!-- Tab Navigation -->
+          <div class="border-b border-gray-200">
+            <div class="flex">
+              <button id="make-payment-tab" class="px-6 py-3 text-sm font-medium tab-active" onclick="switchTab('make-payment')">
+                Make Payment
+              </button>
+              <button id="payment-history-tab" class="px-6 py-3 text-sm font-medium tab-inactive" onclick="switchTab('payment-history')">
+                Payment History
+              </button>
+            </div>
+          </div>
+
+          <!-- Make Payment Tab -->
+          <div id="make-payment-content" class="tab-content">
             <div class="px-6 py-4 border-b border-gray-200">
               <h2 class="text-lg font-medium text-gray-900">Pending Payments</h2>
               <p class="text-sm text-gray-600 mt-1">Payments that require action: upcoming due dates and rejected payments</p>
@@ -321,12 +401,48 @@ function isInstallmentPayable($currentPayment, $allPayments)
                                             <button onclick="showDetailsModal(\'' . htmlspecialchars($payment['payment_id']) . '\')" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Details</button>
                                           </div>';
                           break;
+                        case 'overdue_rejected':
+                          $statusColor = 'red';
+                          $statusText = 'Overdue - Rejected - Resubmit Required';
+                          $statusClass = 'status-rejected';
+                          $urgencyClass = 'bg-red-50 border-l-4 border-red-400';
+                          $actionButton = '<div class="flex space-x-1">
+                                            <button onclick="resubmitPayment(\'' . htmlspecialchars($payment['payment_id']) . '\', \'' . addslashes(htmlspecialchars($payment['program_name'])) . '\', ' . floatval($payment['amount']) . ')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs font-medium">Resubmit</button>
+                                            <button onclick="showDetailsModal(\'' . htmlspecialchars($payment['payment_id']) . '\')" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Details</button>
+                                          </div>';
+                          break;
                         case 'pending_validation':
                           $statusColor = 'yellow';
                           $statusText = 'Pending Validation';
                           $statusClass = 'status-pending-validation';
                           $urgencyClass = 'bg-yellow-50 border-l-4 border-yellow-400';
-                          $actionButton = '<button onclick="showDetailsModal(\'' . htmlspecialchars($payment['payment_id']) . '\')" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Details</button>';
+                          $actionButton = '<div class="flex space-x-1">
+                                            <button onclick="showDetailsModal(\'' . htmlspecialchars($payment['payment_id']) . '\')" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Details</button>
+                                          </div>';
+                          break;
+                        case 'overdue_pending_validation':
+                          $statusColor = 'yellow';
+                          $statusText = 'Overdue - Pending Validation';
+                          $statusClass = 'status-pending-validation';
+                          $urgencyClass = 'bg-yellow-50 border-l-4 border-yellow-400';
+                          $actionButton = '<div class="flex space-x-1">
+                                            <button onclick="showDetailsModal(\'' . htmlspecialchars($payment['payment_id']) . '\')" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Details</button>
+                                          </div>';
+                          break;
+                        case 'locked':
+                          $statusColor = 'red';
+                          $statusText = 'LOCKED - Contact Admin';
+                          $statusClass = 'status-locked';
+                          $urgencyClass = 'bg-red-100 border-l-4 border-red-600';
+                          $actionButton = '<div class="text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+                                              </svg>
+                                              Program Locked
+                                            </span>
+                                            <p class="text-xs text-red-600 mt-1">Grace period expired</p>
+                                          </div>';
                           break;
                         case 'overdue':
                           $statusColor = 'red';
@@ -461,11 +577,9 @@ function isInstallmentPayable($currentPayment, $allPayments)
               </table>
             </div>
           </div>
-        </div>
 
-        <!-- Payment History Tab -->
-        <div id="payment-history-content" class="tab-content hidden">
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <!-- Payment History Tab -->
+          <div id="payment-history-content" class="tab-content hidden">
             <div class="px-6 py-4 border-b border-gray-200">
               <h2 class="text-lg font-medium text-gray-900">Payment History</h2>
               <p class="text-sm text-gray-600 mt-1">Completed and validated payments</p>
@@ -542,7 +656,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
                           </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <?php echo htmlspecialchars($payment['payment_method'] ?: 'Not specified'); ?>
+                          <?php echo htmlspecialchars(getPaymentMethodDisplay($payment['payment_method'])); ?>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                           <div class="flex items-center">
@@ -560,13 +674,14 @@ function isInstallmentPayable($currentPayment, $allPayments)
               </table>
             </div>
           </div>
-        </div>
+
+        </div> <!-- End Tab Navigation and Content Container -->
       </main>
     </div>
   </div>
 
   <!-- Details Modal -->
-  <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+  <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 items-center justify-center p-4">
     <div class="bg-white rounded-xl max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl flex flex-col">
       <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 flex-shrink-0">
@@ -593,7 +708,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
   </div>
 
   <!-- Receipt Modal -->
-  <div id="receiptModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+  <div id="receiptModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 items-center justify-center p-4">
     <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
       <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -619,7 +734,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
           <p class="text-xs text-gray-500">Blk 2 Lot 47 Carissa 4A, Kaypian, City of San Jose Del Monte, Bulacan</p>
           
           <div class="mt-6 mb-6">
-            <h2 class="text-lg font-bold text-gray-800">OFFICIAL PAYMENT RECEIPT</h2>
+            <h2 class="text-lg font-bold text-gray-800">PAYMENT RECEIPT</h2>
           </div>
           
           <div class="border-t border-b border-gray-200 py-4">
@@ -648,7 +763,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
                 </div>
                 <div class="mb-3">
                   <span class="text-gray-600 font-medium">Student ID:</span>
-                  <div id="receiptStudentId" class="text-gray-800 font-mono">TP2025-210</div>
+                  <div id="receiptStudentId" class="text-gray-800 font-mono">TPS2025-210</div>
                 </div>
               </div>
               <div>
@@ -709,7 +824,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
 
         <!-- Footer -->
         <div class="border-t border-gray-300 pt-6 text-center">
-          <p class="text-sm text-gray-700 font-medium mb-2">This is an official receipt for your payment.</p>
+          <p class="text-sm text-gray-700 font-medium mb-2">This is a receipt for your payment.</p>
           <p class="text-xs text-gray-500 mb-1">Thank you for choosing TPLearn!</p>
           <p class="text-xs text-gray-500">For inquiries, please contact Email: tplearnph@gmail.com</p>
           
@@ -740,7 +855,130 @@ function isInstallmentPayable($currentPayment, $allPayments)
     </div>
   </div>
 
+  <!-- Payment History Modal -->
+  <div id="historyModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 items-center justify-center p-4">
+    <div class="bg-white rounded-xl max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl flex flex-col">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50 flex-shrink-0">
+        <div>
+          <h2 class="text-xl font-semibold text-gray-800">Payment History</h2>
+          <p id="historyPaymentId" class="text-purple-600 font-mono text-sm mt-1">Loading...</p>
+        </div>
+        <button onclick="closeHistoryModal()" class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Content -->
+      <div id="historyContent" class="p-8 overflow-y-auto flex-1 min-h-0">
+        <!-- Content will be loaded dynamically -->
+        <div class="flex items-center justify-center p-8">
+          <div class="text-center">
+            <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-gray-600">Loading payment history...</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Modal Footer -->
+      <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+        <button onclick="closeHistoryModal()" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Complete Payment Timeline Modal -->
+  <div id="completeTimelineModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 items-center justify-center p-4">
+    <div class="bg-white rounded-xl max-w-5xl w-full max-h-[95vh] overflow-hidden shadow-2xl flex flex-col">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50 flex-shrink-0">
+        <div>
+          <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+            <svg class="w-6 h-6 mr-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+            </svg>
+            Complete Payment Timeline
+          </h2>
+          <p id="timelinePaymentId" class="text-green-600 font-mono text-sm mt-1">Loading...</p>
+        </div>
+        <button onclick="closeCompleteTimelineModal()" class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Content -->
+      <div id="completeTimelineContent" class="p-8 overflow-y-auto flex-1 min-h-0">
+        <!-- Content will be loaded dynamically -->
+        <div class="flex items-center justify-center min-h-[400px]">
+          <div class="text-center">
+            <svg class="animate-spin h-8 w-8 text-green-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-gray-600">Loading complete payment timeline...</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Modal Footer -->
+      <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+        <button onclick="closeCompleteTimelineModal()" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // TPAlert wrapper for SweetAlert2
+    const TPAlert = {
+      success: function(title, text) {
+        return Swal.fire({
+          icon: 'success',
+          title: title,
+          text: text,
+          confirmButtonColor: '#10b981',
+          confirmButtonText: 'OK'
+        });
+      },
+      error: function(title, text) {
+        return Swal.fire({
+          icon: 'error',
+          title: title,
+          text: text,
+          confirmButtonColor: '#ef4444',
+          confirmButtonText: 'OK'
+        });
+      },
+      warning: function(title, text) {
+        return Swal.fire({
+          icon: 'warning',
+          title: title,
+          text: text,
+          confirmButtonColor: '#f59e0b',
+          confirmButtonText: 'OK'
+        });
+      },
+      info: function(title, text) {
+        return Swal.fire({
+          icon: 'info',
+          title: title,
+          text: text,
+          confirmButtonColor: '#3b82f6',
+          confirmButtonText: 'OK'
+        });
+      }
+    };
+
     // Payment method display function
     function getPaymentMethodDisplay(method) {
       const methodMap = {
@@ -769,20 +1007,117 @@ function isInstallmentPayable($currentPayment, $allPayments)
         content.classList.add('hidden');
       });
 
-      // Remove active class from all tabs
-      document.querySelectorAll('[id$="-tab"]').forEach(tab => {
-        tab.classList.remove('border-tplearn-green', 'text-tplearn-green');
-        tab.classList.add('border-transparent', 'text-gray-500');
-      });
+      // Reset all tabs to inactive
+      document.getElementById('make-payment-tab').className = 'px-6 py-3 text-sm font-medium tab-inactive';
+      document.getElementById('payment-history-tab').className = 'px-6 py-3 text-sm font-medium tab-inactive';
 
       // Show selected tab content
       document.getElementById(tabName + '-content').classList.remove('hidden');
 
-      // Add active class to selected tab
-      const activeTab = document.getElementById(tabName + '-tab');
-      activeTab.classList.add('border-tplearn-green', 'text-tplearn-green');
-      activeTab.classList.remove('border-transparent', 'text-gray-500');
+      // Set active tab
+      if (tabName === 'make-payment') {
+        document.getElementById('make-payment-tab').className = 'px-6 py-3 text-sm font-medium tab-active';
+      } else if (tabName === 'payment-history') {
+        document.getElementById('payment-history-tab').className = 'px-6 py-3 text-sm font-medium tab-active';
+      }
     }
+
+    // Search and Filter functionality
+    function searchPayments() {
+      const searchTerm = document.getElementById('payment-search').value.toLowerCase();
+      const statusFilter = document.getElementById('payment-status-filter').value.toLowerCase();
+      
+      // Search in both pending payments (make-payment tab) and payment history
+      searchInTable('make-payment-content', searchTerm, statusFilter);
+      searchInTable('payment-history-content', searchTerm, statusFilter);
+    }
+
+    function searchInTable(tabContentId, searchTerm, statusFilter) {
+      const tabContent = document.getElementById(tabContentId);
+      if (!tabContent) return;
+      
+      const rows = tabContent.querySelectorAll('tbody tr');
+      
+      rows.forEach(row => {
+        let showRow = true;
+        
+        if (searchTerm) {
+          const searchableText = [
+            row.querySelector('td:nth-child(1)')?.textContent || '', // Payment ID
+            row.querySelector('td:nth-child(4)')?.textContent || '', // Program
+            row.querySelector('td:nth-child(3)')?.textContent || '', // Amount
+            row.querySelector('td:nth-child(2)')?.textContent || ''  // Date
+          ].join(' ').toLowerCase();
+          
+          showRow = searchableText.includes(searchTerm);
+        }
+        
+        if (showRow && statusFilter) {
+          const statusElement = row.querySelector('.status-badge');
+          if (statusElement) {
+            const rowStatus = statusElement.textContent.toLowerCase().trim();
+            showRow = rowStatus.includes(statusFilter);
+          }
+        }
+        
+        row.style.display = showRow ? '' : 'none';
+      });
+      
+      // Show/hide empty state message
+      updateEmptyState(tabContentId);
+    }
+
+    function updateEmptyState(tabContentId) {
+      const tabContent = document.getElementById(tabContentId);
+      if (!tabContent) return;
+      
+      const rows = tabContent.querySelectorAll('tbody tr');
+      const visibleRows = Array.from(rows).filter(row => row.style.display !== 'none');
+      
+      // Remove existing "no results" message
+      const existingMsg = tabContent.querySelector('.no-search-results');
+      if (existingMsg) {
+        existingMsg.remove();
+      }
+      
+      if (visibleRows.length === 0) {
+        const tbody = tabContent.querySelector('tbody');
+        const noResultsRow = document.createElement('tr');
+        noResultsRow.className = 'no-search-results';
+        noResultsRow.innerHTML = `
+          <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+            <div class="flex flex-col items-center">
+              <svg class="w-12 h-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+              <p class="text-lg font-medium">No payments found</p>
+              <p class="text-sm">Try adjusting your search criteria</p>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(noResultsRow);
+      }
+    }
+
+    function clearSearch() {
+      document.getElementById('payment-search').value = '';
+      document.getElementById('payment-status-filter').value = '';
+      searchPayments();
+    }
+
+    // Add event listeners for real-time search
+    document.addEventListener('DOMContentLoaded', function() {
+      const searchInput = document.getElementById('payment-search');
+      const statusFilter = document.getElementById('payment-status-filter');
+      
+      if (searchInput) {
+        searchInput.addEventListener('input', searchPayments);
+      }
+      
+      if (statusFilter) {
+        statusFilter.addEventListener('change', searchPayments);
+      }
+    });
 
     // Payment functionality
     function payNow(program, amount, paymentId, installmentNumber = 1, totalInstallments = 1) {
@@ -850,7 +1185,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Select Payment Method</h3>
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <!-- Cash -->
-                <div class="payment-method-modal cursor-pointer rounded-lg p-4 text-center border-2 border-gray-200 hover:border-tplearn-green transition-colors" onclick="selectPaymentMethodInModal('cash')">
+                <div class="payment-method-modal cursor-pointer rounded-lg p-4 text-center border-2 border-gray-200 hover:border-tplearn-green transition-colors" onclick="selectPaymentMethodInModal('cash', event)">
                   <div class="text-gray-600 mb-2">
                     <svg class="w-8 h-8 mx-auto" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"></path>
@@ -860,7 +1195,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
                 </div>
 
                 <!-- E-Wallet -->
-                <div class="payment-method-modal cursor-pointer rounded-lg p-4 text-center border-2 border-gray-200 hover:border-tplearn-green transition-colors" onclick="selectPaymentMethodInModal('ewallet')">
+                <div class="payment-method-modal cursor-pointer rounded-lg p-4 text-center border-2 border-gray-200 hover:border-tplearn-green transition-colors" onclick="selectPaymentMethodInModal('ewallet', event)">
                   <div class="text-gray-600 mb-2">
                     <svg class="w-8 h-8 mx-auto" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
@@ -870,7 +1205,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
                 </div>
 
                 <!-- Bank Transfer -->
-                <div class="payment-method-modal cursor-pointer rounded-lg p-4 text-center border-2 border-gray-200 hover:border-tplearn-green transition-colors" onclick="selectPaymentMethodInModal('bank')">
+                <div class="payment-method-modal cursor-pointer rounded-lg p-4 text-center border-2 border-gray-200 hover:border-tplearn-green transition-colors" onclick="selectPaymentMethodInModal('bank', event)">
                   <div class="text-gray-600 mb-2">
                     <svg class="w-8 h-8 mx-auto" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z"></path>
@@ -1042,14 +1377,14 @@ function isInstallmentPayable($currentPayment, $allPayments)
         // Validate file type
         const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'];
         if (!allowedTypes.includes(file.type)) {
-          alert('Please upload only PNG, JPG, or PDF files.');
+          TPAlert.warning('Required', 'Please upload only PNG, JPG, or PDF files.');
           return;
         }
 
         // Validate file size (10MB max)
         const maxSize = 10 * 1024 * 1024; // 10MB in bytes
         if (file.size > maxSize) {
-          alert('File size must be less than 10MB.');
+          TPAlert.error('File Size Error', 'File size must be less than 10MB.');
           return;
         }
 
@@ -1124,7 +1459,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
       const referenceNumber = document.getElementById('resubmitReferenceNumber').value.trim();
 
       if (!referenceNumber || !selectedResubmitPaymentMethod || !resubmitUploadedFile) {
-        alert('Please fill in all required fields and upload payment proof.');
+        TPAlert.warning('Missing Information', 'Please fill in all required fields and upload payment proof.');
         return;
       }
 
@@ -1149,32 +1484,15 @@ function isInstallmentPayable($currentPayment, $allPayments)
         });
 
         // Show success message
-        const successModal = document.createElement('div');
-        successModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-        successModal.innerHTML = `
-          <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
-            <div class="text-center">
-              <div class="bg-tplearn-green bg-opacity-20 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-tplearn-green" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                </svg>
-              </div>
-              <h3 class="text-lg font-semibold mb-2">Payment Resubmitted Successfully!</h3>
-              <p class="text-gray-600 mb-2">Program: ${program}</p>
-              <p class="text-gray-600 mb-2">Amount: ₱${parseFloat(amount).toLocaleString()}</p>
-              <p class="text-gray-600 mb-2">Reference: ${referenceNumber}</p>
-              <p class="text-sm text-gray-500 mb-4">Your payment has been resubmitted and is now pending validation.</p>
-              <button onclick="this.closest('.fixed').remove(); location.reload();" class="px-4 py-2 bg-tplearn-green text-white rounded-lg hover:bg-green-700">
-                Close
-              </button>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(successModal);
+        TPAlert.success('Payment Resubmitted Successfully!', 
+          `Program: ${program}<br>Amount: ₱${parseFloat(amount).toLocaleString()}<br>Reference: ${referenceNumber}<br><br>Your payment has been resubmitted and is now pending validation.`
+        ).then(() => {
+          location.reload();
+        });
       }, 2000);
     }
 
-    function selectPaymentMethodInModal(method) {
+    function selectPaymentMethodInModal(method, event) {
       selectedPaymentMethod = method;
 
       // Remove active class from all payment methods
@@ -1184,8 +1502,19 @@ function isInstallmentPayable($currentPayment, $allPayments)
       });
 
       // Add active class to selected method
-      event.target.closest('.payment-method-modal').classList.remove('border-gray-200');
-      event.target.closest('.payment-method-modal').classList.add('border-tplearn-green', 'bg-green-50');
+      // Find the payment method element either from event or by method type
+      let targetElement;
+      if (event && event.target) {
+        targetElement = event.target.closest('.payment-method-modal');
+      } else {
+        // Find the payment method by data attribute or onclick content
+        targetElement = document.querySelector(`.payment-method-modal[onclick*="'${method}'"]`);
+      }
+      
+      if (targetElement) {
+        targetElement.classList.remove('border-gray-200');
+        targetElement.classList.add('border-tplearn-green', 'bg-green-50');
+      }
 
       // Update payment instructions based on selected method
       const instructionsDiv = document.getElementById('payment-instructions-modal');
@@ -1275,27 +1604,30 @@ function isInstallmentPayable($currentPayment, $allPayments)
     }
 
     async function submitPaymentNow(paymentId, program, amount) {
+      console.log('Starting payment submission...');
+      
       const referenceNumber = document.getElementById('paymentReferenceNumber').value.trim();
       const fileInput = document.getElementById('fileInput-modal');
       const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
 
+      // Basic validation
       if (!referenceNumber || !selectedPaymentMethod) {
-        alert('Please enter reference number and select payment method');
+        TPAlert.warning('Missing Information', 'Please enter reference number and select payment method');
         return;
       }
       
       if (!hasFile) {
-        alert('Please upload payment proof before submitting');
+        TPAlert.warning('Missing File', 'Please upload payment proof before submitting');
         return;
       }
 
-      // Disable submit button
+      // Show loading state
       const submitBtn = document.getElementById('submitPaymentBtn');
       submitBtn.disabled = true;
-      submitBtn.innerHTML = 'Processing...';
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
 
       try {
-        // File upload is now required, always use FormData
+        // Create form data
         const formData = new FormData();
         formData.append('payment_id', paymentId);
         formData.append('reference_number', referenceNumber);
@@ -1303,34 +1635,47 @@ function isInstallmentPayable($currentPayment, $allPayments)
         formData.append('receipt', fileInput.files[0]);
         formData.append('is_resubmission', 'false');
 
-        const response = await fetch('/TPLearn/api/submit-payment.php', {
+        // Submit payment
+        const response = await fetch('/TPLearn/api/submit-payment-simple.php', {
           method: 'POST',
           body: formData
         });
 
-        const result = await response.json();
+        const responseText = await response.text();
+        console.log('Response:', responseText);
 
+        let result;
+        try {
+          result = JSON.parse(responseText);
+        } catch (e) {
+          console.error('JSON parse error:', e);
+          throw new Error('Server response was not valid JSON');
+        }
+        
         if (result.success) {
-          // Close current modal
-          document.querySelectorAll('.fixed').forEach(modal => modal.remove());
-
-          // Show success message
-          showPaymentSuccess(result.program_name, result.amount, result.reference_number);
-
-          // Refresh page after a delay
-          setTimeout(() => {
-            location.reload();
-          }, 2000);
+          // Success - close modal and show message
+          const modal = document.querySelector('.fixed.inset-0');
+          if (modal) modal.remove();
+          
+          TPAlert.success('Payment Submitted!', 'Your payment has been submitted successfully and is under review.');
+          
+          // Reload page after short delay
+          setTimeout(() => location.reload(), 1500);
         } else {
-          throw new Error(result.error || 'Payment submission failed');
+          // Show error message
+          TPAlert.error('Submission Failed', result.error || 'Failed to submit payment');
+          
+          // Reset button
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Submit Payment';
         }
       } catch (error) {
-        console.error('Payment submission error:', error);
-        alert('Error submitting payment: ' + error.message);
-
-        // Re-enable submit button
+        console.error('Error:', error);
+        TPAlert.error('Error', 'Unable to submit payment. Please try again.');
+        
+        // Reset button
         submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Submit Payment';
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Submit Payment';
       }
     }
 
@@ -1385,7 +1730,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
                 <img src="../../assets/logo.png" alt="TPLearn Logo" class="h-12 w-12 mr-3">
                 <h1 class="text-3xl font-bold text-blue-600">TPLearn</h1>
               </div>
-              <p class="text-lg text-gray-600 font-medium">Official Payment Receipt</p>
+              <p class="text-lg text-gray-600 font-medium">Payment Receipt</p>
               <p class="text-sm text-gray-500 mt-2">Learning Management System</p>
             </div>
             
@@ -1668,7 +2013,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
               <div class="logo-section">
                 <span class="company-name">TPLearn</span>
               </div>
-              <div class="receipt-title">Official Payment Receipt</div>
+              <div class="receipt-title">Payment Receipt</div>
               <div class="subtitle">Learning Management System</div>
             </div>
             
@@ -2204,14 +2549,14 @@ function isInstallmentPayable($currentPayment, $allPayments)
       // Validate file type
       const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
       if (!allowedTypes.includes(file.type)) {
-        alert('Please upload only PNG, JPG, or JPEG files.');
+        TPAlert.error('Invalid File Type', 'Please upload only PNG, JPG, or JPEG files.');
         return;
       }
 
       // Validate file size (10MB max)
       const maxSize = 10 * 1024 * 1024;
       if (file.size > maxSize) {
-        alert('File size must be less than 10MB.');
+        TPAlert.error('File Too Large', 'File size must be less than 10MB.');
         return;
       }
       
@@ -2271,7 +2616,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
       const selectedFile = (fileInput && fileInput.files.length > 0) ? fileInput.files[0] : modal.selectedFile;
 
       if (!referenceInput || !referenceInput.value.trim() || !selectedFile || !selectedResubmitPaymentMethod) {
-        alert('Please fill in all required fields and upload payment proof.');
+        TPAlert.warning('Required', 'Please fill in all required fields and upload payment proof.');
         return;
       }
 
@@ -2311,43 +2656,22 @@ function isInstallmentPayable($currentPayment, $allPayments)
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          // Show success message
-          const successModal = document.createElement('div');
-          successModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-          successModal.innerHTML = `
-            <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
-              <div class="flex items-center justify-center mb-4">
-                <div class="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
-                  <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                </div>
-              </div>
-              <h3 class="text-lg font-semibold text-center text-gray-900 mb-2">Payment Resubmitted!</h3>
-              <div class="space-y-2 text-sm text-gray-600 mb-4">
-                <p><strong>Payment ID:</strong> ${data.payment_id}</p>
-                <p><strong>Reference Number:</strong> ${data.reference_number}</p>
-                <p><strong>Amount:</strong> ₱${data.amount.toLocaleString()}</p>
-                <p><strong>Status:</strong> Pending Validation</p>
-              </div>
-              <p class="text-sm text-gray-600 text-center mb-4">Your payment has been resubmitted and is now pending validation by an administrator.</p>
-              <button onclick="this.closest('.fixed').remove(); location.reload();" 
-                      class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                OK
-              </button>
-            </div>
-          `;
+          // Show success message using TPAlert
+          TPAlert.success('Payment Resubmitted!', 
+            `Payment ID: ${data.payment_id}\nReference Number: ${data.reference_number}\nAmount: ₱${data.amount.toLocaleString()}\nStatus: Pending Validation\n\nYour payment has been resubmitted and is now pending validation by an administrator.`
+          ).then(() => {
+            location.reload();
+          });
           
           // Remove resubmit modal
           modal.remove();
-          document.body.appendChild(successModal);
         } else {
           throw new Error(data.error || 'Failed to resubmit payment');
         }
       })
       .catch(error => {
         console.error('Resubmission error:', error);
-        alert('Error resubmitting payment: ' + error.message);
+        TPAlert.error('Resubmission Failed', 'Error resubmitting payment: ' + error.message);
         
         // Re-enable submit button
         if (submitBtn) {
@@ -2425,14 +2749,14 @@ function isInstallmentPayable($currentPayment, $allPayments)
         // Validate file type
         const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'];
         if (!allowedTypes.includes(file.type)) {
-          alert('Please upload only PNG, JPG, or PDF files.');
+          TPAlert.warning('Required', 'Please upload only PNG, JPG, or PDF files.');
           return;
         }
 
         // Validate file size (10MB max)
         const maxSize = 10 * 1024 * 1024; // 10MB in bytes
         if (file.size > maxSize) {
-          alert('File size must be less than 10MB.');
+          TPAlert.error('File Size Error', 'File size must be less than 10MB.');
           return;
         }
 
@@ -2463,6 +2787,9 @@ function isInstallmentPayable($currentPayment, $allPayments)
       const modal = document.getElementById('detailsModal');
       const detailsContent = document.getElementById('detailsContent');
       
+      // Store the payment ID for use in other functions
+      window.currentPaymentId = paymentId;
+      
       // Extract actual payment ID from formatted payment_id (PAY-YYYYMMDD-XXX)
       let actualPaymentId = paymentId;
       const matches = paymentId.toString().match(/PAY-\d{8}-(\d+)/);
@@ -2485,14 +2812,18 @@ function isInstallmentPayable($currentPayment, $allPayments)
       
       // Show modal
       modal.classList.remove('hidden');
+      modal.classList.add('flex');
       document.body.style.overflow = 'hidden';
       
-      // Load payment details from API
-      fetch(`../../api/payments.php?action=get_payment_details&id=${actualPaymentId}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.success && data.payment) {
-            const payment = data.payment;
+      // Load both payment details and history
+      Promise.all([
+        fetch(`../../api/payments.php?action=get_payment_details&id=${actualPaymentId}`).then(response => response.json()),
+        fetch(`http://localhost/TPLearn/api/payment-history.php?payment_id=${paymentId}`).then(response => response.json())
+      ])
+        .then(([detailsData, historyData]) => {
+          if (detailsData.success && detailsData.payment) {
+            const payment = detailsData.payment;
+            const history = historyData.success ? historyData.history : [];
             
             // Format dates properly
             const formatDateTime = (dateString) => {
@@ -2593,58 +2924,52 @@ function isInstallmentPayable($currentPayment, $allPayments)
                 <div class="space-y-6">
                   <!-- Payment Timeline -->
                   <div class="bg-white border border-gray-200 p-6 rounded-xl">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <svg class="w-6 h-6 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
-                      </svg>
-                      Payment Timeline
-                    </h3>
-                    <div class="space-y-4">
-                      <div class="flex items-start space-x-3">
-                        <div class="flex-shrink-0">
-                          <div class="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                        </div>
-                        <div>
-                          <div class="text-sm font-medium text-gray-900">Payment Created</div>
-                          <div class="text-sm text-gray-600">${formatDateTime(payment.created_at)}</div>
-                        </div>
-                      </div>
-                      
-                      ${payment.payment_date && payment.payment_date !== '0000-00-00 00:00:00' ? `
-                        <div class="flex items-start space-x-3">
-                          <div class="flex-shrink-0">
-                            <div class="w-2 h-2 bg-yellow-500 rounded-full mt-2"></div>
-                          </div>
-                          <div>
-                            <div class="text-sm font-medium text-gray-900">Payment Submitted</div>
-                            <div class="text-sm text-gray-600">${formatDateTime(payment.payment_date)}</div>
-                          </div>
-                        </div>
-                      ` : ''}
-                      
-                      ${payment.status === 'validated' && payment.validated_at ? `
-                        <div class="flex items-start space-x-3">
-                          <div class="flex-shrink-0">
-                            <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                          </div>
-                          <div>
-                            <div class="text-sm font-medium text-gray-900">Payment Validated</div>
-                            <div class="text-sm text-gray-600">${formatDateTime(payment.validated_at)}</div>
-                            ${payment.validator_name ? `<div class="text-sm text-gray-500">by ${payment.validator_name}</div>` : ''}
-                          </div>
-                        </div>
-                      ` : payment.status === 'rejected' && payment.validated_at ? `
-                        <div class="flex items-start space-x-3">
-                          <div class="flex-shrink-0">
-                            <div class="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
-                          </div>
-                          <div>
-                            <div class="text-sm font-medium text-gray-900">Payment Rejected</div>
-                            <div class="text-sm text-gray-600">${formatDateTime(payment.validated_at)}</div>
-                            ${payment.validator_name ? `<div class="text-sm text-gray-500">by ${payment.validator_name}</div>` : ''}
-                          </div>
-                        </div>
-                      ` : ''}
+                    <div class="flex items-center justify-between mb-4">
+                      <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <svg class="w-6 h-6 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                        </svg>
+                        Payment Timeline
+                      </h3>
+                      <button onclick="showCompleteTimeline(window.currentPaymentId)" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span>More</span>
+                      </button>
+                    </div>
+                    <div class="flow-root">
+                      <ul class="space-y-4">
+                        ${history.length > 0 ? history.map((event, index) => {
+                          // Get icon and color based on action type
+                          let iconData = { color: 'bg-gray-500', icon: '●', title: 'Unknown Action' };
+                          
+                          switch(event.action) {
+                            case 'created':
+                              iconData = { color: 'bg-blue-500', icon: '●', title: 'Payment Created' };
+                              break;
+                            case 'payment_submitted':
+                              iconData = { color: 'bg-yellow-500', icon: '●', title: 'Payment Submitted' };
+                              break;
+                            case 'validated':
+                              iconData = { color: 'bg-green-500', icon: '●', title: 'Payment Validated' };
+                              break;
+                            case 'rejected':
+                              iconData = { color: 'bg-red-500', icon: '●', title: 'Payment Rejected' };
+                              break;
+                            case 'resubmitted':
+                              iconData = { color: 'bg-purple-500', icon: '●', title: 'Payment Resubmitted' };
+                              break;
+                          }
+                          
+                          return '<li><div class="flex items-start space-x-3">' +
+                            '<div class="flex-shrink-0"><div class="w-2 h-2 ' + iconData.color + ' rounded-full mt-2"></div></div>' +
+                            '<div class="min-w-0 flex-1">' +
+                            '<div class="text-sm font-medium text-gray-900">' + iconData.title + '</div>' +
+                            '<div class="text-sm text-gray-600">' + formatDateTime(event.timestamp) + '</div>' +
+                            '</div></div></li>';
+                        }).join('') : '<li class="text-center py-4 text-gray-500">No timeline data available</li>'}
+                      </ul>
                     </div>
                   </div>
 
@@ -2713,7 +3038,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
                   <p class="text-gray-600 mb-2">Failed to load payment details</p>
-                  <p class="text-sm text-gray-500">${data.error || 'Unknown error'}</p>
+                  <p class="text-sm text-gray-500">${detailsData.error || 'Unknown error'}</p>
                 </div>
               </div>
             `;
@@ -2759,12 +3084,12 @@ function isInstallmentPayable($currentPayment, $allPayments)
           if (data.success && data.attachment) {
             showPaymentProofModal(data.attachment, actualPaymentId);
           } else {
-            alert('Payment proof not found or error loading attachment: ' + (data.error || 'Unknown error'));
+            TPAlert.error('Payment Proof Error', 'Payment proof not found or error loading attachment: ' + (data.error || 'Unknown error'));
           }
         })
         .catch(error => {
           console.error('Error loading payment proof:', error);
-          alert('Error loading payment proof: ' + error.message);
+          TPAlert.error('Loading Error', 'Error loading payment proof: ' + error.message);
         });
     }
 
@@ -2963,7 +3288,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
     function openDetailsPaymentProofFullsize() {
       const attachment = window.currentDetailsAttachment;
       if (!attachment) {
-        alert('No payment proof available');
+        TPAlert.info('Information', 'No payment proof available');
         return;
       }
 
@@ -3003,12 +3328,12 @@ function isInstallmentPayable($currentPayment, $allPayments)
           
           <div class="p-4 overflow-auto flex items-center justify-center bg-gray-100 flex-1 min-h-0">
             <div class="max-w-full max-h-full">
-              ${attachment.mime_type && attachment.mime_type.startsWith('image/') ? 
-                `<img src="../../api/serve-receipt.php?id=${attachment.id}" 
+              ${attachment.mime_type && attachment.mime_type.startsWith('image/') && attachment.base64_data ? 
+                `<img src="data:${attachment.mime_type};base64,${attachment.base64_data}" 
                      alt="Payment Proof" 
                      class="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-                     onload="console.log('Payment proof image loaded successfully')"
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                     onload="console.log('Payment proof image loaded successfully from base64')"
+                     onerror="console.error('Error loading base64 image'); this.style.display='none'; this.nextElementSibling.style.display='block';">
                  <div style="display: none;" class="text-center p-8">
                    <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -3056,6 +3381,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
     function closeDetailsModal() {
       const modal = document.getElementById('detailsModal');
       modal.classList.add('hidden');
+      modal.classList.remove('flex');
       document.body.style.overflow = 'auto';
     }
 
@@ -3106,15 +3432,17 @@ function isInstallmentPayable($currentPayment, $allPayments)
             window.currentReceiptData = payment;
 
             // Show the modal
-            document.getElementById('receiptModal').classList.remove('hidden');
+            const receiptModal = document.getElementById('receiptModal');
+            receiptModal.classList.remove('hidden');
+            receiptModal.classList.add('flex');
             document.body.style.overflow = 'hidden';
           } else {
-            alert('Failed to load payment details: ' + (data.error || 'Unknown error'));
+            TPAlert.error('Loading Error', 'Failed to load payment details: ' + (data.error || 'Unknown error'));
           }
         })
         .catch(error => {
           console.error('Error loading payment details:', error);
-          alert('Failed to load payment details. Please try again.');
+          TPAlert.info('Information', 'Failed to load payment details. Please try again.');
         });
     }
 
@@ -3129,7 +3457,9 @@ function isInstallmentPayable($currentPayment, $allPayments)
     }
 
     function closeReceiptModal() {
-      document.getElementById('receiptModal').classList.add('hidden');
+      const receiptModal = document.getElementById('receiptModal');
+      receiptModal.classList.add('hidden');
+      receiptModal.classList.remove('flex');
       document.body.style.overflow = 'auto';
       window.currentReceiptPaymentId = null;
       window.currentReceiptData = null;
@@ -3255,7 +3585,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
       const paymentData = window.currentReceiptData;
 
       if (!paymentId || !paymentData) {
-        alert('No payment data available for PDF generation.');
+        TPAlert.info('Information', 'No payment data available for PDF generation.');
         return;
       }
 
@@ -3267,7 +3597,7 @@ function isInstallmentPayable($currentPayment, $allPayments)
       );
       
       if (!receiptWindow) {
-        alert('Please allow popups to download the receipt.');
+        TPAlert.warning('Required', 'Please allow popups to download the receipt.');
       }
     }
 
@@ -3277,6 +3607,14 @@ function isInstallmentPayable($currentPayment, $allPayments)
           return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">✓ Validated</span>';
         case 'rejected':
           return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">✗ Rejected</span>';
+        case 'overdue_rejected':
+          return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">⚠️ Overdue - Rejected</span>';
+        case 'pending_validation':
+          return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⏳ Pending Validation</span>';
+        case 'overdue_pending_validation':
+          return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⚠️ Overdue - Pending Validation</span>';
+        case 'overdue':
+          return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">⚠️ Overdue</span>';
         case 'pending':
           if (referenceNumber) {
             return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⏳ Pending Validation</span>';
@@ -3284,7 +3622,8 @@ function isInstallmentPayable($currentPayment, $allPayments)
             return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">💳 Awaiting Payment</span>';
           }
         default:
-          return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">' + (status || 'Unknown') + '</span>';
+          const formattedStatus = status ? status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Unknown';
+          return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">' + formattedStatus + '</span>';
       }
     }
 
@@ -3318,8 +3657,535 @@ function isInstallmentPayable($currentPayment, $allPayments)
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // Initialize with Make Payment tab active
-    window.addEventListener('DOMContentLoaded', function() {
+    // Payment History Modal Functions
+    function showHistoryModal(paymentId) {
+      const modal = document.getElementById('historyModal');
+      const historyContent = document.getElementById('historyContent');
+      const paymentIdElement = document.getElementById('historyPaymentId');
+      
+      // Update payment ID in header
+      paymentIdElement.textContent = paymentId;
+      
+      // Show loading state
+      historyContent.innerHTML = `
+        <div class="flex items-center justify-center p-8">
+          <div class="text-center">
+            <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-gray-600">Loading payment history...</p>
+          </div>
+        </div>
+      `;
+      
+      // Show modal
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+      
+      // Load payment history data  
+      console.log('Fetching payment history for ID:', paymentId);
+      fetch('http://localhost/TPLearn/api/payment-history.php?payment_id=' + encodeURIComponent(paymentId), {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+        .then(response => {
+          console.log('Response status:', response.status);
+          console.log('Response URL:', response.url);
+          console.log('Response headers:', response.headers);
+          if (!response.ok) {
+            return response.text().then(text => {
+              console.error('Error response body:', text);
+              throw new Error('Network response was not ok: ' + response.status + ' - ' + text.substring(0, 200));
+            });
+          }
+          return response.text().then(text => {
+            console.log('Raw response:', text);
+            try {
+              return JSON.parse(text);
+            } catch (e) {
+              console.error('JSON parse error:', e);
+              console.error('Response was:', text);
+              throw new Error('Invalid JSON response: ' + text.substring(0, 100));
+            }
+          });
+        })
+        .then(data => {
+          console.log('API Response:', data);
+          if (data.success) {
+            renderPaymentHistory(data.payment, data.history);
+          } else {
+            historyContent.innerHTML = '<div class="text-center p-8">' +
+              '<svg class="w-16 h-16 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+              '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>' +
+              '</svg>' +
+              '<h3 class="text-lg font-medium text-gray-900 mb-2">Error Loading History</h3>' +
+              '<p class="text-gray-600">' + (data.error || 'Failed to load payment history') + '</p>' +
+              '</div>';
+          }
+        })
+        .catch(error => {
+          console.error('Error loading payment history:', error);
+          historyContent.innerHTML = '<div class="text-center p-8">' +
+            '<svg class="w-16 h-16 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>' +
+            '</svg>' +
+            '<h3 class="text-lg font-medium text-gray-900 mb-2">Connection Error</h3>' +
+            '<p class="text-gray-600">Failed to connect to server. Please try again.</p>' +
+            '</div>';
+        });
+    }
+
+    function closeHistoryModal() {
+      const modal = document.getElementById('historyModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.style.overflow = 'auto';
+    }
+
+    // Complete Timeline Modal Functions
+    function showCompleteTimeline(paymentId) {
+      console.log('Opening complete timeline for payment:', paymentId);
+      
+      // Validate payment ID
+      if (!paymentId || paymentId === 'undefined') {
+        TPAlert.error('Error', ' Payment ID is missing. Please try refreshing the page.');
+        return;
+      }
+      
+      const modal = document.getElementById('completeTimelineModal');
+      const paymentIdElement = document.getElementById('timelinePaymentId');
+      const contentElement = document.getElementById('completeTimelineContent');
+      
+      // Show modal
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+      
+      // Set payment ID
+      paymentIdElement.textContent = paymentId;
+      
+      // Show loading state
+      contentElement.innerHTML = `
+        <div class="flex items-center justify-center p-8">
+          <div class="text-center">
+            <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-gray-600">Loading complete payment timeline...</p>
+          </div>
+        </div>
+      `;
+      
+      // Extract numeric ID for API calls
+      let actualPaymentId = paymentId;
+      const matches = paymentId.toString().match(/PAY-\d{8}-(\d+)/);
+      if (matches) {
+        actualPaymentId = matches[1];
+      }
+
+      // Load timeline data
+      Promise.all([
+        fetch(`../../api/payments.php?action=get_payment_details&id=${actualPaymentId}`).then(r => r.json()),
+        fetch(`../../api/payment-history.php?payment_id=${encodeURIComponent(paymentId)}`).then(r => r.json())
+      ])
+      .then(([paymentResponse, historyResponse]) => {
+        console.log('Timeline API responses:', { paymentResponse, historyResponse });
+        
+        // Handle different response structures
+        const paymentData = paymentResponse.success ? paymentResponse.payment : paymentResponse;
+        const historyData = historyResponse.success ? historyResponse.history : [];
+        
+        if (paymentData && historyResponse.success) {
+          renderCompleteTimeline(paymentData, historyData);
+        } else {
+          throw new Error(paymentResponse.error || historyResponse.error || 'Failed to load data');
+        }
+      })
+      .catch(error => {
+        console.error('Error loading complete timeline:', error);
+        contentElement.innerHTML = `
+          <div class="text-center py-8">
+            <div class="text-red-600 mb-4">
+              <svg class="w-12 h-12 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Error Loading Timeline</h3>
+            <p class="text-gray-600">${error.message}</p>
+          </div>
+        `;
+      });
+    }
+
+    function closeCompleteTimelineModal() {
+      const modal = document.getElementById('completeTimelineModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.style.overflow = 'auto';
+    }
+
+    function renderPaymentHistory(payment, history) {
+      const historyContent = document.getElementById('historyContent');
+      
+      // Generate status color function
+      function getStatusColor(status) {
+        switch (status) {
+          case 'validated': return 'text-green-600 bg-green-100';
+          case 'pending_validation': return 'text-yellow-600 bg-yellow-100';
+          case 'rejected': return 'text-red-600 bg-red-100';
+          case 'pending': return 'text-blue-600 bg-blue-100';
+          default: return 'text-gray-600 bg-gray-100';
+        }
+      }
+
+      // Generate action icon
+      function getActionIcon(action) {
+        switch (action) {
+          case 'created': 
+            return { icon: 'M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z', color: 'text-blue-500' };
+          case 'payment_submitted': 
+            return { icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12', color: 'text-yellow-500' };
+          case 'validated': 
+            return { icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'text-green-500' };
+          case 'rejected': 
+            return { icon: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'text-red-500' };
+          default: 
+            return { icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', color: 'text-gray-500' };
+        }
+      }
+
+      // Format action names
+      function formatActionName(action) {
+        switch (action) {
+          case 'created': return 'Payment Created';
+          case 'payment_submitted': return 'Payment Proof Submitted';
+          case 'validated': return 'Payment Validated';
+          case 'rejected': return 'Payment Rejected';
+          case 'updated': return 'Payment Updated';
+          default: return action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+      }
+
+      const content = `
+        <div class="grid md:grid-cols-3 gap-8">
+          <!-- Payment Details -->
+          <div class="md:col-span-2">
+            <div class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Payment Information</h3>
+              <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span class="text-gray-600">Program:</span>
+                  <div class="font-medium text-gray-900">${payment.program_name || 'N/A'}</div>
+                </div>
+                <div>
+                  <span class="text-gray-600">Amount:</span>
+                  <div class="font-medium text-gray-900">₱${parseFloat(payment.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                </div>
+                <div>
+                  <span class="text-gray-600">Installment:</span>
+                  <div class="font-medium text-gray-900">${payment.installment_number || 1} of ${payment.total_installments || 1}</div>
+                </div>
+                <div>
+                  <span class="text-gray-600">Due Date:</span>
+                  <div class="font-medium text-gray-900">${payment.due_date ? new Date(payment.due_date).toLocaleDateString() : 'N/A'}</div>
+                </div>
+                <div>
+                  <span class="text-gray-600">Payment Method:</span>
+                  <div class="font-medium text-gray-900">${payment.payment_method ? getPaymentMethodDisplay(payment.payment_method) : 'N/A'}</div>
+                </div>
+                <div>
+                  <span class="text-gray-600">Reference Number:</span>
+                  <div class="font-medium text-gray-900">${payment.reference_number || 'N/A'}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Timeline -->
+            <div class="bg-white rounded-xl border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Payment Timeline</h3>
+                <p class="text-gray-600 text-sm mt-1">Complete history of all actions performed on this payment</p>
+              </div>
+              
+              <div class="p-6">
+                <div class="flow-root">
+                  <ul class="-mb-8">
+                    ${history.length > 0 ? history.map((event, index) => {
+                      const isLast = index === history.length - 1;
+                      
+                      // Get icon and color based on action type
+                      let iconData = { color: 'bg-gray-100 text-gray-600', icon: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z', title: 'Unknown Action' };
+                      
+                      switch(event.action) {
+                        case 'created':
+                          iconData = {
+                            color: 'bg-blue-100 text-blue-600',
+                            icon: 'M12 4v16m8-8H4',
+                            title: 'Payment Created'
+                          };
+                          break;
+                        case 'payment_submitted':
+                          iconData = {
+                            color: 'bg-yellow-100 text-yellow-600',
+                            icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12',
+                            title: 'Payment Submitted'
+                          };
+                          break;
+                        case 'validated':
+                          iconData = {
+                            color: 'bg-green-100 text-green-600',
+                            icon: 'M5 13l4 4L19 7',
+                            title: 'Payment Validated'
+                          };
+                          break;
+                        case 'rejected':
+                          iconData = {
+                            color: 'bg-red-100 text-red-600',
+                            icon: 'M6 18L18 6M6 6l12 12',
+                            title: 'Payment Rejected'
+                          };
+                          break;
+                      }
+                      
+                      return '<li><div class="relative pb-8">' +
+                        (!isLast ? '<span class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"></span>' : '') +
+                        '<div class="relative flex space-x-3">' +
+                        '<div><span class="h-8 w-8 rounded-full ' + iconData.color + ' border-2 border-current flex items-center justify-center ring-8 ring-white">' +
+                        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="' + iconData.icon + '"></path>' +
+                        '</svg></span></div>' +
+                        '<div class="min-w-0 flex-1"><div class="bg-gray-50 rounded-lg p-4">' +
+                        '<div class="flex items-center justify-between mb-2">' +
+                        '<h4 class="text-sm font-medium text-gray-900">' + iconData.title + '</h4>' +
+                        '<time class="text-xs text-gray-500">' + new Date(event.timestamp).toLocaleString() + '</time>' +
+                        '</div>' +
+                        '<div class="text-sm text-gray-700 mb-2">' + (event.notes || 'No additional details') + '</div>' +
+                        '<div class="text-xs text-gray-500">Performed by: <span class="font-medium">' + (event.performed_by || 'System') + '</span></div>' +
+                        '</div></div></div></div></li>';
+                    }).join('') : '<li class="text-center py-4 text-gray-500">No history available</li>'}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timeline Summary -->
+          <div class="space-y-6">
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+              <h4 class="text-lg font-semibold text-gray-900 mb-4">Current Status</h4>
+              <div class="text-center">
+                <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(payment.status)}">
+                  ${payment.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </span>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+              <h4 class="text-lg font-semibold text-gray-900 mb-4">Timeline Summary</h4>
+              <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Total Events</span>
+                  <span class="font-medium text-gray-900">${history.length}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Created</span>
+                  <span class="font-medium text-gray-900">${new Date(payment.created_at).toLocaleDateString()}</span>
+                </div>
+                ${(payment.status === 'validated' && payment.validated_at) ? '<div class="flex justify-between"><span class="text-gray-600">Validated</span><span class="font-medium text-gray-900">' + new Date(payment.validated_at).toLocaleDateString() + '</span></div>' : ''}
+                ${(payment.status === 'rejected' && payment.validated_at) ? '<div class="flex justify-between"><span class="text-gray-600">Rejected</span><span class="font-medium text-gray-900">' + new Date(payment.validated_at).toLocaleDateString() + '</span></div>' : ''}
+                ${payment.reference_number ? '<div class="flex justify-between"><span class="text-gray-600">Submitted</span><span class="font-medium text-gray-900">' + (payment.payment_date ? new Date(payment.payment_date).toLocaleDateString() : 'N/A') + '</span></div>' : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      historyContent.innerHTML = content;
+    }
+
+    function renderCompleteTimeline(payment, history) {
+      const contentElement = document.getElementById('completeTimelineContent');
+      
+      // Simple timeline rendering to match Payment Details format
+      function getTimelineIcon(action) {
+        switch (action) {
+          case 'created':
+            return { color: 'bg-blue-500', title: 'Payment Created' };
+          case 'payment_submitted':
+            return { color: 'bg-yellow-500', title: 'Payment Submitted' };
+          case 'validated':
+            return { color: 'bg-green-500', title: 'Payment Validated' };
+          case 'rejected':
+            return { color: 'bg-red-500', title: 'Payment Rejected' };
+          case 'resubmitted':
+            return { color: 'bg-purple-500', title: 'Payment Resubmitted' };
+          default:
+            return { color: 'bg-gray-500', title: 'Unknown Action' };
+        }
+      }
+
+      function formatDateTime(timestamp) {
+        if (!timestamp) return 'N/A';
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        }) + ' at ' + date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+
+      function formatStatusText(status) {
+        if (!status) return '';
+        return status
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase());
+      }
+
+      const content = `
+        <div class="max-w-4xl mx-auto">
+          <!-- Payment Overview -->
+          <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl mb-8 border border-green-200">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-gray-900">${payment.program_name || 'Payment Program'}</h3>
+                <p class="text-green-600 font-mono text-lg">${payment.payment_id || ('PAY-' + new Date(payment.created_at).toISOString().slice(0,10).replace(/-/g,'') + '-' + String(payment.id).padStart(3, '0'))}</p>
+              </div>
+              <div class="text-right">
+                <div class="text-3xl font-bold text-gray-900">₱${parseFloat(payment.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                <div class="text-sm text-gray-600">Installment ${payment.installment_number || 1} of ${payment.total_installments || 1}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Complete Timeline -->
+          <div class="bg-white border border-gray-200 p-6 rounded-xl">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <svg class="w-6 h-6 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+              </svg>
+              Complete Payment Timeline
+            </h3>
+            <div class="flow-root">
+              <ul class="space-y-6">
+                ${history.length > 0 ? history.map((event, index) => {
+                  const iconData = getTimelineIcon(event.action);
+                  const newStatus = event.new_status || event.status;
+                  const oldStatus = event.old_status;
+                  const timestamp = event.created_at || event.timestamp;
+                  const isLatest = index === history.length - 1;
+                  
+                  // Calculate relative time
+                  const eventDate = new Date(timestamp);
+                  const now = new Date();
+                  const diffMs = now - eventDate;
+                  const diffMins = Math.floor(diffMs / 60000);
+                  const diffHours = Math.floor(diffMs / 3600000);
+                  const diffDays = Math.floor(diffMs / 86400000);
+                  
+                  let relativeTime = '';
+                  if (diffMins < 1) {
+                    relativeTime = 'Just now';
+                  } else if (diffMins < 60) {
+                    relativeTime = diffMins + ' minute' + (diffMins === 1 ? '' : 's') + ' ago';
+                  } else if (diffHours < 24) {
+                    relativeTime = diffHours + ' hour' + (diffHours === 1 ? '' : 's') + ' ago';
+                  } else if (diffDays < 7) {
+                    relativeTime = diffDays + ' day' + (diffDays === 1 ? '' : 's') + ' ago';
+                  } else {
+                    relativeTime = formatDateTime(timestamp).split(' at ')[0];
+                  }
+                  
+                  return '<li><div class="relative">' +
+                    '<div class="flex items-start space-x-3">' +
+                    '<div class="flex-shrink-0">' +
+                      '<div class="w-3 h-3 ' + iconData.color + ' rounded-full mt-1.5 ' + 
+                      (isLatest ? 'ring-2 ring-green-200 ring-offset-1' : '') + '"></div>' +
+                    '</div>' +
+                    '<div class="min-w-0 flex-1 pb-6">' +
+                      '<div class="flex items-center justify-between">' +
+                        '<div class="text-sm font-medium text-gray-900">' + iconData.title +
+                        (isLatest ? ' <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 ml-2">Latest</span>' : '') +
+                        '</div>' +
+                        '<div class="text-xs text-gray-500">' + relativeTime + '</div>' +
+                      '</div>' +
+                      
+                      // Status transition display
+                      (oldStatus && newStatus && oldStatus !== newStatus ? 
+                        '<div class="mt-2 flex items-center space-x-2 text-xs">' +
+                          '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">' + 
+                            formatStatusText(oldStatus) + 
+                          '</span>' +
+                          '<svg class="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">' +
+                            '<path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>' +
+                          '</svg>' +
+                          '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs ' + 
+                            (iconData.color.replace('bg-', 'bg-').replace('-500', '-100')) + ' ' + 
+                            (iconData.color.replace('bg-', 'text-').replace('-500', '-800')) + '">' + 
+                            formatStatusText(newStatus) + 
+                          '</span>' +
+                        '</div>' : '') +
+                      
+                      // Full timestamp
+                      '<div class="text-xs text-gray-500 mt-2">' + formatDateTime(timestamp) + '</div>' +
+                      
+                      // Event description/notes
+                      (event.notes ? 
+                        '<div class="text-sm text-gray-600 mt-2 bg-gray-50 p-3 rounded-lg border-l-4 ' + 
+                        iconData.color.replace('bg-', 'border-') + '">' + event.notes + '</div>' : '') +
+                      
+                      // Additional details
+                      '<div class="mt-3 space-y-1">' +
+                        (event.performed_by ? 
+                          '<div class="flex items-center text-xs text-gray-500">' +
+                            '<svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">' +
+                              '<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>' +
+                            '</svg>' +
+                            'Performed by: ' + event.performed_by +
+                          '</div>' : '') +
+                        
+                        (event.reference_number ? 
+                          '<div class="flex items-center text-xs text-gray-500">' +
+                            '<svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">' +
+                              '<path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path>' +
+                            '</svg>' +
+                            'Reference: <code class="ml-1 px-1.5 py-0.5 bg-gray-200 text-gray-800 rounded font-mono text-xs">' + 
+                            event.reference_number + '</code>' +
+                          '</div>' : '') +
+                        
+                        (event.amount ? 
+                          '<div class="flex items-center text-xs text-gray-500">' +
+                            '<svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">' +
+                              '<path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"></path>' +
+                              '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd"></path>' +
+                            '</svg>' +
+                            'Amount: ₱' + parseFloat(event.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) +
+                          '</div>' : '') +
+                      '</div>' +
+                    '</div>' +
+                    '</div></div></li>';
+                }).join('') : '<li class="text-center py-8 text-gray-500">No timeline data available</li>'}
+              </ul>
+            </div>
+          </div>
+        </div>
+      `;
+
+      contentElement.innerHTML = content;
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize with Make Payment tab active
       switchTab('make-payment');
       
       // Mobile menu functionality

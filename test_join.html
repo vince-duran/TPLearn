@@ -1,0 +1,79 @@
+<?php
+session_start();
+
+// Simulate student login
+$_SESSION['user_id'] = 9; // teststudent
+$_SESSION['role'] = 'student';
+$_SESSION['username'] = 'teststudent';
+
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Live Session Join</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold mb-4">Test Live Session Join</h1>
+        
+        <div class="mb-4">
+            <p><strong>Student:</strong> teststudent (ID: 9)</p>
+            <p><strong>Meeting:</strong> 1</p>
+            <p><strong>Program:</strong> 3</p>
+        </div>
+        
+        <button onclick="testJoinSession()" class="w-full bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700">
+            Test Join Live Session
+        </button>
+        
+        <div id="result" class="mt-4 p-4 bg-gray-50 rounded" style="display: none;">
+            <h3 class="font-bold mb-2">Result:</h3>
+            <pre id="resultText"></pre>
+        </div>
+    </div>
+
+    <script>
+    async function testJoinSession() {
+        console.log('Testing live session join...');
+        
+        try {
+            // First test the tutor presence check
+            console.log('Step 1: Checking tutor presence...');
+            const tutorCheckResponse = await fetch('/tplearn/api/check-tutor-presence.php?meeting_id=1&program_id=3', {
+                method: 'GET',
+                credentials: 'include'
+            });
+            
+            console.log('Response status:', tutorCheckResponse.status);
+            console.log('Response headers:', [...tutorCheckResponse.headers.entries()]);
+            
+            if (!tutorCheckResponse.ok) {
+                throw new Error(`HTTP ${tutorCheckResponse.status}: ${tutorCheckResponse.statusText}`);
+            }
+            
+            const tutorCheck = await tutorCheckResponse.json();
+            console.log('Tutor check result:', tutorCheck);
+            
+            // Display result
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('resultText').textContent = JSON.stringify(tutorCheck, null, 2);
+            
+            if (tutorCheck.canJoin) {
+                console.log('SUCCESS: Student can join the session!');
+                alert('SUCCESS: Student can join the session!');
+            } else {
+                console.log('BLOCKED:', tutorCheck.reason, '-', tutorCheck.message);
+                alert('BLOCKED: ' + tutorCheck.reason + ' - ' + tutorCheck.message);
+            }
+            
+        } catch (error) {
+            console.error('ERROR:', error);
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('resultText').textContent = 'ERROR: ' + error.message;
+            alert('ERROR: ' + error.message);
+        }
+    }
+    </script>
+</body>
+</html>

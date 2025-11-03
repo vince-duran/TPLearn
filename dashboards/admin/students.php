@@ -1,9 +1,19 @@
 <?php
+// Suppress any potential debug output
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// Start output buffering to prevent any accidental output
+ob_start();
+
 require_once __DIR__ . '/../../assets/icons.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/data-helpers.php';
 require_once '../../includes/ui-components.php';
 requireRole('admin');
+
+// Clean any accidental output
+ob_end_clean();
 
 // Get filter parameters from URL
 $search_filter = $_GET['search'] ?? '';
@@ -166,13 +176,16 @@ $showingTo = min($offset + $limit, $totalStudents);
     <div class="lg:ml-64 flex-1">
       <?php 
       require_once '../../includes/header.php';
+      
+      // Get admin notifications
+      $admin_notifications = getAdminNotifications(15);
+      
       renderHeader(
         'Students',
         '',
         'admin',
         $_SESSION['username'] ?? 'Admin',
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
+        $admin_notifications
       );
       ?>
 
@@ -182,24 +195,18 @@ $showingTo = min($offset + $limit, $totalStudents);
         <div class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200">
           <div class="p-4">
             <form method="GET" action="" class="flex items-center justify-between">
-              <div class="flex items-center space-x-4">
+              <div class="flex items-center gap-6 flex-wrap min-w-0">
                 <!-- Search Input -->
-                <div class="relative">
+                <div class="relative flex-shrink-0">
                   <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
                   </svg>
-                  <input type="text" 
-                    name="search"
-                    value="<?php echo htmlspecialchars($search_filter); ?>"
-                    placeholder="Search students..." 
-                    class="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent w-64 h-10 text-sm">
+                  <input type="text" name="search" value="<?php echo htmlspecialchars($search_filter); ?>" placeholder="Search students..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent" style="width: 280px;">
                 </div>
 
                 <!-- Status Filter -->
-                <div class="relative">
-                  <select name="status" 
-                    class="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent"
-                    onchange="this.form.submit()">
+                <div class="relative flex-shrink-0" style="min-width: 140px;">
+                  <select name="status" class="bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent w-full" onchange="this.form.submit()" style="position: relative; -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none;">
                     <option value="" <?php echo empty($status_filter) ? 'selected' : ''; ?>>All Status</option>
                     <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
                     <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
@@ -236,7 +243,7 @@ $showingTo = min($offset + $limit, $totalStudents);
                 <thead class="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Information</th>
-                    <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Contact Details</th>
+                    <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Details</th>
                     <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Program</th>
                     <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -257,9 +264,9 @@ $showingTo = min($offset + $limit, $totalStudents);
                     </tr>
                   <?php else: ?>
                     <?php foreach ($students as $index => $student):
-                      // Generate avatar colors
-                      $avatarColors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-pink-500', 'bg-orange-500', 'bg-indigo-500', 'bg-red-500'];
-                      $avatarColor = $avatarColors[$index % count($avatarColors)];
+                      // Generate avatar colors - All avatars are now green
+                      $avatarColors = ['bg-green-500'];
+                      $avatarColor = $avatarColors[0];
 
                       // Get first letter of full name for avatar
                       $fullName = isset($student['first_name']) && isset($student['last_name']) 
@@ -306,33 +313,27 @@ $showingTo = min($offset + $limit, $totalStudents);
                     ?>
 
                       <tr class="student-row">
-                        <td class="px-4 sm:px-6 py-4">
+                        <td class="px-4 sm:px-6 py-4 whitespace-nowrap">
                           <div class="flex items-center">
-                            <div class="w-10 h-10 <?= $avatarColor ?> rounded-full flex items-center justify-center mr-3 sm:mr-4">
+                            <div class="w-10 h-10 <?= $avatarColor ?> rounded-full flex items-center justify-center flex-shrink-0">
                               <span class="text-white font-medium text-sm"><?= $initial ?></span>
                             </div>
-                            <div class="min-w-0 flex-1">
+                            <div class="ml-4">
                               <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($displayName) ?></div>
                               <div class="text-sm text-gray-500"><?= htmlspecialchars($student['user_id'] ?: $student['username']) ?></div>
-                              <div class="lg:hidden mt-1">
-                                <div class="text-xs text-gray-600"><?= htmlspecialchars($student['email']) ?></div>
-                                <div class="text-xs text-gray-500">
-                                  <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
-                                  </svg>
-                                  <?= htmlspecialchars($contactNumber) ?>
-                                </div>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $activeProgramCount > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' ?> mt-1">
-                                  <?= $programText ?>
-                                </span>
-                              </div>
                             </div>
                           </div>
                         </td>
-                        <td class="px-4 sm:px-6 py-4 hidden lg:table-cell">
-                          <div class="text-sm text-gray-900"><?= htmlspecialchars($student['email']) ?></div>
+                        <td class="px-4 sm:px-6 py-4">
                           <div class="text-sm text-gray-500 flex items-center">
                             <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
+                              <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+                            </svg>
+                            <?= htmlspecialchars($student['email']) ?>
+                          </div>
+                          <div class="text-sm text-gray-500 flex items-center mt-1">
+                            <svg class="w-3 h-3 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                               <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
                             </svg>
                             <?= htmlspecialchars($contactNumber) ?>
@@ -378,10 +379,6 @@ $showingTo = min($offset + $limit, $totalStudents);
                                   </button>
                                   <button onclick="viewPayments(<?= $student['id'] ?>)" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 block">
                                     View Payments
-                                  </button>
-                                  <hr class="my-1 border-gray-200">
-                                  <button onclick="deactivateStudent(<?= $student['id'] ?>)" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 block">
-                                    Deactivate Student
                                   </button>
                                 </div>
                               </div>
@@ -486,8 +483,9 @@ $showingTo = min($offset + $limit, $totalStudents);
   </div>
 
   <!-- Student Details Modal -->
-  <div id="studentDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+  <div id="studentDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center p-4 min-h-screen">
+      <div class="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
       <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 flex-shrink-0">
         <h2 class="text-xl font-semibold text-gray-800 flex items-center">
@@ -530,34 +528,26 @@ $showingTo = min($offset + $limit, $totalStudents);
           
           <button onclick="viewPaymentsFromModal()" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6M9 12h6m-6 4h3m-6 4h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
             </svg>
             View Payments
           </button>
         </div>
         
-        <div class="flex space-x-3">
-          <button onclick="deactivateStudentFromModal()" class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
-            </svg>
-            Deactivate
-          </button>
-          
+        <div class="flex justify-end">
           <button onclick="closeStudentDetailsModal()" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
             Close
           </button>
         </div>
       </div>
     </div>
+    </div>
   </div>
 
   <!-- JavaScript Functions -->
   <script>
-    // View Student Details Modal
-    function viewStudentDetails(studentId) {
-      console.log('Opening student details for ID:', studentId);
-      
+    // Define all functions immediately so they're available for onclick handlers
+    window.viewStudentDetails = function(studentId) {
       // Store current student ID for modal actions
       window.currentModalStudentId = studentId;
       
@@ -589,9 +579,9 @@ $showingTo = min($offset + $limit, $totalStudents);
           console.error('Error loading student details:', error);
           showError('Error loading student details. Please try again.');
         });
-    }
+    };
     
-    function displayStudentDetails(student) {
+    window.displayStudentDetails = function(student) {
       const content = document.getElementById('studentDetailsContent');
       
       // Recent enrollments for display
@@ -752,9 +742,9 @@ $showingTo = min($offset + $limit, $totalStudents);
           </div>
         </div>
       `;
-    }
+    };
     
-    function getStatusClass(status) {
+    window.getStatusClass = function(status) {
       const statusClasses = {
         'active': 'bg-green-100 text-green-800',
         'inactive': 'bg-gray-100 text-gray-800',
@@ -763,9 +753,9 @@ $showingTo = min($offset + $limit, $totalStudents);
         'pending': 'bg-purple-100 text-purple-800'
       };
       return statusClasses[status] || 'bg-gray-100 text-gray-800';
-    }
+    };
     
-    function showError(message) {
+    window.showError = function(message) {
       document.getElementById('studentDetailsContent').innerHTML = `
         <div class="text-center p-8">
           <div class="text-red-600 mb-4">
@@ -777,18 +767,18 @@ $showingTo = min($offset + $limit, $totalStudents);
           <p class="text-gray-600">${message}</p>
         </div>
       `;
-    }
+    };
     
-    function closeStudentDetailsModal() {
+    window.closeStudentDetailsModal = function() {
       document.getElementById('studentDetailsModal').classList.add('hidden');
       document.body.style.overflow = 'auto';
       // Clear stored data
       window.currentModalStudentId = null;
       window.currentModalStudentData = null;
-    }
+    };
     
     // Modal Action Functions
-    function editStudentFromModal() {
+    window.editStudentFromModal = function() {
       const studentId = window.currentModalStudentId;
       const studentData = window.currentModalStudentData;
       
@@ -796,11 +786,11 @@ $showingTo = min($offset + $limit, $totalStudents);
         closeStudentDetailsModal();
         showEditStudentForm(studentData);
       } else {
-        alert('Student data not available. Please try again.');
+        TPAlert.info('Information', 'Student data not available. Please try again.');
       }
-    }
+    };
     
-    function viewEnrollmentsFromModal() {
+    window.viewEnrollmentsFromModal = function() {
       const studentId = window.currentModalStudentId;
       const studentData = window.currentModalStudentData;
       
@@ -808,11 +798,11 @@ $showingTo = min($offset + $limit, $totalStudents);
         closeStudentDetailsModal();
         showEnrollmentsModal(studentData);
       } else {
-        alert('Student data not available. Please try again.');
+        TPAlert.info('Information', 'Student data not available. Please try again.');
       }
-    }
+    };
     
-    function viewPaymentsFromModal() {
+    window.viewPaymentsFromModal = function() {
       const studentId = window.currentModalStudentId;
       const studentData = window.currentModalStudentData;
       
@@ -820,28 +810,30 @@ $showingTo = min($offset + $limit, $totalStudents);
         closeStudentDetailsModal();
         showPaymentsModal(studentData);
       } else {
-        alert('Student data not available. Please try again.');
+        TPAlert.info('Information', 'Student data not available. Please try again.');
       }
-    }
+    };
     
-    function deactivateStudentFromModal() {
+    window.deactivateStudentFromModal = function() {
       const studentId = window.currentModalStudentId;
       const studentData = window.currentModalStudentData;
       
       if (studentId && studentData) {
         const studentName = `${studentData.first_name || ''} ${studentData.last_name || ''}`.trim() || studentData.username;
         
-        if (confirm(`Are you sure you want to deactivate ${studentName}? This will make their account inactive but can be reversed later.`)) {
+        TPAlert.confirm('Confirm Action', `Are you sure you want to deactivate ${studentName}? This will make their account inactive but can be reversed later.`).then(result => {
+        if (result.isConfirmed) {
           closeStudentDetailsModal();
           deactivateStudent(studentId);
         }
+      });
       } else {
-        alert('Student data not available. Please try again.');
+        TPAlert.info('Information', 'Student data not available. Please try again.');
       }
-    }
+    };
     
     // More Options Menu Functions
-    function toggleMoreOptions(studentId) {
+    window.toggleMoreOptions = function(studentId) {
       const menu = document.getElementById(`more-menu-${studentId}`);
       const allMenus = document.querySelectorAll('[id^="more-menu-"]');
       
@@ -854,7 +846,7 @@ $showingTo = min($offset + $limit, $totalStudents);
       
       // Toggle current menu
       menu.classList.toggle('hidden');
-    }
+    };
     
     // Close dropdowns when clicking outside
     document.addEventListener('click', function(event) {
@@ -866,7 +858,7 @@ $showingTo = min($offset + $limit, $totalStudents);
     });
     
     // More Options Functions
-    function editStudent(studentId) {
+    window.editStudent = function(studentId) {
       document.querySelectorAll('[id^="more-menu-"]').forEach(menu => menu.classList.add('hidden'));
       
       // Fetch student data first
@@ -881,11 +873,11 @@ $showingTo = min($offset + $limit, $totalStudents);
         })
         .catch(error => {
           console.error('Error:', error);
-          alert('Error loading student data. Please try again.');
+          TPAlert.error('Error', 'Error loading student data. Please try again.');
         });
-    }
+    };
     
-    function showEditStudentForm(student) {
+    window.showEditStudentForm = function(student) {
       const editForm = `
         <div id="editStudentModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div class="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
@@ -1036,7 +1028,7 @@ $showingTo = min($offset + $limit, $totalStudents);
       });
     }
     
-    function closeEditModal() {
+    window.closeEditModal = function() {
       const modal = document.getElementById('editStudentModal');
       if (modal) {
         modal.remove();
@@ -1044,7 +1036,7 @@ $showingTo = min($offset + $limit, $totalStudents);
       }
     }
     
-    function saveStudentChanges() {
+    window.saveStudentChanges = function() {
       const formData = {
         id: document.getElementById('studentId').value,
         first_name: document.getElementById('firstName').value,
@@ -1074,7 +1066,7 @@ $showingTo = min($offset + $limit, $totalStudents);
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          alert('Student updated successfully!');
+          TPAlert.success('Success', 'Student updated successfully!');
           closeEditModal();
           location.reload(); // Refresh the page to show updated data
         } else {
@@ -1083,11 +1075,11 @@ $showingTo = min($offset + $limit, $totalStudents);
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Error updating student. Please try again.');
+        TPAlert.error('Error', 'Error updating student. Please try again.');
       });
     }
     
-    function viewEnrollments(studentId) {
+    window.viewEnrollments = function(studentId) {
       document.querySelectorAll('[id^="more-menu-"]').forEach(menu => menu.classList.add('hidden'));
       
       // Fetch student data including enrollments
@@ -1102,11 +1094,11 @@ $showingTo = min($offset + $limit, $totalStudents);
         })
         .catch(error => {
           console.error('Error:', error);
-          alert('Error loading enrollment data. Please try again.');
+          TPAlert.error('Error', 'Error loading enrollment data. Please try again.');
         });
     }
     
-    function showEnrollmentsModal(student) {
+    window.showEnrollmentsModal = function(student) {
       const enrollments = student.enrollments || [];
       
       const enrollmentRows = enrollments.length > 0 ? enrollments.map(enrollment => `
@@ -1177,7 +1169,7 @@ $showingTo = min($offset + $limit, $totalStudents);
       document.body.style.overflow = 'hidden';
     }
     
-    function closeEnrollmentsModal() {
+    window.closeEnrollmentsModal = function() {
       const modal = document.getElementById('enrollmentsModal');
       if (modal) {
         modal.remove();
@@ -1185,7 +1177,7 @@ $showingTo = min($offset + $limit, $totalStudents);
       }
     }
     
-    function viewPayments(studentId) {
+    window.viewPayments = function(studentId) {
       document.querySelectorAll('[id^="more-menu-"]').forEach(menu => menu.classList.add('hidden'));
       
       // Fetch student data including payments
@@ -1200,11 +1192,11 @@ $showingTo = min($offset + $limit, $totalStudents);
         })
         .catch(error => {
           console.error('Error:', error);
-          alert('Error loading payment data. Please try again.');
+          TPAlert.error('Error', 'Error loading payment data. Please try again.');
         });
     }
     
-    function showPaymentsModal(student) {
+    window.showPaymentsModal = function(student) {
       const payments = student.payments || [];
       
       const paymentRows = payments.length > 0 ? payments.map(payment => `
@@ -1289,7 +1281,7 @@ $showingTo = min($offset + $limit, $totalStudents);
       document.body.style.overflow = 'hidden';
     }
     
-    function closePaymentsModal() {
+    window.closePaymentsModal = function() {
       const modal = document.getElementById('paymentsModal');
       if (modal) {
         modal.remove();
@@ -1297,40 +1289,51 @@ $showingTo = min($offset + $limit, $totalStudents);
       }
     }
     
-    function deactivateStudent(studentId) {
+    window.deactivateStudent = function(studentId) {
       document.querySelectorAll('[id^="more-menu-"]').forEach(menu => menu.classList.add('hidden'));
       
-      if (confirm('Are you sure you want to deactivate this student? This will make their account inactive but can be reversed later.')) {
-        fetch('../../api/students.php?action=deactivate_student', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ id: studentId })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            alert('Student deactivated successfully!');
-            location.reload(); // Refresh the page to show updated status
-          } else {
-            alert('Error deactivating student: ' + (data.message || 'Unknown error'));
-          }
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          alert('Error deactivating student. Please try again.');
-        });
-      }
+      TPAlert.confirm('Confirm Action', 'Are you sure you want to deactivate this student? This will make their account inactive but can be reversed later.').then(result => {
+        if (result.isConfirmed) {
+          fetch('../../api/students.php?action=deactivate_student', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ id: studentId })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              TPAlert.success('Success', 'Student deactivated successfully!');
+              location.reload(); // Refresh the page to show updated status
+            } else {
+              alert('Error deactivating student: ' + (data.message || 'Unknown error'));
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            TPAlert.error('Error', 'Error deactivating student. Please try again.');
+          });
+        }
+      });
     }
-    
-    // Close modal when clicking outside
-    document.getElementById('studentDetailsModal').addEventListener('click', function(e) {
-      if (e.target === this) {
-        closeStudentDetailsModal();
+
+    // Initialize event listeners after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      // Close modal when clicking outside
+      const modal = document.getElementById('studentDetailsModal');
+      if (modal) {
+        modal.addEventListener('click', function(e) {
+          if (e.target === this) {
+            closeStudentDetailsModal();
+          }
+        });
       }
     });
   </script>
+
+  <!-- Include SweetAlert2 and Common Scripts -->
+  <?php include '../../includes/common-scripts.php'; ?>
 
   <!-- Include mobile menu JavaScript -->
   <script src="../../assets/admin-sidebar.js"></script>

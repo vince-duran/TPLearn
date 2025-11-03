@@ -8,7 +8,7 @@ return array (
     'security' => 'tls',
     'auth' => true,
     'username' => 'tplearnph@gmail.com',
-    'password' => 'naojszvbyvybqazh',
+    'password' => 'wctjiwaulqkljyek',
     'from_name' => 'TPLearn',
     'from_email' => 'tplearnph@gmail.com',
   ),
@@ -61,8 +61,8 @@ return array (
   ),
   'debug' => 
   array (
-    'enabled' => true,
+    'enabled' => false,
     'level' => 2,
-    'log_emails' => true,
+    'log_emails' => false,
   ),
 );

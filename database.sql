@@ -424,13 +424,13 @@ INSERT INTO system_settings (setting_key, setting_value, setting_type, descripti
 -- ALTER TABLE users ADD INDEX idx_role (role);
 
 -- Sample data for testing the User ID system
--- Uncomment the following to add test users with random 3-digit numbers:
+-- Test users with proper TPT format:
 
--- INSERT INTO users (user_id, username, email, password, role, status) VALUES
--- ('TPS2025-847', 'student1', 'student1@tplearn.com', '$2y$12$example_hash', 'student', 'active'),
--- ('TPS2025-392', 'student2', 'student2@tplearn.com', '$2y$12$example_hash', 'student', 'active'),
--- ('TPT2025-156', 'tutor1', 'tutor1@tplearn.com', '$2y$12$example_hash', 'tutor', 'active'),
--- ('TPA2025-924', 'admin2', 'admin2@tplearn.com', '$2y$12$example_hash', 'admin', 'active');
+INSERT INTO users (user_id, username, email, password, role, status) VALUES
+('TPS2025-847', 'TPS2025-847', 'student1@tplearn.com', '$2y$12$SeOPp.27O/gUqRh4zUZvCOfBEk8t3XwUUG2KOobf5t.6p/VP1zgW6', 'student', 'active'),
+('TPS2025-392', 'TPS2025-392', 'student2@tplearn.com', '$2y$12$SeOPp.27O/gUqRh4zUZvCOfBEk8t3XwUUG2KOobf5t.6p/VP1zgW6', 'student', 'active'),
+('TPT2025-156', 'TPT2025-156', 'tutor1@tplearn.com', '$2y$12$SeOPp.27O/gUqRh4zUZvCOfBEk8t3XwUUG2KOobf5t.6p/VP1zgW6', 'tutor', 'active'),
+('TPA2025-924', 'TPA2025-924', 'admin2@tplearn.com', '$2y$12$SeOPp.27O/gUqRh4zUZvCOfBEk8t3XwUUG2KOobf5t.6p/VP1zgW6', 'admin', 'active');
 
 -- User ID Format Explanation:
 -- TP = Tisa and Pisara (organization name)

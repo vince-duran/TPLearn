@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assessment vs Assignment Modal - Fixed</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-5xl mx-auto">
+        <div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg shadow-2xl p-8 mb-8">
+            <h1 class="text-4xl font-bold mb-3">✅ Modal Context Fix Complete!</h1>
+            <p class="text-xl opacity-90">Submissions modal now correctly identifies Assessments vs Assignments</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-red-50 border-4 border-red-500 rounded-lg p-6">
+                <h2 class="text-2xl font-bold text-red-900 mb-4">❌ BEFORE (Wrong)</h2>
+                <div class="space-y-4">
+                    <div class="bg-white rounded-lg p-4 border-2 border-red-300">
+                        <p class="text-sm text-gray-600 mb-2">Clicking "Submissions" on <strong>Attached Assessment</strong>:</p>
+                        <div class="bg-gray-100 p-3 rounded">
+                            <p class="font-bold text-red-700">"Submissions - Error loading <span class="bg-yellow-200">assignment</span>"</p>
+                            <p class="text-sm text-red-600 mt-1">"Error loading <span class="bg-yellow-200">assignment</span> details"</p>
+                            <p class="text-xs text-gray-500 mt-2">If no data:</p>
+                            <p class="text-xs text-gray-600">"No submissions found for this <span class="bg-yellow-200">assignment</span>."</p>
+                        </div>
+                        <p class="text-xs text-red-700 font-semibold mt-3">❌ WRONG - It's an ASSESSMENT, not an assignment!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-green-50 border-4 border-green-500 rounded-lg p-6">
+                <h2 class="text-2xl font-bold text-green-900 mb-4">✅ AFTER (Correct)</h2>
+                <div class="space-y-4">
+                    <div class="bg-white rounded-lg p-4 border-2 border-green-300">
+                        <p class="text-sm text-gray-600 mb-2">Clicking "Submissions" on <strong>Attached Assessment</strong>:</p>
+                        <div class="bg-gray-100 p-3 rounded">
+                            <p class="font-bold text-green-700">"Submissions - Error loading <span class="bg-green-200">assessment</span>"</p>
+                            <p class="text-sm text-green-600 mt-1">"Error loading <span class="bg-green-200">assessment</span> details"</p>
+                            <p class="text-xs text-gray-500 mt-2">If no data:</p>
+                            <p class="text-xs text-gray-600">"No submissions found for this <span class="bg-green-200">assessment</span>."</p>
+                        </div>
+                        <p class="text-xs text-green-700 font-semibold mt-3">✅ CORRECT - Properly identifies it as an assessment!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">🔧 What Was Fixed</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="border-l-4 border-blue-500 bg-blue-50 p-4">
+                    <h3 class="font-bold text-blue-900 mb-2">1. Context Priority</h3>
+                    <p class="text-sm text-blue-800">Changed error handler to ALWAYS prioritize the context parameter ('assessment' or 'assignment') over error object properties</p>
+                </div>
+
+                <div class="border-l-4 border-purple-500 bg-purple-50 p-4">
+                    <h3 class="font-bold text-purple-900 mb-2">2. Network Error Handling</h3>
+                    <p class="text-sm text-purple-800">Fixed issue where network errors didn't carry the isAssessment flag, causing context loss</p>
+                </div>
+
+                <div class="border-l-4 border-green-500 bg-green-50 p-4">
+                    <h3 class="font-bold text-green-900 mb-2">3. Modal Comment</h3>
+                    <p class="text-sm text-green-800">Updated HTML comment from "Assignment Status Bar" to "Submission Status Bar (for both Assignments and Assessments)"</p>
+                </div>
+
+                <div class="border-l-4 border-orange-500 bg-orange-50 p-4">
+                    <h3 class="font-bold text-orange-900 mb-2">4. Empty State Message</h3>
+                    <p class="text-sm text-orange-800">Made "No submissions found" message context-aware - shows correct item type</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-indigo-50 border-2 border-indigo-500 rounded-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-indigo-900 mb-4">📊 Context Flow</h2>
+            <div class="space-y-3">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-purple-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold flex-shrink-0">1</div>
+                    <div class="flex-1 bg-white p-3 rounded shadow">
+                        <p class="font-semibold">Button Click</p>
+                        <code class="text-xs bg-purple-100 px-2 py-1 rounded">onclick="viewSubmissions(assessment_id, 'assessment')"</code>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <div class="bg-purple-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold flex-shrink-0">2</div>
+                    <div class="flex-1 bg-white p-3 rounded shadow">
+                        <p class="font-semibold">Store Context</p>
+                        <code class="text-xs bg-purple-100 px-2 py-1 rounded">window.currentSubmissionContext = 'assessment'</code>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <div class="bg-purple-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold flex-shrink-0">3</div>
+                    <div class="flex-1 bg-white p-3 rounded shadow">
+                        <p class="font-semibold">Fetch Data</p>
+                        <code class="text-xs bg-purple-100 px-2 py-1 rounded">fetch(assessment-submissions-api)</code>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <div class="bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold flex-shrink-0">4</div>
+                    <div class="flex-1 bg-white p-3 rounded shadow">
+                        <p class="font-semibold">If Error Occurs</p>
+                        <code class="text-xs bg-red-100 px-2 py-1 rounded">Check context: 'assessment' → isAssessment = true</code>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <div class="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold flex-shrink-0">5</div>
+                    <div class="flex-1 bg-white p-3 rounded shadow">
+                        <p class="font-semibold">Display Error</p>
+                        <code class="text-xs bg-green-100 px-2 py-1 rounded">"Error loading assessment" (correct!)</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-yellow-50 border-2 border-yellow-500 rounded-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-yellow-900 mb-4">🧪 Testing Scenarios</h2>
+            <div class="space-y-4">
+                <div class="bg-white rounded p-4 border border-yellow-300">
+                    <h3 class="font-bold text-yellow-900 mb-2">Scenario 1: Attached Assessment with Error</h3>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-yellow-800">
+                        <li>Click "Submissions" on attached assessment</li>
+                        <li>If error: Should say "<strong>Error loading assessment</strong>"</li>
+                        <li>Should NOT say "Error loading assignment"</li>
+                    </ul>
+                </div>
+
+                <div class="bg-white rounded p-4 border border-yellow-300">
+                    <h3 class="font-bold text-yellow-900 mb-2">Scenario 2: Attached Assessment with No Data</h3>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-yellow-800">
+                        <li>Click "Submissions" on attached assessment</li>
+                        <li>If no submissions: Should say "No submissions found for this <strong>assessment</strong>"</li>
+                        <li>Should NOT say "No submissions found for this assignment"</li>
+                    </ul>
+                </div>
+
+                <div class="bg-white rounded p-4 border border-yellow-300">
+                    <h3 class="font-bold text-yellow-900 mb-2">Scenario 3: Regular Assignment</h3>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-yellow-800">
+                        <li>Click "Submissions" on regular assignment (not attached)</li>
+                        <li>If error: Should say "<strong>Error loading assignment</strong>"</li>
+                        <li>This confirms it still works for regular assignments</li>
+                    </ul>
+                </div>
+
+                <div class="bg-white rounded p-4 border border-yellow-300">
+                    <h3 class="font-bold text-yellow-900 mb-2">Scenario 4: Network Error</h3>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-yellow-800">
+                        <li>Disconnect internet or block API</li>
+                        <li>Click "Submissions" on attached assessment</li>
+                        <li>Should still say "<strong>Error loading assessment</strong>" (not assignment)</li>
+                        <li>Proves context is preserved even for network errors</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 text-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">💻 Code Changes</h2>
+            <div class="space-y-4">
+                <div>
+                    <h3 class="text-lg font-bold text-blue-400 mb-2">1. Error Handler (catch block)</h3>
+                    <pre class="bg-gray-900 p-4 rounded text-xs overflow-x-auto">
+// BEFORE (Context could be lost)
+const isAssessment = error.isAssessment !== undefined 
+    ? error.isAssessment 
+    : (context === 'assessment' ? true : false);
+
+// AFTER (Context is primary)
+let isAssessment;
+if (context === 'assessment') {
+    isAssessment = true; // ALWAYS true for assessments
+} else if (context === 'assignment') {
+    isAssessment = false; // ALWAYS false for assignments
+} else {
+    isAssessment = error.isAssessment ?? null; // Fallback
+}</pre>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-bold text-green-400 mb-2">2. Empty State Message</h3>
+                    <pre class="bg-gray-900 p-4 rounded text-xs overflow-x-auto">
+// BEFORE (Hardcoded "assignment")
+tableBody.innerHTML = '...No submissions found for this assignment.';
+
+// AFTER (Context-aware)
+const context = window.currentSubmissionContext;
+const itemType = context === 'assessment' ? 'assessment' 
+              : context === 'assignment' ? 'assignment' 
+              : 'item';
+tableBody.innerHTML = `...No submissions found for this ${itemType}.`;</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-green-100 border-4 border-green-500 rounded-lg p-8 text-center">
+            <h2 class="text-3xl font-bold text-green-900 mb-4">🎉 Result</h2>
+            <div class="space-y-3">
+                <p class="text-xl text-green-800">
+                    <strong>Attached Assessments</strong> now show:<br>
+                    <span class="text-2xl font-bold">"Error loading ASSESSMENT"</span>
+                </p>
+                <p class="text-xl text-green-800">
+                    <strong>Regular Assignments</strong> still show:<br>
+                    <span class="text-2xl font-bold">"Error loading ASSIGNMENT"</span>
+                </p>
+                <p class="text-lg text-green-700 mt-4">✅ Context is preserved in ALL scenarios</p>
+                <p class="text-lg text-green-700">✅ Network errors don't lose context</p>
+                <p class="text-lg text-green-700">✅ Empty state messages are accurate</p>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center">
+            <a href="/TPLearn/dashboards/tutor/tutor-program-stream.php?program_id=32&program=New+Prog" 
+               class="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-bold hover:bg-blue-700 inline-block shadow-lg">
+                🧪 Test It Now in Tutor Stream
+            </a>
+        </div>
+
+        <div class="mt-8 text-center text-gray-600">
+            <p class="text-sm">Press F12 to open console and see detailed logging</p>
+            <p class="text-xs mt-2">Last updated: October 8, 2025</p>
+        </div>
+    </div>
+</body>
+</html>

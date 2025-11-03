@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Icon Color Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <h1 class="text-2xl font-bold mb-6">Icon Color Test</h1>
+    
+    <?php include 'assets/icons.php'; ?>
+    
+    <div class="grid grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-lg">
+            <h3 class="font-semibold mb-2">Blue Icons</h3>
+            <?= icon('users', 'w-8 h-8 text-blue-600') ?>
+            <?= icon('home', 'w-8 h-8 text-blue-500') ?>
+            <?= icon('academic-cap', 'w-8 h-8 text-blue-700') ?>
+        </div>
+        
+        <div class="bg-white p-4 rounded-lg">
+            <h3 class="font-semibold mb-2">Green Icons</h3>
+            <?= icon('check-circle', 'w-8 h-8 text-green-600') ?>
+            <?= icon('book-open', 'w-8 h-8 text-green-500') ?>
+            <?= icon('academic-cap', 'w-8 h-8 text-green-700') ?>
+        </div>
+        
+        <div class="bg-white p-4 rounded-lg">
+            <h3 class="font-semibold mb-2">Red Icons</h3>
+            <?= icon('trash', 'w-8 h-8 text-red-600') ?>
+            <?= icon('exclamation-triangle', 'w-8 h-8 text-red-500') ?>
+            <?= icon('x-mark', 'w-8 h-8 text-red-700') ?>
+        </div>
+        
+        <div class="bg-white p-4 rounded-lg">
+            <h3 class="font-semibold mb-2">Purple Icons</h3>
+            <?= icon('star', 'w-8 h-8 text-purple-600') ?>
+            <?= icon('bell', 'w-8 h-8 text-purple-500') ?>
+            <?= icon('envelope', 'w-8 h-8 text-purple-700') ?>
+        </div>
+    </div>
+
+    <div class="mt-8 bg-white p-4 rounded-lg">
+        <h3 class="font-semibold mb-2">Default (No Color)</h3>
+        <?= icon('users', 'w-8 h-8') ?>
+        <?= icon('home', 'w-8 h-8') ?>
+        <?= icon('academic-cap', 'w-8 h-8') ?>
+    </div>
+</body>
+</html>

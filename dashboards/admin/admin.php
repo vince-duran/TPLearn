@@ -1,8 +1,18 @@
 <?php
+// Suppress any potential debug output
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// Start output buffering to prevent any accidental output
+ob_start();
+
 require_once __DIR__ . '/../../assets/icons.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/data-helpers.php';
 requireRole('admin');
+
+// Clean any accidental output
+ob_end_clean();
 
 // Get current date for welcome message
 $currentDate = date('l, F j, Y');
@@ -14,7 +24,6 @@ $recentStudents = getStudents(5);
 $recentPayments = getPayments('pending', 5);
 $paymentStats = getPaymentStats();
 $allPrograms = getPrograms(['status' => 'active']);
-$recentActivities = getAdminRecentActivities(8);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -38,6 +47,8 @@ $recentActivities = getAdminRecentActivities(8);
       background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/><circle cx="50" cy="50" r="30" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/><circle cx="50" cy="50" r="20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></svg>') no-repeat center;
       background-size: contain;
     }
+    
+
   </style>
 </head>
 
@@ -51,18 +62,50 @@ $recentActivities = getAdminRecentActivities(8);
     <div class="lg:ml-64 flex-1">
       <?php 
       require_once '../../includes/header.php';
+      
+      // Get admin notifications
+      $admin_notifications = getAdminNotifications(15);
+      
       renderHeader(
         'Admin Dashboard',
-        'Welcome, Admin!',
+        'Welcome Admin!',
         'admin',
         $_SESSION['name'] ?? 'Admin',
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
+        $admin_notifications
       );
       ?>
 
       <!-- Dashboard Content -->
+            <!-- Reports Content -->
       <main class="p-6">
+        <!-- Welcome Card -->
+        <div class="welcome-card p-8 mb-8 text-white relative">
+          <div class="relative z-10">
+            <?php
+            // Set timezone to Philippine Time (UTC+8)
+            date_default_timezone_set('Asia/Manila');
+            
+            // Get current hour for time-based greeting
+            $current_hour = (int) date('H');
+            $greeting = '';
+            
+            if ($current_hour >= 5 && $current_hour < 12) {
+                $greeting = 'Morning';
+            } elseif ($current_hour >= 12 && $current_hour < 17) {
+                $greeting = 'Afternoon';
+            } elseif ($current_hour >= 17 && $current_hour < 21) {
+                $greeting = 'Evening';
+            } else {
+                $greeting = 'Evening'; // Late night/early morning
+            }
+            
+            $admin_name = explode(' ', $_SESSION['name'] ?? 'Admin')[0];
+            ?>
+            <h2 class="text-3xl font-bold mb-2">Good <?php echo $greeting; ?>, <?php echo htmlspecialchars($admin_name); ?>!</h2>
+            <p class="text-white/90">You have <?php echo $dashboardStats['total_students']; ?> total students and <?php echo $dashboardStats['pending_payments']; ?> pending payments to review.</p>
+          </div>
+        </div>
+        
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <!-- Total Students -->
@@ -213,38 +256,34 @@ $recentActivities = getAdminRecentActivities(8);
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2">
                   <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"></path>
+                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"></path>
                   </svg>
                   <h3 class="text-lg font-semibold text-gray-800">Enrollment Overview</h3>
                 </div>
-                <div class="flex items-center space-x-2">
-                  <button class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">Chart</button>
-                  <button class="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300">Table</button>
-                  <button class="p-1 text-gray-400 hover:text-gray-600">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"></path>
-                    </svg>
-                  </button>
-                </div>
+                <a href="programs.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
+                  View All Enrollments
+                  <svg class="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                  </svg>
+                </a>
               </div>
             </div>
 
             <div class="p-6">
-              <!-- Programs Table -->
               <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full text-sm border-collapse">
                   <thead>
                     <tr class="border-b border-gray-200">
-                      <th class="text-left py-2 text-gray-600 font-medium">Program Name</th>
-                      <th class="text-center py-2 text-gray-600 font-medium">Enrolled</th>
-                      <th class="text-center py-2 text-gray-600 font-medium">Fee</th>
-                      <th class="text-center py-2 text-gray-600 font-medium">Status</th>
+                      <th class="text-left py-3 px-3 text-gray-600 font-medium">Program Name</th>
+                      <th class="text-center py-3 px-3 text-gray-600 font-medium">Enrolled</th>
+                      <th class="text-center py-3 px-3 text-gray-600 font-medium">Fee</th>
+                      <th class="text-center py-3 px-3 text-gray-600 font-medium">Status</th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-gray-100" id="programs-table">
+                  <tbody class="divide-y divide-gray-100">
                     <?php if (empty($allPrograms)): ?>
-                    <tr id="no-programs-row">
-                      <td colspan="4" class="text-center py-8 text-gray-500">
+                    <tr>
+                      <td colspan="4" class="text-center py-8 px-3 text-gray-500">
                         <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C20.832 18.477 19.246 18 17.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                         </svg>
@@ -256,14 +295,18 @@ $recentActivities = getAdminRecentActivities(8);
                     <?php else: ?>
                     <?php foreach ($allPrograms as $program): ?>
                     <tr class="hover:bg-gray-50">
-                      <td class="py-3 text-gray-800 font-medium"><?php echo htmlspecialchars($program['name']); ?></td>
-                      <td class="py-3 text-center">
-                        <span class="text-gray-700"><?php echo $program['enrolled_count'] ?? 0; ?>/<?php echo $program['max_students']; ?></span>
+                      <td class="py-3 px-3 text-left text-gray-800 font-medium">
+                        <div class="truncate max-w-36" title="<?php echo htmlspecialchars($program['name']); ?>">
+                          <?php echo htmlspecialchars($program['name']); ?>
+                        </div>
                       </td>
-                      <td class="py-3 text-center">
-                        <span class="text-green-600 font-semibold">₱<?php echo number_format($program['fee']); ?></span>
+                      <td class="py-3 px-3 text-center">
+                        <span class="text-gray-700 text-sm"><?php echo $program['enrolled_count'] ?? 0; ?>/<?php echo $program['max_students']; ?></span>
                       </td>
-                      <td class="py-3 text-center">
+                      <td class="py-3 px-3 text-center">
+                        <span class="text-green-600 font-semibold text-sm">₱<?php echo number_format($program['fee']); ?></span>
+                      </td>
+                      <td class="py-3 px-3 text-center">
                         <?php 
                         $status = $program['status'] ?? 'active';
                         $badgeClass = '';
@@ -294,80 +337,7 @@ $recentActivities = getAdminRecentActivities(8);
             </div>
           </div>
         </div>
-
-        <!-- Recent Activities Section (moved up) -->
-        <div class="program-card mt-8">
-          <div class="px-6 py-4 border-b border-gray-200">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <svg class="w-5 h-5 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
-                </svg>
-                <h3 class="text-lg font-semibold text-gray-800">Recent Activities</h3>
-              </div>
-              <button class="text-gray-400 hover:text-gray-600">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z"></path>
-                  <path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <div class="p-6">
-            <div class="space-y-4 max-h-96 overflow-y-auto">
-              <?php if (!empty($recentActivities)): ?>
-                <?php foreach ($recentActivities as $activity): ?>
-                  <div class="activity-item">
-                    <div class="flex items-start space-x-3 w-full">
-                      <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <?= icon($activity['icon'], 'w-4 h-4 ' . $activity['color']) ?>
-                      </div>
-                      <div class="flex-1 min-w-0">
-                        <p class="text-sm text-gray-900 leading-5"><?= htmlspecialchars($activity['message']) ?></p>
-                        <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars($activity['time']) ?></p>
-                      </div>
-                      <div class="flex-shrink-0">
-                        <?php 
-                        $badgeClass = '';
-                        switch($activity['type']) {
-                          case 'enrollment':
-                            $badgeClass = 'bg-green-100 text-green-800';
-                            break;
-                          case 'payment':
-                            $badgeClass = 'bg-yellow-100 text-yellow-800';
-                            break;
-                          case 'program':
-                            $badgeClass = 'bg-blue-100 text-blue-800';
-                            break;
-                          case 'user':
-                            $badgeClass = 'bg-purple-100 text-purple-800';
-                            break;
-                          default:
-                            $badgeClass = 'bg-gray-100 text-gray-800';
-                        }
-                        ?>
-                        <span class="px-2 py-1 rounded-full text-xs font-medium <?= $badgeClass ?>">
-                          <?= ucfirst($activity['type']) ?>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                <?php endforeach; ?>
-              <?php else: ?>
-                <div class="text-center py-8 text-gray-500">
-                  <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  <p>No recent activities</p>
-                  <p class="text-sm">Platform activities will appear here</p>
-                </div>
-              <?php endif; ?>
-            </div>
-          </div>
-        </div>
-    </div>
-    </main>
+      </main>
   </div>
   </div>
 

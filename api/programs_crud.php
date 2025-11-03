@@ -5,6 +5,11 @@
  * Handles create, read, update, delete operations for programs
  */
 
+// Prevent any HTML output from PHP errors/warnings
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
@@ -61,6 +66,16 @@ if (!isLoggedIn()) {
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
+
+// Handle method override for edit operations sent via POST
+if ($method === 'POST' && isset($_POST['_method']) && $_POST['_method'] === 'PUT') {
+  $method = 'PUT';
+  // For edit operations, get the ID from POST data instead of URL
+  if (isset($_POST['id'])) {
+    $_GET['id'] = $_POST['id'];
+  }
+}
+
 $action = $_GET['action'] ?? '';
 
 try {
@@ -90,8 +105,18 @@ try {
             $program['end_date']
           );
 
-          // Add program statistics
-          $program['stats'] = getProgramStats($programId);
+          // Add program statistics (with error handling)
+          try {
+            $program['stats'] = getProgramStats($programId);
+          } catch (Exception $e) {
+            error_log("Error getting program stats: " . $e->getMessage());
+            $program['stats'] = [
+              'total_students' => 0,
+              'completed_students' => 0,
+              'active_students' => 0,
+              'completion_rate' => 0
+            ];
+          }
 
           // If student_id is provided, add enrollment status and progress
           if ($studentId) {
@@ -104,9 +129,19 @@ try {
 
             $program['enrollment_status'] = $enrollment ? $enrollment['status'] : null;
             
-            // Add student's progress if enrolled
+            // Add student's progress if enrolled (with error handling)
             if ($enrollment) {
-              $program['student_progress'] = getStudentProgramProgress($programId, $studentId);
+              try {
+                $program['student_progress'] = getStudentProgramProgress($programId, $studentId);
+              } catch (Exception $e) {
+                error_log("Error getting student program progress: " . $e->getMessage());
+                $program['student_progress'] = [
+                  'completion_percentage' => 0,
+                  'completed_materials' => 0,
+                  'total_materials' => 0,
+                  'last_activity' => null
+                ];
+              }
             }
           }
 
@@ -333,15 +368,20 @@ try {
         throw new Exception('Program ID is required for delete');
       }
 
-      $result = deleteProgram($id);
-
-      if ($result) {
-        echo json_encode([
-          'success' => true,
-          'message' => 'Program deleted successfully'
-        ]);
-      } else {
-        throw new Exception('Failed to delete program');
+      try {
+        $result = deleteProgram($id);
+        
+        if ($result) {
+          echo json_encode([
+            'success' => true,
+            'message' => 'Program deleted successfully'
+          ]);
+        } else {
+          throw new Exception('Failed to delete program');
+        }
+      } catch (Exception $deleteError) {
+        // Pass through the specific error message from deleteProgram
+        throw new Exception($deleteError->getMessage());
       }
       break;
 

@@ -148,6 +148,7 @@ try {
       ]);
       break;
 
+    case 'dashboard_stats':
     case 'get_dashboard_stats':
       if ($_SESSION['role'] !== 'admin') {
         throw new Exception('Admin access required');
@@ -164,8 +165,8 @@ try {
       // Active enrollments
       $stats['active_enrollments'] = $db->getRow("SELECT COUNT(*) as count FROM enrollments WHERE status = 'active'")['count'];
 
-      // Total programs
-      $stats['total_programs'] = $db->getRow("SELECT COUNT(*) as count FROM programs WHERE status = 'active'")['count'];
+      // Active programs (changed to match the field name being used)
+      $stats['active_programs'] = $db->getRow("SELECT COUNT(*) as count FROM programs WHERE status = 'active'")['count'];
 
       // Pending payments
       $stats['pending_payments'] = $db->getRow("SELECT COUNT(*) as count FROM payments WHERE status = 'pending'")['count'];
@@ -179,7 +180,7 @@ try {
         "SELECT COUNT(*) as count FROM enrollments WHERE enrollment_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)"
       )['count'];
 
-      echo json_encode(['success' => true, 'stats' => $stats]);
+      echo json_encode(['success' => true, 'data' => $stats]);
       break;
 
     case 'get_tutor_details':
@@ -214,6 +215,39 @@ try {
       $tutor = $result->fetch_assoc();
 
       echo json_encode(['success' => true, 'tutor' => $tutor]);
+      break;
+
+    case 'get_tutor_programs':
+      if ($_SESSION['role'] !== 'admin') {
+        throw new Exception('Admin access required');
+      }
+
+      $tutor_id = $_POST['tutor_id'] ?? $_GET['tutor_id'] ?? '';
+      if (empty($tutor_id)) {
+        throw new Exception('Tutor ID is required');
+      }
+
+      // Get tutor's assigned programs
+      $programs = getTutorAssignedPrograms($tutor_id);
+
+      echo json_encode(['success' => true, 'programs' => $programs]);
+      break;
+
+    case 'get_tutor_schedule':
+      if ($_SESSION['role'] !== 'admin') {
+        throw new Exception('Admin access required');
+      }
+
+      $tutor_id = $_POST['tutor_id'] ?? $_GET['tutor_id'] ?? '';
+      if (empty($tutor_id)) {
+        throw new Exception('Tutor ID is required');
+      }
+
+      // Get tutor's upcoming sessions
+      $limit = $_POST['limit'] ?? $_GET['limit'] ?? 10;
+      $sessions = getTutorUpcomingSessions($tutor_id, $limit);
+
+      echo json_encode(['success' => true, 'sessions' => $sessions]);
       break;
 
     case 'update_tutor':
@@ -309,6 +343,39 @@ try {
         $conn->rollback();
         throw $e;
       }
+      break;
+
+    case 'notification_counts':
+      // Get notification and message counts for the current user
+      $user_id = $_SESSION['user_id'];
+      
+      $counts = [];
+      
+      // Check if notifications table exists and get count
+      $tableExists = $db->getRow("SHOW TABLES LIKE 'notifications'");
+      if ($tableExists) {
+        $counts['notifications'] = $db->getRow(
+          "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0",
+          [$user_id],
+          "i"
+        )['count'] ?? 0;
+      } else {
+        $counts['notifications'] = 0;
+      }
+      
+      // Check if messages table exists and get count
+      $tableExists = $db->getRow("SHOW TABLES LIKE 'messages'");
+      if ($tableExists) {
+        $counts['messages'] = $db->getRow(
+          "SELECT COUNT(*) as count FROM messages WHERE recipient_id = ? AND is_read = 0",
+          [$user_id],
+          "i"
+        )['count'] ?? 0;
+      } else {
+        $counts['messages'] = 0;
+      }
+      
+      echo json_encode(['success' => true, 'data' => $counts]);
       break;
 
     case 'tutor_stats':

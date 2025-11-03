@@ -1,0 +1,515 @@
+// TPLearn Database Schema - SIMPLIFIED ERD for dbdiagram.io
+// Copy and paste this code into https://dbdiagram.io/d to generate the visual ERD
+// Created: October 29, 2025 - Simplified Version
+
+Project TPLearn {
+  database_type: 'MySQL'
+  Note: 'TPLearn - Learning Management System - Core Database Schema'
+}
+
+// ========================================
+// CORE TABLES
+// ========================================
+
+Table users {
+  id int [pk]
+  user_id varchar(20) [unique]
+  username varchar(50) [unique]
+  email varchar(100) [unique]
+  password varchar(255)
+  role varchar(20)
+  status varchar(20)
+  created_at timestamp
+  
+  Note: 'Central user authentication'
+}
+
+Table student_profiles {
+  id int [pk]
+  user_id int
+  first_name varchar(50)
+  last_name varchar(50)
+  birthday date
+  address text
+  created_at timestamp
+  
+  Note: 'Student information'
+}
+
+Table tutor_profiles {
+  id int [pk]
+  user_id int
+  first_name varchar(50)
+  last_name varchar(50)
+  specializations text
+  hourly_rate decimal(10,2)
+  created_at timestamp
+  
+  Note: 'Tutor information'
+}
+
+Table programs {
+  id int [pk]
+  name varchar(100)
+  description text
+  duration_weeks int
+  fee decimal(10,2)
+  status varchar(20)
+  created_at timestamp
+  
+  Note: 'Academic programs'
+}
+
+Table enrollments {
+  id int [pk]
+  student_user_id int
+  program_id int
+  tutor_user_id int
+  enrollment_date date
+  status varchar(20)
+  total_fee decimal(10,2)
+  created_at timestamp
+  
+  Note: 'Student enrollments'
+}
+
+Table program_materials {
+  id int [pk]
+  program_id int
+  title varchar(255)
+  material_type varchar(50)
+  due_date datetime
+  max_score decimal(5,2)
+  created_by int
+  created_at timestamp
+  
+  Note: 'Course materials and assignments'
+}
+
+Table submissions {
+  id int [pk]
+  material_id int
+  student_id int
+  submission_text text
+  submitted_at timestamp
+  grade decimal(5,2)
+  feedback text
+  status varchar(20)
+  graded_by int
+  
+  Note: 'Student submissions'
+}
+
+Table payments {
+  id int [pk]
+  enrollment_id int
+  amount decimal(10,2)
+  payment_date date
+  payment_method varchar(50)
+  status varchar(20)
+  validated_by int
+  created_at timestamp
+  
+  Note: 'Payment records'
+}
+
+Table notifications {
+  id int [pk]
+  user_id int
+  title varchar(255)
+  message text
+  type varchar(20)
+  is_read boolean
+  created_at timestamp
+  
+  Note: 'System notifications'
+}
+
+Table file_uploads {
+  id int [pk]
+  user_id int
+  filename varchar(255)
+  file_path varchar(500)
+  file_size int
+  upload_purpose varchar(50)
+  created_at timestamp
+  
+  Note: 'File storage'
+}
+
+Table jitsi_meetings {
+  id int [pk]
+  program_id int
+  tutor_id int
+  meeting_id varchar(255) [unique]
+  meeting_url varchar(500)
+  title varchar(255)
+  scheduled_date date
+  scheduled_time time
+  duration_minutes int
+  status varchar(20)
+  max_participants int
+  created_at timestamp
+  
+  Note: 'Live class sessions'
+}
+
+Table parent_profiles {
+  id int [pk]
+  student_id int
+  parent_name varchar(100)
+  relationship varchar(50)
+  phone varchar(20)
+  email varchar(100)
+  address text
+  created_at timestamp
+  
+  Note: 'Parent/Guardian information'
+}
+
+Table payment_attachments {
+  id int [pk]
+  payment_id int
+  file_upload_id int
+  attachment_type varchar(50)
+  description text
+  created_at timestamp
+  
+  Note: 'Payment proof attachments'
+}
+
+Table attendance_sessions {
+  id int [pk]
+  program_id int
+  enrollment_id int
+  session_date date
+  session_time time
+  duration_minutes int
+  expected_students int
+  total_present int
+  total_absent int
+  status varchar(20)
+  created_at timestamp
+  
+  Note: 'Class session attendance tracking'
+}
+
+Table attendance_records {
+  id int [pk]
+  session_id int
+  student_user_id int
+  attendance_status varchar(20)
+  check_in_time timestamp
+  notes text
+  recorded_by int
+  created_at timestamp
+  
+  Note: 'Individual student attendance per session'
+}
+
+// ========================================
+// COMPLETE GUIDE: CONNECTING TABLES IN ERD
+// ========================================
+
+// === RELATIONSHIP SYNTAX GUIDE ===
+// Basic Format: Ref: table1.column SYMBOL table2.column
+
+// === RELATIONSHIP SYMBOLS ===
+// >   One-to-Many     (1:N) - Parent > Child
+// <   Many-to-One     (N:1) - Child < Parent  
+// -   One-to-One      (1:1) - Equal relationship
+// <>  Many-to-Many    (N:N) - Junction table needed
+
+// === COMMON RELATIONSHIP PATTERNS ===
+
+// 1. USER PROFILE CONNECTIONS (One-to-One)
+// Ref: users.id - student_profiles.user_id
+// Ref: users.id - tutor_profiles.user_id
+
+// 2. PARENT-CHILD HIERARCHIES (One-to-Many)
+// Ref: programs.id > enrollments.program_id
+// Ref: users.id > enrollments.student_user_id
+// Ref: enrollments.id > payments.enrollment_id
+
+// 3. CONTENT CREATION (Creator Relationships)
+// Ref: users.id > program_materials.created_by
+// Ref: users.id > jitsi_meetings.tutor_id
+
+// 4. SUBMISSION WORKFLOWS (Multiple References)
+// Ref: program_materials.id > submissions.material_id
+// Ref: users.id > submissions.student_id
+// Ref: users.id > submissions.graded_by
+
+// 5. FILE ATTACHMENTS (Support Relationships)
+// Ref: users.id > file_uploads.user_id
+// Ref: file_uploads.id > payment_attachments.file_upload_id
+
+// === ADVANCED RELATIONSHIP EXAMPLES ===
+
+// NAMING RELATIONSHIPS (Optional)
+// Ref: users.id > enrollments.student_user_id [ref: student_enrollment]
+// Ref: users.id > enrollments.tutor_user_id [ref: tutor_assignment]
+
+// CASCADE ACTIONS (Optional)
+// Ref: users.id > student_profiles.user_id [delete: cascade]
+// Ref: programs.id > enrollments.program_id [update: cascade]
+
+// INLINE FOREIGN KEYS (Alternative Syntax)
+// Table enrollments {
+//   student_user_id int [ref: > users.id]
+//   program_id int [ref: > programs.id]
+// }
+
+// === STEP-BY-STEP CONNECTION GUIDE ===
+
+// STEP 1: Plan Your Relationships
+// - Identify primary tables (users, programs)
+// - Determine dependent tables (profiles, enrollments)
+// - Map data flow (who creates what, who owns what)
+
+// STEP 2: Start with Core Relationships
+// - Connect users to profiles first
+// - Add academic flow (programs > materials > submissions)
+// - Include operational flow (enrollments > payments)
+
+// STEP 3: Add Support Relationships
+// - File uploads and attachments
+// - Notifications and logging
+// - Live session connections
+
+// STEP 4: Verify Relationship Logic
+// - Check foreign key column names match
+// - Ensure relationship direction makes sense
+// - Test for circular dependencies
+
+// === TPLEARN RECOMMENDED CONNECTIONS ===
+
+// CORE USER SYSTEM
+// Ref: users.id - student_profiles.user_id
+// Ref: users.id - tutor_profiles.user_id
+// Ref: users.id > parent_profiles.student_id
+
+// ACADEMIC SYSTEM
+// Ref: programs.id > enrollments.program_id
+// Ref: programs.id > program_materials.program_id
+// Ref: users.id > enrollments.student_user_id
+// Ref: users.id > enrollments.tutor_user_id
+
+// LEARNING CONTENT
+// Ref: program_materials.id > submissions.material_id
+// Ref: users.id > submissions.student_id
+// Ref: users.id > submissions.graded_by
+
+// FINANCIAL OPERATIONS
+// Ref: enrollments.id > payments.enrollment_id
+// Ref: payments.id > payment_attachments.payment_id
+
+// LIVE LEARNING
+// Ref: programs.id > jitsi_meetings.program_id
+// Ref: users.id > jitsi_meetings.tutor_id
+
+// SUPPORT SYSTEMS
+// Ref: users.id > file_uploads.user_id
+// Ref: users.id > notifications.user_id
+// Ref: file_uploads.id > payment_attachments.file_upload_id
+
+// ATTENDANCE SYSTEM
+// Ref: programs.id > attendance_sessions.program_id
+// Ref: enrollments.id > attendance_sessions.enrollment_id
+// Ref: attendance_sessions.id > attendance_records.session_id
+// Ref: users.id > attendance_records.student_user_id
+// Ref: users.id > attendance_records.recorded_by
+
+// === TROUBLESHOOTING COMMON ERRORS ===
+
+// ERROR: "Column does not exist"
+// SOLUTION: Check column names match exactly (case-sensitive)
+// Example: user_id vs User_Id vs userId
+
+// ERROR: "References with same endpoints exist"
+// SOLUTION: Remove duplicate relationships
+// Check for both inline [ref: >] and explicit Ref: statements
+
+// ERROR: "Circular dependency detected"
+// SOLUTION: Review relationship direction
+// Ensure parent-child hierarchy is correct
+
+// Add your custom relationships below this line:
+// ========================================
+
+// ========================================
+// ⚠️  CRITICAL ISSUES FOUND - ERD vs DATABASE MISALIGNMENT
+// ========================================
+
+// === ISSUE #1: PARENT PROFILES TABLE MISMATCH ===
+// ERD Column:      student_id int
+// Database Column: student_user_id INT NOT NULL
+// IMPACT: Foreign key relationship will fail
+// FIX NEEDED: Change student_id to student_user_id in ERD
+
+// === ISSUE #2: MISSING COLUMNS IN PARENT PROFILES ===
+// ERD Missing Fields:
+// - full_name VARCHAR(100) NOT NULL
+// - facebook_name VARCHAR(100)
+// - contact_number VARCHAR(20) NOT NULL
+// IMPACT: ERD doesn't represent actual table structure
+// FIX NEEDED: Add missing columns to parent_profiles table in ERD
+
+// === ISSUE #3: PARENT PROFILES RELATIONSHIP REFERENCE ===
+// ERD Relationship: users.id > parent_profiles.student_id
+// Correct Should Be: users.id > parent_profiles.student_user_id
+// IMPACT: Relationship connection will fail in DBDiagram
+// FIX NEEDED: Update relationship reference
+
+// === ISSUE #4: TUTOR PROFILES MISSING FIELDS ===
+// Potential Missing Fields (verify against database.sql):
+// - bio TEXT
+// - contact_number VARCHAR(20)
+// IMPACT: Incomplete representation of tutor data
+// FIX NEEDED: Verify and add missing tutor profile fields
+
+// === ISSUE #5: FIELD DATA TYPES VERIFICATION NEEDED ===
+// Need to verify these match database.sql exactly:
+// - All VARCHAR lengths
+// - DECIMAL precision (10,2) vs (5,2)
+// - TEXT vs VARCHAR distinctions
+// IMPACT: Schema generation might create wrong field types
+// FIX NEEDED: Cross-reference all data types
+
+// === ISSUE #6: FOREIGN KEY CONSTRAINT NAMES ===
+// ERD doesn't specify constraint names
+// Database has explicit constraint definitions
+// IMPACT: Generated SQL won't match existing constraints
+// FIX NEEDED: Add constraint naming if needed for migration
+
+// === ISSUE #7: INDEX DEFINITIONS MISSING ===
+// Database has performance indexes:
+// - idx_full_name, idx_first_name, idx_last_name on tutor_profiles
+// - Multiple user indexes for performance
+// IMPACT: ERD doesn't show performance optimization
+// FIX NEEDED: Consider adding index notations
+
+// === 🚨 ISSUE #8: CRITICAL - ATTENDANCE SYSTEM COMPLETELY MISSING ===
+// STATUS: ✅ RESOLVED - Attendance tables added to ERD
+// ADDED TABLES:
+// - attendance_sessions (session details, date, time, expected count)
+// - attendance_records (student attendance per session)
+// - Relationships to enrollments, users, programs
+// FEATURES NOW REPRESENTED:
+// - Session attendance tracking
+// - Student present/absent status  
+// - Attendance per session date/time
+// - Expected vs actual attendance counts
+
+// === ISSUE #9: SESSION MANAGEMENT GAPS ===
+// APPLICATION SHOWS: Session scheduling with specific times
+// ERD LIMITATION: jitsi_meetings may not cover all session types
+// MISSING: Regular class sessions vs live online meetings distinction
+// IMPACT: Attendance tied to sessions not properly modeled
+// FIX NEEDED: Verify session/meeting model covers attendance needs
+
+// === 🚨 ISSUE #10: CRITICAL - SIMPLE GRADING SYSTEM MISSING ===
+// APPLICATION SHOWS: Grade management functionality
+// ERD INADEQUATE: Basic grading only, missing grade aggregation
+// FEATURES NOT REPRESENTED:
+// - Assessment vs Assignment averages
+// - Overall grade calculation per student per program
+// - Letter grade assignment system
+// - Class statistics (class average, highest, lowest)
+// IMPACT: Grade management functionality not modeled in ERD
+// REQUIRED TABLE MISSING:
+// - student_grades (overall grades per student per program)
+// FIX NEEDED: Add simple grading system to ERD
+
+// === PRIORITY FIXES NEEDED ===
+// 🚨 NEW CRITICAL PRIORITY:
+// 1. ADD SIMPLE GRADING SYSTEM - Core missing functionality
+//    - student_grades table (overall grades per student/program)
+//    - Assessment + Assignment averages
+//    - Overall grade + Letter grade fields
+//
+// ✅ COMPLETED: 
+// ✅ ADD ATTENDANCE SYSTEM - Complete missing functionality
+//    ✅ attendance_sessions table added
+//    ✅ attendance_records table added
+//    ✅ Relationships to users/enrollments/programs added
+//
+// HIGH PRIORITY:
+// 2. Fix parent_profiles.student_id → student_user_id
+// 3. Add missing parent_profiles columns
+// 4. Update parent relationship reference
+// 
+// MEDIUM PRIORITY:
+// 5. Verify tutor_profiles columns
+// 6. Check all data type matches
+// 7. Verify session/meeting model completeness
+//
+// LOW PRIORITY:
+// 8. Add constraint names if needed
+// 9. Consider index documentation
+
+// === MISSING ATTENDANCE TABLES SPECIFICATION ===
+// ✅ COMPLETED - These tables have been added to ERD above
+
+// === MISSING GRADING SYSTEM TABLES SPECIFICATION ===
+// Table student_grades {
+//   id int [pk]
+//   student_user_id int [ref: > users.id]
+//   program_id int [ref: > programs.id]
+//   enrollment_id int [ref: > enrollments.id]
+//   assessment_average decimal(5,2)
+//   assignment_average decimal(5,2)
+//   overall_grade decimal(5,2)
+//   letter_grade varchar(2)
+//   created_at timestamp
+//   updated_at timestamp
+// }
+
+// === VERIFICATION CHECKLIST ===
+// □ Compare each table column by column with database.sql
+// □ Verify all foreign key column names match exactly
+// □ Check data types and lengths are identical
+// □ Confirm relationship directions are correct
+// □ Test ERD import in DBDiagram.io for errors
+// □ Validate against actual application code usage
+
+// === RECOMMENDED NEXT STEPS ===
+// 1. Read database.sql line by line
+// 2. Update ERD table definitions
+// 3. Fix relationship references
+// 4. Test updated ERD in DBDiagram.io
+// 5. Document any remaining discrepancies
+
+// ========================================
+// TABLE GROUPS - FORCE USERS TO CENTER
+// ========================================
+
+TableGroup "TOP-LEFT: User Profiles" {
+  student_profiles  
+  tutor_profiles
+  parent_profiles
+}
+
+TableGroup "TOP-RIGHT: Academic Programs" {
+  programs
+  program_materials
+}
+
+TableGroup "CENTER: Core System" {
+  users
+  enrollments
+}
+
+TableGroup "BOTTOM-LEFT: Content & Learning" {
+  submissions
+  jitsi_meetings
+  attendance_sessions
+  attendance_records
+}
+
+TableGroup "BOTTOM-RIGHT: Operations" {
+  payments
+  payment_attachments
+  file_uploads
+  notifications
+}

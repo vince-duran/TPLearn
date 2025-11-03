@@ -52,13 +52,8 @@ $currentDate = date('l, F j, Y');
     <!-- Main Content Area -->
     <div class="flex-1 lg:ml-64">
       <?php 
-      require_once '../../includes/header.php';
-      renderHeader(
-        'My Programs',
-        $currentDate,
-        'tutor',
-        $tutor_name
-      );
+      require_once '../../includes/tutor-header-standard.php';
+      renderTutorHeader('My Programs');
       ?>
 
       <!-- Dashboard Content -->

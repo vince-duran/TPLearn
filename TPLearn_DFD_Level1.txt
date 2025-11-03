@@ -1,0 +1,2209 @@
+// TPLearn Learning Management System - Data Flow Diagram Level 1
+// Based on ERD Analysis - October 29, 2025
+// Copy this into your preferred DFD tool (Lucidchart, Draw.io, etc.)
+
+// ========================================
+// DFD LEVEL 1 COMPONENTS SPECIFICATION
+// ========================================
+
+// === EXTERNAL ENTITIES ===
+// [Students] - Students using the learning platform
+// [Tutors] - Instructors managing courses and students
+// [Admins] - System administrators managing the platform
+
+// === MAJOR PROCESSES ===
+// Process 1.0: User Management & Authentication
+// Process 2.0: Program & Enrollment Management
+// Process 3.0: Learning Content Delivery
+// Process 4.0: Assessment & Grading System
+// Process 5.0: Attendance Tracking System
+// Process 6.0: Live Session Management
+// Process 7.0: Payment Processing
+// Process 8.0: Communication & Notifications
+// Process 9.0: File & Document Management
+
+// === DATA STORES ===
+// T1: Users (users, student_profiles, tutor_profiles, parent_profiles)
+// T2: Programs (programs, program_materials)
+// T3: Enrollments (enrollments)
+// T4: Submissions (submissions)
+// T5: Grades (student_grades)
+// T6: Attendance (attendance_sessions, attendance_records)
+// T7: Live Sessions (jitsi_meetings)
+// T8: Payments (payments, payment_attachments)
+// T9: Files (file_uploads)
+// T10: Notifications (notifications)
+
+// ========================================
+// DETAILED PROCESS SPECIFICATIONS
+// ========================================
+
+// === PROCESS 1.0: USER MANAGEMENT & AUTHENTICATION ===
+// Inputs:
+// - Registration data from [Students], [Tutors]
+// - Login credentials from all user types
+// - Profile updates from users
+// 
+// Outputs:
+// - Authentication tokens to users
+// - Profile confirmations to users
+// - User data to other processes
+//
+// Data Stores Used:
+// INPUT (Read from):
+// - T1: Users (existing user data, authentication records, profile verification)
+// OUTPUT (Write to):
+// - T1: Users (new registrations, profile updates, login timestamps)
+// - T10: Notifications (user activity, login attempts, profile changes)
+//
+// Process Description:
+// Handles user registration, authentication, profile management,
+// and role-based access control for the system
+
+// === PROCESS 2.0: PROGRAM & ENROLLMENT MANAGEMENT ===
+// Inputs:
+// - Program creation requests from [Tutors], [Admins]
+// - Enrollment requests from [Students]
+// - Program updates from [Tutors]
+//
+// Outputs:
+// - Program information to [Students]
+// - Enrollment confirmations to [Students]
+// - Program data to other processes
+//
+// Data Stores Used:
+// INPUT (Read from):
+// - T1: Users (student profiles, tutor information, user verification)
+// - T2: Programs (existing program data, prerequisites, capacity info)
+// - T3: Enrollments (current enrollment status, enrollment history)
+// - T8: Payments (payment status, billing information)
+// OUTPUT (Write to):
+// - T2: Programs (new programs, program updates, schedule changes)
+// - T3: Enrollments (new enrollments, status updates, progress tracking)
+// - T10: Notifications (enrollment activities, program modifications)
+//
+// Process Description:
+// Manages academic programs, handles student enrollments,
+// assigns tutors to students, and maintains program structure
+
+// === PROCESS 3.0: LEARNING CONTENT DELIVERY ===
+// Inputs:
+// - Content creation from [Tutors]
+// - Content access requests from [Students]
+// - Material updates from [Tutors]
+//
+// Outputs:
+// - Learning materials to [Students]
+// - Content confirmations to [Tutors]
+// - Assignment notifications to [Students]
+//
+// Data Stores Used:
+// INPUT (Read from):
+// - T1: Users (user permissions, access rights, tutor qualifications)
+// - T2: Programs (program materials, content structure, curriculum)
+// - T3: Enrollments (student enrollment status, content access rights)
+// - T9: Files (existing content files, learning materials)
+// OUTPUT (Write to):
+// - T2: Programs (new course materials, content updates)
+// - T9: Files (uploaded content, multimedia files, documents)
+// - T10: Notifications (content alerts, material updates)
+//
+// Process Description:
+// Delivers learning content, manages assignments,
+// provides access control for educational materials
+
+// === PROCESS 4.0: ASSESSMENT & GRADING SYSTEM ===
+// Inputs:
+// - Student submissions from [Students]
+// - Grading data from [Tutors]
+// - Grade review requests from [Students]
+//
+// Outputs:
+// - Grades to [Students]
+// - Grade reports to [Tutors]
+// - Academic progress notifications
+//
+// Data Stores Used:
+// INPUT (Read from):
+// - T1: Users (student information, tutor credentials, access permissions)
+// - T3: Enrollments (enrollment status, program context, assessment eligibility)
+// - T4: Submissions (existing submissions, submission history)
+// - T5: Grades (previous grades, grade history, performance data)
+// - T9: Files (submission files, attachments, grading rubrics)
+// OUTPUT (Write to):
+// - T4: Submissions (new submissions, submission updates, feedback)
+// - T5: Grades (calculated grades, grade changes, performance records)
+// - T10: Notifications (grade alerts, feedback notifications)
+//
+// Process Description:
+// Processes student submissions, calculates grades,
+// manages assessment workflows, generates grade reports
+
+// === PROCESS 5.0: ATTENDANCE TRACKING SYSTEM ===
+// Inputs:
+// - Attendance marking from [Tutors]
+// - Attendance queries from [Students]
+// - Session scheduling from [Tutors]
+//
+// Outputs:
+// - Attendance reports to [Students], [Tutors]
+// - Attendance statistics to [Tutors]
+// - Absence notifications to [Students]
+//
+// Data Stores Used:
+// INPUT (Read from):
+// - T1: Users (student information, session participants, user verification)
+// - T3: Enrollments (enrolled students, session eligibility, program context)
+// - T6: Attendance (attendance history, session records, participation data)
+// OUTPUT (Write to):
+// - T6: Attendance (new attendance records, session data, participation tracking)
+// - T10: Notifications (absence alerts, attendance warnings, session reminders)
+//
+// Process Description:
+// Tracks student attendance, manages session schedules,
+// generates attendance reports and statistics
+
+// === PROCESS 6.0: LIVE SESSION MANAGEMENT ===
+// Inputs:
+// - Session creation from [Tutors]
+// - Session join requests from [Students]
+// - Session management commands from [Tutors]
+//
+// Outputs:
+// - Session links to [Students]
+// - Session confirmations to [Tutors]
+// - Meeting notifications to participants
+//
+// Data Stores Used:
+// INPUT (Read from):
+// - T1: Users (user credentials, session permissions, participant verification)
+// - T2: Programs (program schedules, session requirements, course structure)
+// - T3: Enrollments (enrolled participants, session eligibility)
+// - T7: Live Sessions (existing session data, meeting history)
+// OUTPUT (Write to):
+// - T7: Live Sessions (new sessions, session updates, meeting records)
+// - T10: Notifications (session invites, meeting reminders, join links)
+//
+// Process Description:
+// Manages virtual classroom sessions, handles Jitsi integration,
+// coordinates live learning activities
+
+// === PROCESS 7.0: PAYMENT PROCESSING ===
+// Inputs:
+// - Payment submissions from [Students]
+// - Payment proof uploads from [Students]
+// - Payment validation from [Admins]
+// - Fee adjustments from [Admins]
+//
+// Outputs:
+// - Payment confirmations to [Students]
+// - Payment status updates to users
+// - Payment reports to [Admins]
+//
+// Data Stores Used:
+// INPUT (Read from):
+// - T1: Users (billing information, payment account details, user verification)
+// - T3: Enrollments (payment requirements, enrollment context, billing schedules)
+// - T8: Payments (payment history, transaction records, outstanding balances)
+// - T9: Files (payment proofs, receipts, transaction documents)
+// OUTPUT (Write to):
+// - T8: Payments (new transactions, payment confirmations, financial records)
+// - T9: Files (uploaded payment proofs, receipt attachments)
+// - T10: Notifications (payment confirmations, billing alerts, receipt notifications)
+//
+// Process Description:
+// Processes tuition payments internally, validates payment proofs,
+// manages payment records and confirmations within the system
+
+// === PROCESS 8.0: COMMUNICATION & NOTIFICATIONS ===
+// Inputs:
+// - System events from all processes
+// - Direct messages from users
+// - Notification preferences from users
+//
+// Outputs:
+// - Notifications to [Students], [Tutors]
+// - System alerts to [Admins]
+// - Email notifications to all users
+//
+// Data Stores Used:
+// INPUT (Read from):
+// - T1: Users (notification preferences, contact information, user status)
+// - T10: Notifications (pending notifications, delivery queue, notification history)
+// OUTPUT (Write to):
+// - T10: Notifications (new notifications, delivery records, communication logs)
+//
+// Process Description:
+// Manages system notifications, sends alerts,
+// handles communication between system and users
+
+// === PROCESS 9.0: FILE & DOCUMENT MANAGEMENT ===
+// Inputs:
+// - File uploads from [Students], [Tutors]
+// - Document requests from users
+// - File management commands from [Admins]
+//
+// Outputs:
+// - File access to authorized users
+// - Upload confirmations to users
+// - Storage reports to [Admins]
+//
+// Data Stores Used:
+// INPUT (Read from):
+// - T1: Users (file access permissions, user verification, storage quotas)
+// - T9: Files (existing files, file metadata, access history)
+// OUTPUT (Write to):
+// - T9: Files (uploaded files, file metadata, access logs)
+// - T10: Notifications (upload confirmations, file sharing alerts, storage notifications)
+//
+// Process Description:
+// Manages file uploads, provides secure file storage,
+// handles document sharing and access control
+
+// ========================================
+// DATA FLOW CONNECTIONS
+// ========================================
+
+// === EXTERNAL ENTITY TO PROCESS FLOWS ===
+// [Students] → 1.0 (registration, login)
+// [Students] → 2.0 (enrollment requests)
+// [Students] → 3.0 (content access)
+// [Students] → 4.0 (submissions)
+// [Students] → 6.0 (session participation)
+// [Students] → 7.0 (payments)
+// [Students] → 9.0 (file uploads)
+
+// [Tutors] → 1.0 (registration, login)
+// [Tutors] → 2.0 (program creation)
+// [Tutors] → 3.0 (content creation)
+// [Tutors] → 4.0 (grading)
+// [Tutors] → 5.0 (attendance marking)
+// [Tutors] → 6.0 (session management)
+// [Tutors] → 9.0 (file uploads)
+
+// [Admins] → 1.0 (user management)
+// [Admins] → 2.0 (program oversight)
+// [Admins] → 7.0 (payment validation, management)
+// [Admins] → 9.0 (file management)
+
+// === PROCESS TO EXTERNAL ENTITY FLOWS ===
+// 1.0 → [All Users] (authentication status)
+// 2.0 → [Students] (program info, enrollment status)
+// 3.0 → [Students] (learning materials)
+// 4.0 → [Students] (grades, progress)
+// 5.0 → [Students], [Tutors] (attendance reports)
+// 6.0 → [Students], [Tutors] (session links, confirmations)
+// 7.0 → [Students] (payment confirmations, status)
+// 7.0 → [Admins] (payment reports)
+// 8.0 → [All Users] (notifications)
+// 9.0 → [All Users] (file access)
+
+// === PROCESS TO DATA STORE FLOWS ===
+// 1.0 ↔ T1 (user data management)
+// 2.0 ↔ T1, T2, T3 (program and enrollment management)
+// 3.0 ↔ T1, T2, T9 (content delivery)
+// 4.0 ↔ T1, T3, T4, T5, T9 (assessment processing)
+// 5.0 ↔ T1, T3, T6 (attendance tracking)
+// 6.0 ↔ T1, T2, T7 (live session management)
+// 7.0 ↔ T1, T3, T8, T9 (payment processing)
+// 8.0 ↔ T1, T10 (notification management)
+// 9.0 ↔ T1, T9 (file management)
+
+// ========================================
+// DFD LEVEL 1 VISUAL LAYOUT SPECIFICATION
+// ========================================
+
+// VISUAL LAYOUT MATCHING PROFESSIONAL DFD STANDARDS
+// Copy this layout into Draw.io or your preferred DFD tool
+
+// ========================================
+// EXTERNAL ENTITIES PLACEMENT
+// ========================================
+// Position external entities around the perimeter in rectangles
+
+// TOP-LEFT: [Students]
+// - Rectangle shape
+// - Position: Upper left area
+// - Connects to: Processes 1.0, 2.0, 3.0, 4.0, 6.0, 7.0, 9.0
+
+// TOP-RIGHT: [Tutors] 
+// - Rectangle shape
+// - Position: Upper right area
+// - Connects to: Processes 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 9.0
+
+// BOTTOM-CENTER: [Admins]
+// - Rectangle shape  
+// - Position: Bottom center area
+// - Connects to: Processes 1.0, 2.0, 7.0, 9.0
+
+// ========================================
+// PROCESS LAYOUT (3x3 GRID ARRANGEMENT)
+// ========================================
+// Arrange processes in circles/bubbles in a logical 3x3 grid
+
+// TOP ROW (User & Core Functions):
+// (1.0) User Management & Authentication - TOP-LEFT
+// (2.0) Program & Enrollment Management - TOP-CENTER  
+// (3.0) Learning Content Delivery - TOP-RIGHT
+
+// MIDDLE ROW (Academic Functions):
+// (4.0) Assessment & Grading System - MIDDLE-LEFT
+// (5.0) Attendance Tracking System - MIDDLE-CENTER
+// (6.0) Live Session Management - MIDDLE-RIGHT
+
+// BOTTOM ROW (Support Functions):
+// (7.0) Payment Processing - BOTTOM-LEFT
+// (8.0) Communication & Notifications - BOTTOM-CENTER
+// (9.0) File & Document Management - BOTTOM-RIGHT
+
+// ========================================
+// DATA STORE PLACEMENT
+// ========================================
+// Position data stores (open rectangles) near their most-used processes
+
+// CLUSTER 1 (User & Program Data) - LEFT SIDE:
+// T1: Users - Between (1.0) and (2.0)
+// T2: Programs - Near (2.0) and (3.0)
+// T3: Enrollments - Near (2.0) and (4.0)
+
+// CLUSTER 2 (Academic Data) - CENTER:
+// T4: Submissions - Near (4.0) 
+// T5: Grades - Near (4.0)
+// T6: Attendance - Near (5.0)
+// T7: Live Sessions - Near (6.0)
+
+// CLUSTER 3 (Support Data) - RIGHT SIDE:
+// T8: Payments - Near (7.0)
+// T9: Files - Near (9.0) and (3.0)
+// T10: Notifications - Near (8.0)
+
+// ========================================
+// DETAILED DATA FLOW CONNECTIONS
+// ========================================
+
+// === EXTERNAL ENTITY TO PROCESS FLOWS ===
+
+// FROM [Students]:
+// [Students] --registration_data--> (1.0)
+// [Students] --enrollment_requests--> (2.0)
+// [Students] --content_access_requests--> (3.0)
+// [Students] --assignment_submissions--> (4.0)
+// [Students] --session_join_requests--> (6.0)
+// [Students] --payment_submissions--> (7.0)
+// [Students] --file_uploads--> (9.0)
+
+// FROM [Tutors]:
+// [Tutors] --registration_data--> (1.0)
+// [Tutors] --program_creation--> (2.0)
+// [Tutors] --content_creation--> (3.0)
+// [Tutors] --grading_data--> (4.0)
+// [Tutors] --attendance_marking--> (5.0)
+// [Tutors] --session_creation--> (6.0)
+// [Tutors] --content_uploads--> (9.0)
+
+// FROM [Admins]:
+// [Admins] --user_management--> (1.0)
+// [Admins] --program_oversight--> (2.0)
+// [Admins] --payment_validation--> (7.0)
+// [Admins] --file_management--> (9.0)
+
+// === PROCESS TO EXTERNAL ENTITY FLOWS ===
+
+// TO [Students]:
+// (1.0) --authentication_status--> [Students]
+// (2.0) --enrollment_confirmations--> [Students]
+// (3.0) --learning_materials--> [Students]
+// (4.0) --grades_and_feedback--> [Students]
+// (5.0) --attendance_reports--> [Students]
+// (6.0) --session_links--> [Students]
+// (7.0) --payment_confirmations--> [Students]
+// (8.0) --notifications--> [Students]
+// (9.0) --file_access--> [Students]
+
+// TO [Tutors]:
+// (1.0) --account_confirmations--> [Tutors]
+// (2.0) --program_data--> [Tutors]
+// (3.0) --content_confirmations--> [Tutors]
+// (4.0) --grade_reports--> [Tutors]
+// (5.0) --attendance_statistics--> [Tutors]
+// (6.0) --session_confirmations--> [Tutors]
+// (8.0) --notifications--> [Tutors]
+// (9.0) --file_access--> [Tutors]
+
+// TO [Admins]:
+// (1.0) --user_reports--> [Admins]
+// (2.0) --program_reports--> [Admins]
+// (7.0) --payment_reports--> [Admins]
+// (8.0) --system_alerts--> [Admins]
+// (9.0) --storage_reports--> [Admins]
+
+// === PROCESS TO DATA STORE FLOWS ===
+
+// PROCESS 1.0 CONNECTIONS:
+// T1 --existing_user_data--> (1.0)
+// (1.0) --new_user_data--> T1
+// (1.0) --user_activity--> T10
+
+// PROCESS 2.0 CONNECTIONS:
+// T1 --student_profiles--> (2.0)
+// T2 --program_catalog--> (2.0)
+// T3 --enrollment_records--> (2.0)
+// T8 --payment_status--> (2.0)
+// (2.0) --program_updates--> T2
+// (2.0) --new_enrollments--> T3
+// (2.0) --enrollment_notifications--> T10
+
+// PROCESS 3.0 CONNECTIONS:
+// T1 --user_permissions--> (3.0)
+// T2 --program_materials--> (3.0)
+// T3 --enrollment_status--> (3.0)
+// T9 --existing_content--> (3.0)
+// (3.0) --course_materials--> T2
+// (3.0) --uploaded_content--> T9
+// (3.0) --content_notifications--> T10
+
+// PROCESS 4.0 CONNECTIONS:
+// T1 --student_info--> (4.0)
+// T3 --enrollment_context--> (4.0)
+// T4 --existing_submissions--> (4.0)
+// T5 --grade_history--> (4.0)
+// T9 --submission_files--> (4.0)
+// (4.0) --new_submissions--> T4
+// (4.0) --calculated_grades--> T5
+// (4.0) --grade_notifications--> T10
+
+// PROCESS 5.0 CONNECTIONS:
+// T1 --participant_info--> (5.0)
+// T3 --enrolled_students--> (5.0)
+// T6 --attendance_history--> (5.0)
+// (5.0) --attendance_records--> T6
+// (5.0) --attendance_alerts--> T10
+
+// PROCESS 6.0 CONNECTIONS:
+// T1 --user_credentials--> (6.0)
+// T2 --program_schedules--> (6.0)
+// T3 --session_participants--> (6.0)
+// T7 --existing_sessions--> (6.0)
+// (6.0) --session_data--> T7
+// (6.0) --session_notifications--> T10
+
+// PROCESS 7.0 CONNECTIONS:
+// T1 --billing_info--> (7.0)
+// T3 --payment_requirements--> (7.0)
+// T8 --payment_history--> (7.0)
+// T9 --payment_proofs--> (7.0)
+// (7.0) --transaction_records--> T8
+// (7.0) --payment_documents--> T9
+// (7.0) --payment_notifications--> T10
+
+// PROCESS 8.0 CONNECTIONS:
+// T1 --notification_preferences--> (8.0)
+// T10 --pending_notifications--> (8.0)
+// (8.0) --delivery_records--> T10
+
+// PROCESS 9.0 CONNECTIONS:
+// T1 --file_permissions--> (9.0)
+// T9 --existing_files--> (9.0)
+// (9.0) --uploaded_files--> T9
+// (9.0) --file_notifications--> T10
+
+// ========================================
+// VISUAL STYLING GUIDELINES
+// ========================================
+
+// SHAPES AND SYMBOLS:
+// - External Entities: Rectangles with entity names
+// - Processes: Circles/bubbles with process numbers and names
+// - Data Stores: Open rectangles with D# and store names
+// - Data Flows: Arrows with descriptive labels
+
+// COLOR CODING (Optional):
+// - External Entities: Light blue rectangles
+// - Processes: Light green circles
+// - Data Stores: Light yellow rectangles
+// - Data Flows: Black arrows with white labels
+
+// LAYOUT PRINCIPLES:
+// - Keep crossing lines to minimum
+// - Group related components together
+// - Maintain consistent spacing
+// - Use curved arrows when necessary
+// - Place labels clearly on all flows
+
+// LABELING STANDARDS:
+// - Process labels: "Number | Function Name"
+// - Data store labels: "T# | Store Name"
+// - Flow labels: Descriptive noun phrases
+// - Entity labels: Role/user type names
+
+// ========================================
+// DRAWING INSTRUCTIONS FOR DRAW.IO
+// ========================================
+
+// STEP 1: CREATE EXTERNAL ENTITIES
+// 1. Insert Rectangle shape for [Students] at top-left
+// 2. Insert Rectangle shape for [Tutors] at top-right  
+// 3. Insert Rectangle shape for [Admins] at bottom-center
+// 4. Label each rectangle with entity name
+
+// STEP 2: CREATE PROCESSES
+// 1. Insert 9 Circle shapes arranged in 3x3 grid
+// 2. Label each circle with process number and name
+// 3. Position according to the layout specification above
+
+// STEP 3: CREATE DATA STORES
+// 1. Insert 10 Rectangle shapes (open style if available)
+// 2. Position near their primary processes as specified
+// 3. Label each with T# and store name
+
+// STEP 4: ADD DATA FLOWS
+// 1. Use Arrow connectors between components
+// 2. Add labels to each arrow describing the data
+// 3. Follow the connection specifications above
+// 4. Use curved arrows to minimize crossings
+
+// STEP 5: FINAL FORMATTING
+// 1. Align all shapes properly
+// 2. Ensure consistent spacing
+// 3. Apply color coding if desired
+// 4. Add title "TPLearn LMS - Data Flow Diagram Level 1"
+// 5. Review all connections and labels
+
+// This layout will create a professional DFD Level 1 that matches
+// standard academic and industry conventions for system analysis.
+
+// ========================================
+// NOTES FOR IMPLEMENTATION
+// ========================================
+
+// This DFD Level 1 represents the major functional areas of TPLearn LMS
+// Each process corresponds to major system modules
+// Data stores map directly to your ERD table groups
+// External entities represent the different user types and external systems
+// Data flows show information exchange between components
+
+// Next Steps:
+// 1. Use this specification to create visual DFD in your preferred tool
+// 2. Consider creating Level 2 DFDs for complex processes (4.0, 5.0)
+// 3. Validate data flows against actual system workflows
+// 4. Use for system documentation and developer onboarding
+
+// ========================================
+// COMPLETE GUIDE: HOW TO MAKE DATA FLOW DIAGRAMS (DFD)
+// ========================================
+
+// === WHAT IS A DATA FLOW DIAGRAM? ===
+// A Data Flow Diagram (DFD) is a graphical representation showing:
+// - How data moves through a system
+// - What processes transform the data
+// - Where data is stored
+// - Who provides and receives data
+// 
+// DFDs are essential for:
+// - System analysis and design
+// - Understanding business processes
+// - Documentation and communication
+// - Identifying system requirements
+
+// === DFD COMPONENTS AND SYMBOLS ===
+
+// 1. EXTERNAL ENTITIES (Squares/Rectangles)
+// Symbol: [Entity Name]
+// Purpose: Sources and destinations of data outside the system
+// Examples: [Students], [Customers], [Suppliers], [Government]
+// Rules:
+// - Place outside system boundary
+// - Use noun phrases
+// - Represent people, organizations, or other systems
+// - Cannot directly communicate with each other
+
+// 2. PROCESSES (Circles/Bubbles)
+// Symbol: (Process Number | Process Name)
+// Purpose: Transform input data into output data
+// Examples: (1.0 | Validate User), (2.0 | Calculate Grades)
+// Rules:
+// - Use verb phrases (action-oriented)
+// - Number hierarchically (1.0, 1.1, 1.2, etc.)
+// - Must have both inputs and outputs
+// - Represent business functions or activities
+
+// 3. DATA STORES (Open Rectangles)
+// Symbol: D# | Data Store Name
+// Purpose: Repositories where data is stored
+// Examples: D1 | Customer Database, D2 | Product Inventory
+// Rules:
+// - Use noun phrases
+// - Number sequentially (D1, D2, D3, etc.)
+// - Represent files, databases, or any data storage
+// - Data flows in and out but doesn't generate data
+
+// 4. DATA FLOWS (Arrows)
+// Symbol: -----> with label
+// Purpose: Show movement of data between components
+// Examples: customer_info, payment_details, grade_report
+// Rules:
+// - Label with noun phrases (what data moves)
+// - Show direction with arrowheads
+// - Cannot connect external entities directly
+// - Cannot connect data stores directly
+
+// === DFD HIERARCHY LEVELS ===
+
+// CONTEXT DIAGRAM (Level 0)
+// - Single process representing entire system
+// - Shows system boundaries
+// - External entities and major data flows
+// - High-level overview for stakeholders
+
+// LEVEL 1 DFD
+// - Breaks down context diagram into major processes
+// - Shows main functional areas
+// - 5-9 processes typically (cognitive limit)
+// - Balances with context diagram
+
+// LEVEL 2 DFD
+// - Decomposes Level 1 processes further
+// - More detailed view of specific functions
+// - Usually for complex processes only
+// - Maintains parent process numbering (1.1, 1.2, etc.)
+
+// LEVEL 3+ DFD
+// - Further decomposition if needed
+// - Very detailed process views
+// - Used for complex systems only
+// - Eventually leads to process specifications
+
+// === STEP-BY-STEP DFD CREATION PROCESS ===
+
+// STEP 1: UNDERSTAND THE SYSTEM
+// - Study system requirements and objectives
+// - Identify system boundaries (what's in/out)
+// - Understand business processes and workflows
+// - Gather user requirements and use cases
+// - Review existing documentation and ERDs
+
+// STEP 2: IDENTIFY EXTERNAL ENTITIES
+// - List all sources and destinations of data
+// - Include users, customers, suppliers, other systems
+// - Group similar entities if appropriate
+// - Position around system perimeter
+// Questions to ask:
+// - Who uses the system?
+// - Who provides data to the system?
+// - Who receives output from the system?
+// - What other systems interact with this one?
+
+// STEP 3: IDENTIFY MAJOR PROCESSES
+// - List main business functions
+// - Use action verbs (Process, Validate, Calculate, etc.)
+// - Keep to 5-9 processes for Level 1
+// - Ensure each process transforms data
+// Questions to ask:
+// - What are the main things the system does?
+// - What business processes are supported?
+// - How is data transformed or processed?
+// - What decisions does the system make?
+
+// STEP 4: IDENTIFY DATA STORES
+// - List all data repositories
+// - Include databases, files, temporary storage
+// - Use noun phrases for names
+// - Consider master files and transaction files
+// Questions to ask:
+// - Where is data stored permanently?
+// - What data needs to be retrieved later?
+// - What files or databases exist?
+// - Where is reference data kept?
+
+// STEP 5: IDENTIFY DATA FLOWS
+// - Connect components with labeled arrows
+// - Show what data moves between components
+// - Use descriptive names for data
+// - Avoid control flows (focus on data)
+// Questions to ask:
+// - What data does each process need?
+// - What data does each process produce?
+// - Where does each piece of data come from?
+// - Where does each piece of data go?
+
+// STEP 6: DRAW THE DFD
+// - Start with context diagram (Level 0)
+// - Create Level 1 by decomposing the main process
+// - Use proper symbols and conventions
+// - Ensure balanced decomposition
+// Layout tips:
+// - External entities around perimeter
+// - Processes in logical flow arrangement
+// - Data stores near processes that use them
+// - Minimize crossing data flows
+
+// STEP 7: VALIDATE THE DFD
+// - Check syntax rules and conventions
+// - Verify completeness and accuracy
+// - Review with stakeholders and users
+// - Ensure balancing between levels
+// Validation checklist:
+// - All components properly labeled?
+// - Data flows connect correctly?
+// - No orphaned processes or stores?
+// - Balancing maintained between levels?
+
+// === DFD RULES AND CONVENTIONS ===
+
+// SYNTAX RULES:
+// 1. External entities cannot connect directly to each other
+// 2. External entities cannot connect directly to data stores
+// 3. Data stores cannot connect directly to each other
+// 4. All processes must have both inputs and outputs
+// 5. Data flows must be labeled with meaningful names
+// 6. All components must be labeled clearly
+
+// BALANCING RULES:
+// 1. Inputs to parent process = inputs to child processes
+// 2. Outputs from parent process = outputs from child processes
+// 3. Data stores at parent level appear in child level
+// 4. External entities consistent across levels
+
+// NAMING CONVENTIONS:
+// 1. External entities: Noun phrases [Customer], [Supplier]
+// 2. Processes: Verb phrases (Calculate Tax), (Validate Order)
+// 3. Data stores: Noun phrases D1 | Customer File
+// 4. Data flows: Noun phrases customer_info, order_details
+
+// LAYOUT GUIDELINES:
+// 1. External entities around the perimeter
+// 2. Processes in center, arranged logically
+// 3. Data stores between related processes
+// 4. Minimize crossing lines
+// 5. Keep related components close together
+// 6. Use consistent spacing and alignment
+
+// === COMMON DFD MISTAKES TO AVOID ===
+
+// MISTAKE 1: Including Control Information
+// Wrong: show_error_message, activate_process
+// Right: error_details, process_request
+// Fix: Focus on data, not control or sequence
+
+// MISTAKE 2: Functional Decomposition Instead of Data Flow
+// Wrong: Breaking down by organizational structure
+// Right: Breaking down by data transformation
+// Fix: Follow data processing, not org chart
+
+// MISTAKE 3: Too Many Processes at One Level
+// Wrong: 15+ processes in Level 1 DFD
+// Right: 5-9 processes maximum
+// Fix: Group related processes together
+
+// MISTAKE 4: Unbalanced Decomposition
+// Wrong: Child level has different inputs/outputs than parent
+// Right: Maintain same external interfaces
+// Fix: Check inputs and outputs match exactly
+
+// MISTAKE 5: Improper Labeling
+// Wrong: vague labels like "data", "information"
+// Right: specific labels like "customer_name", "order_total"
+// Fix: Use meaningful, descriptive names
+
+// MISTAKE 6: Missing Data Stores
+// Wrong: Processes generate data from nowhere
+// Right: Show where persistent data comes from
+// Fix: Add data stores for all persistent data
+
+// MISTAKE 7: Control Flows Instead of Data Flows
+// Wrong: start, stop, activate, control signals
+// Right: actual data being passed
+// Fix: Show data content, not process control
+
+// === TOOLS FOR CREATING DFDs ===
+
+// FREE TOOLS:
+// 1. Draw.io (now Diagrams.net) - Web-based, excellent for DFDs
+// 2. Lucidchart - Free tier available, professional quality
+// 3. Canva - Basic diagramming capabilities
+// 4. Google Drawings - Simple but functional
+// 5. LibreOffice Draw - Open source desktop tool
+
+// PROFESSIONAL TOOLS:
+// 1. Microsoft Visio - Industry standard, comprehensive
+// 2. Lucidchart Pro - Advanced features, collaboration
+// 3. SmartDraw - Easy-to-use, template-rich
+// 4. Creately - Web-based, real-time collaboration
+// 5. EdrawMax - Comprehensive diagramming suite
+
+// SPECIALIZED TOOLS:
+// 1. CASE tools (Computer-Aided Software Engineering)
+// 2. Enterprise Architect - Full lifecycle modeling
+// 3. Visual Paradigm - UML and DFD support
+// 4. IBM Rational Rose - Enterprise modeling
+// 5. StarUML - Open source modeling tool
+
+// === DFD BEST PRACTICES ===
+
+// DESIGN PRINCIPLES:
+// 1. Keep it simple and understandable
+// 2. Use consistent naming conventions
+// 3. Focus on essential data flows only
+// 4. Group related functionality together
+// 5. Maintain clear visual hierarchy
+// 6. Ensure all stakeholders can understand
+
+// DOCUMENTATION STANDARDS:
+// 1. Include data dictionary for all flows
+// 2. Write process specifications for leaf processes
+// 3. Document assumptions and constraints
+// 4. Maintain version control and change history
+// 5. Cross-reference with other system models
+// 6. Include narrative descriptions
+
+// COLLABORATION TIPS:
+// 1. Involve all stakeholders in validation
+// 2. Use workshops for complex systems
+// 3. Iterate based on feedback
+// 4. Start simple and add detail gradually
+// 5. Use walkthroughs to verify correctness
+// 6. Document decisions and rationale
+
+// === ADVANCED DFD TECHNIQUES ===
+
+// EVENT-DRIVEN MODELING:
+// - Identify business events that trigger processes
+// - Model system response to each event
+// - Ensure complete event coverage
+// - Link events to use cases and scenarios
+
+// DATA STORE MODELING:
+// - Identify CRUD operations (Create, Read, Update, Delete)
+// - Show temporal aspects of data
+// - Model data relationships and dependencies
+// - Consider data volumes and access patterns
+
+// INTERFACE ANALYSIS:
+// - Model system boundaries clearly
+// - Show data conversion at interfaces
+// - Document data formats and protocols
+// - Consider error handling and exceptions
+
+// PERFORMANCE CONSIDERATIONS:
+// - Identify high-volume data flows
+// - Consider response time requirements
+// - Model batch vs. real-time processing
+// - Show data archiving and purging
+
+// === INTEGRATION WITH OTHER MODELS ===
+
+// WITH ERD (Entity Relationship Diagram):
+// - Data stores in DFD correspond to entities in ERD
+// - Data flows show how entities are accessed
+// - Processes show business rules from ERD
+// - Both models should be consistent
+
+// WITH USE CASES:
+// - Use cases provide scenarios for DFD validation
+// - Actors in use cases become external entities
+// - Use case steps become process details
+// - Both show different views of same system
+
+// WITH SYSTEM ARCHITECTURE:
+// - DFD shows logical data flow
+// - Architecture shows physical implementation
+// - Processes map to system components
+// - Data stores map to databases/files
+
+// === QUALITY ASSURANCE CHECKLIST ===
+
+// COMPLETENESS CHECK:
+// □ All external entities identified?
+// □ All major processes included?
+// □ All data stores represented?
+// □ All significant data flows shown?
+// □ System boundaries clearly defined?
+
+// CONSISTENCY CHECK:
+// □ Naming conventions followed?
+// □ Balancing maintained across levels?
+// □ Data dictionary complete?
+// □ Cross-references accurate?
+// □ Version control updated?
+
+// CORRECTNESS CHECK:
+// □ Business rules accurately represented?
+// □ Data flows realistic and necessary?
+// □ Process logic sound?
+// □ Stakeholder feedback incorporated?
+// □ Technical constraints considered?
+
+// CLARITY CHECK:
+// □ Diagram easy to understand?
+// □ Layout logical and neat?
+// □ Labels clear and descriptive?
+// □ Symbols used correctly?
+// □ Documentation complete?
+
+// === CONCLUSION ===
+// Creating effective DFDs requires practice and attention to detail.
+// Start simple, iterate often, and always validate with stakeholders.
+// Remember: DFDs show WHAT the system does, not HOW it does it.
+// Focus on data transformation, not process control or implementation.
+// Use DFDs as communication tools to bridge business and technical teams.
+
+// ========================================
+// COMPREHENSIVE GUIDE: DFD LEVEL 1 CREATION WITH ALL CONNECTIONS
+// ========================================
+
+// === UNDERSTANDING LEVEL 1 DFD STRUCTURE ===
+// Level 1 DFD decomposes the single process from Context Diagram into 5-9 major processes
+// Shows: External Entities + Major Processes + Data Stores + All Data Flows
+// Purpose: Detailed view of system's main functional areas and their interactions
+
+// === STEP-BY-STEP LEVEL 1 DFD CREATION ===
+
+// STEP 1: START WITH CONTEXT DIAGRAM ANALYSIS
+// Extract from Context Diagram:
+// - All External Entities (keep exactly the same)
+// - All incoming data flows (must appear in Level 1)
+// - All outgoing data flows (must appear in Level 1)
+// - System boundary definition
+
+// STEP 2: IDENTIFY MAJOR BUSINESS PROCESSES (5-9 processes)
+// Common business process patterns:
+// 1.0 | User/Entity Management (registration, authentication, profiles)
+// 2.0 | Core Business Operations (main system functions)
+// 3.0 | Transaction Processing (orders, payments, bookings)
+// 4.0 | Reporting and Analytics (reports, statistics, analysis)
+// 5.0 | Data Management (backup, archival, maintenance)
+// 6.0 | Communication/Notification (messages, alerts, emails)
+// 7.0 | Security and Access Control (permissions, auditing)
+// 8.0 | Integration Services (external system connections)
+// 9.0 | Configuration Management (settings, parameters)
+
+// STEP 3: IDENTIFY ALL DATA STORES
+// Categories of data stores:
+// D1 | Master Data (users, products, reference data)
+// D2 | Transaction Data (orders, payments, activities)
+// D3 | Configuration Data (settings, parameters, rules)
+// D4 | Log Data (audit trails, system logs, history)
+// D5 | Temporary Data (sessions, cache, working files)
+// D6 | Reporting Data (analytics, summaries, aggregates)
+
+// === COMPLETE CONNECTION PATTERNS GUIDE ===
+
+// PATTERN 1: EXTERNAL ENTITY TO PROCESS CONNECTIONS
+// Rule: External entities can ONLY connect to processes (never to data stores directly)
+
+// Example: Student Registration Flow
+// [Students] --registration_request--> (1.0 | User Management)
+// (1.0 | User Management) --registration_confirmation--> [Students]
+// (1.0 | User Management) --new_user_data--> D1 | Users Database
+// D1 | Users Database --existing_user_data--> (1.0 | User Management)
+
+// Connection Template:
+// [External Entity] --input_data--> (Process)
+// (Process) --output_data--> [External Entity]
+// (Process) <--stored_data--> Data Store
+
+// PATTERN 2: PROCESS TO DATA STORE CONNECTIONS
+// Rule: Processes can read from and write to data stores
+
+// === COMPLETE DATA STORE CONNECTION PATTERNS ===
+
+// READ OPERATIONS (Data Store to Process):
+// Single Read:
+// D1 | Users Database --user_profile--> (2.0 | Authentication)
+// D2 | Courses Database --course_details--> (3.0 | Enrollment)
+// D3 | Programs Database --program_info--> (2.0 | Program Management)
+// D4 | Assessments Database --assessment_data--> (4.0 | Assessment Management)
+
+// Multiple Reads (One Data Store to Multiple Processes):
+// D1 | Users Database --user_info--> (1.0 | User Management)
+// D1 | Users Database --student_details--> (2.0 | Program Management)
+// D1 | Users Database --tutor_profile--> (3.0 | Content Management)
+// D1 | Users Database --user_credentials--> (8.0 | Authentication)
+
+// Conditional Reads:
+// D2 | Programs Database --available_programs--> (2.0 | Program Management)
+// D2 | Programs Database --completed_programs--> (6.0 | Reporting System)
+// D4 | Assessments Database --pending_assessments--> (4.0 | Assessment Management)
+// D4 | Assessments Database --graded_assessments--> (6.0 | Reporting System)
+
+// WRITE OPERATIONS (Process to Data Store):
+// Single Write:
+// (1.0 | User Management) --new_user_record--> D1 | Users Database
+// (2.0 | Program Management) --enrollment_record--> D3 | Enrollments Database
+// (4.0 | Assessment Management) --grade_data--> D4 | Assessments Database
+// (5.0 | Attendance Tracking) --attendance_record--> D5 | Attendance Database
+
+// Multiple Writes (One Process to Multiple Data Stores):
+// (1.0 | User Management) --user_profile--> D1 | Users Database
+// (1.0 | User Management) --login_history--> D7 | Audit Logs
+// (1.0 | User Management) --notification_preference--> D8 | Notifications Database
+
+// Batch Writes:
+// (6.0 | Reporting System) --daily_summary--> D9 | Reports Database
+// (6.0 | Reporting System) --analytics_data--> D10 | Analytics Database
+// (7.0 | Backup Management) --backup_metadata--> D11 | Backup Logs
+
+// UPDATE OPERATIONS (Bidirectional):
+// Simple Updates:
+// (1.0 | User Management) <--user_profile--> D1 | Users Database
+// (2.0 | Program Management) <--enrollment_status--> D3 | Enrollments Database
+// (4.0 | Assessment Management) <--assessment_scores--> D4 | Assessments Database
+
+// Complex Updates (Read-Modify-Write):
+// D1 | Users Database --current_profile--> (1.0 | User Management)
+// (1.0 | User Management) --updated_profile--> D1 | Users Database
+// D3 | Enrollments Database --enrollment_status--> (2.0 | Program Management)
+// (2.0 | Program Management) --status_update--> D3 | Enrollments Database
+
+// DELETE OPERATIONS (Logical/Physical):
+// Soft Delete:
+// (1.0 | User Management) --deactivation_flag--> D1 | Users Database
+// (2.0 | Program Management) --archive_flag--> D2 | Programs Database
+
+// Hard Delete:
+// (9.0 | Data Management) --delete_record--> D7 | Audit Logs
+// (9.0 | Data Management) --purge_data--> D11 | Temporary Files
+
+// === COMPREHENSIVE DATA STORE ACCESS PATTERNS ===
+
+// MASTER DATA STORES ACCESS:
+// D1 | Users Database:
+//   Read by: (1.0 | User Management), (2.0 | Program Management), (4.0 | Assessment Management), (8.0 | Authentication)
+//   Write by: (1.0 | User Management), (8.0 | Authentication)
+//   Update by: (1.0 | User Management), (5.0 | Profile Management)
+//   Example Flows:
+//   D1 | Users Database --user_credentials--> (8.0 | Authentication)
+//   D1 | Users Database --student_info--> (2.0 | Program Management)
+//   D1 | Users Database --tutor_details--> (3.0 | Content Management)
+//   (1.0 | User Management) --new_user--> D1 | Users Database
+//   (1.0 | User Management) <--profile_data--> D1 | Users Database
+
+// D2 | Programs Database:
+//   Read by: (2.0 | Program Management), (3.0 | Content Management), (6.0 | Reporting System)
+//   Write by: (2.0 | Program Management), (3.0 | Content Management)
+//   Update by: (2.0 | Program Management)
+//   Example Flows:
+//   D2 | Programs Database --program_catalog--> (2.0 | Program Management)
+//   D2 | Programs Database --course_structure--> (3.0 | Content Management)
+//   (2.0 | Program Management) --new_program--> D2 | Programs Database
+//   (3.0 | Content Management) --course_materials--> D2 | Programs Database
+
+// TRANSACTION DATA STORES ACCESS:
+// D3 | Enrollments Database:
+//   Read by: (2.0 | Program Management), (4.0 | Assessment Management), (6.0 | Reporting System)
+//   Write by: (2.0 | Program Management)
+//   Update by: (2.0 | Program Management), (4.0 | Assessment Management)
+//   Example Flows:
+//   D3 | Enrollments Database --enrollment_list--> (4.0 | Assessment Management)
+//   D3 | Enrollments Database --active_enrollments--> (6.0 | Reporting System)
+//   (2.0 | Program Management) --new_enrollment--> D3 | Enrollments Database
+//   (4.0 | Assessment Management) --progress_update--> D3 | Enrollments Database
+
+// D4 | Assessments Database:
+//   Read by: (4.0 | Assessment Management), (6.0 | Reporting System), (2.0 | Program Management)
+//   Write by: (4.0 | Assessment Management), (3.0 | Content Management)
+//   Update by: (4.0 | Assessment Management)
+//   Example Flows:
+//   D4 | Assessments Database --assessment_templates--> (4.0 | Assessment Management)
+//   D4 | Assessments Database --grade_history--> (6.0 | Reporting System)
+//   (4.0 | Assessment Management) --assessment_results--> D4 | Assessments Database
+//   (3.0 | Content Management) --assessment_content--> D4 | Assessments Database
+
+// D5 | Attendance Database:
+//   Read by: (5.0 | Attendance Tracking), (6.0 | Reporting System), (2.0 | Program Management)
+//   Write by: (5.0 | Attendance Tracking)
+//   Update by: (5.0 | Attendance Tracking)
+//   Example Flows:
+//   D5 | Attendance Database --attendance_history--> (6.0 | Reporting System)
+//   D5 | Attendance Database --session_attendance--> (5.0 | Attendance Tracking)
+//   (5.0 | Attendance Tracking) --attendance_record--> D5 | Attendance Database
+//   (5.0 | Attendance Tracking) <--attendance_data--> D5 | Attendance Database
+
+// OPERATIONAL DATA STORES ACCESS:
+// D6 | Payments Database:
+//   Read by: (7.0 | Payment Processing), (6.0 | Reporting System), (2.0 | Program Management)
+//   Write by: (7.0 | Payment Processing)
+//   Update by: (7.0 | Payment Processing)
+//   Example Flows:
+//   D6 | Payments Database --payment_history--> (7.0 | Payment Processing)
+//   D6 | Payments Database --revenue_data--> (6.0 | Reporting System)
+//   (7.0 | Payment Processing) --payment_record--> D6 | Payments Database
+//   (7.0 | Payment Processing) <--transaction_data--> D6 | Payments Database
+
+// D7 | Notifications Database:
+//   Read by: (9.0 | Notification System), (1.0 | User Management)
+//   Write by: (9.0 | Notification System), (4.0 | Assessment Management), (5.0 | Attendance Tracking)
+//   Update by: (9.0 | Notification System)
+//   Example Flows:
+//   D7 | Notifications Database --pending_notifications--> (9.0 | Notification System)
+//   (4.0 | Assessment Management) --grade_notification--> D7 | Notifications Database
+//   (5.0 | Attendance Tracking) --absence_alert--> D7 | Notifications Database
+//   (9.0 | Notification System) <--notification_status--> D7 | Notifications Database
+
+// REPORTING DATA STORES ACCESS:
+// D8 | Reports Database:
+//   Read by: (6.0 | Reporting System), (1.0 | User Management)
+//   Write by: (6.0 | Reporting System)
+//   Update by: (6.0 | Reporting System)
+//   Example Flows:
+//   D8 | Reports Database --historical_reports--> (6.0 | Reporting System)
+//   (6.0 | Reporting System) --generated_report--> D8 | Reports Database
+//   (6.0 | Reporting System) <--report_metadata--> D8 | Reports Database
+
+// D9 | Audit Logs:
+//   Read by: (8.0 | Security Management), (6.0 | Reporting System)
+//   Write by: (1.0 | User Management), (2.0 | Program Management), (4.0 | Assessment Management), (7.0 | Payment Processing)
+//   Example Flows:
+//   D9 | Audit Logs --security_events--> (8.0 | Security Management)
+//   D9 | Audit Logs --system_activity--> (6.0 | Reporting System)
+//   (1.0 | User Management) --user_activity--> D9 | Audit Logs
+//   (7.0 | Payment Processing) --transaction_log--> D9 | Audit Logs
+
+// D10 | System Configuration:
+//   Read by: All Processes (1.0 through 9.0)
+//   Write by: (8.0 | System Administration)
+//   Update by: (8.0 | System Administration)
+//   Example Flows:
+//   D10 | System Configuration --app_settings--> (1.0 | User Management)
+//   D10 | System Configuration --payment_config--> (7.0 | Payment Processing)
+//   D10 | System Configuration --notification_rules--> (9.0 | Notification System)
+//   (8.0 | System Administration) <--configuration_data--> D10 | System Configuration
+
+// === ADVANCED DATA STORE CONNECTION PATTERNS ===
+
+// AGGREGATION PATTERNS:
+// Multiple data stores feeding into reporting:
+// D1 | Users Database --user_statistics--> (6.0 | Reporting System)
+// D3 | Enrollments Database --enrollment_stats--> (6.0 | Reporting System)
+// D4 | Assessments Database --performance_data--> (6.0 | Reporting System)
+// D5 | Attendance Database --attendance_stats--> (6.0 | Reporting System)
+// D6 | Payments Database --revenue_stats--> (6.0 | Reporting System)
+
+// SYNCHRONIZATION PATTERNS:
+// Data consistency across related stores:
+// (2.0 | Program Management) --enrollment_update--> D3 | Enrollments Database
+// (2.0 | Program Management) --user_status_sync--> D1 | Users Database
+// (2.0 | Program Management) --payment_status_sync--> D6 | Payments Database
+
+// ARCHIVAL PATTERNS:
+// Moving data to long-term storage:
+// D4 | Assessments Database --completed_assessments--> (9.0 | Data Management)
+// (9.0 | Data Management) --archived_data--> D11 | Archive Storage
+// D5 | Attendance Database --old_sessions--> (9.0 | Data Management)
+// (9.0 | Data Management) --historical_attendance--> D11 | Archive Storage
+
+// BACKUP AND RECOVERY PATTERNS:
+// System backup operations:
+// D1 | Users Database --backup_data--> (10.0 | Backup System)
+// D2 | Programs Database --backup_data--> (10.0 | Backup System)
+// D3 | Enrollments Database --backup_data--> (10.0 | Backup System)
+// (10.0 | Backup System) --backup_files--> D12 | Backup Storage
+// D12 | Backup Storage --restore_data--> (10.0 | Recovery System)
+
+// CACHING PATTERNS:
+// Temporary data storage for performance:
+// D1 | Users Database --frequently_accessed--> (11.0 | Cache Management)
+// (11.0 | Cache Management) --cached_data--> D13 | Cache Storage
+// D13 | Cache Storage --quick_access_data--> (1.0 | User Management)
+// (11.0 | Cache Management) --cache_invalidation--> D13 | Cache Storage
+
+// === DATA STORE DEPENDENCY MAPPING ===
+
+// PRIMARY DEPENDENCIES:
+// D1 | Users Database (Foundation - Required by most processes)
+//   ↓ feeds into D3 | Enrollments (via enrollment process)
+//   ↓ feeds into D4 | Assessments (via assessment assignment)
+//   ↓ feeds into D5 | Attendance (via session participation)
+//   ↓ feeds into D6 | Payments (via payment processing)
+
+// SECONDARY DEPENDENCIES:
+// D2 | Programs Database
+//   ↓ feeds into D3 | Enrollments (program enrollment)
+//   ↓ feeds into D4 | Assessments (program assessments)
+//   ↓ feeds into D5 | Attendance (program sessions)
+
+// DERIVED DEPENDENCIES:
+// D3 | Enrollments Database
+//   ↓ feeds into D4 | Assessments (enrolled student assessments)
+//   ↓ feeds into D5 | Attendance (enrolled student attendance)
+//   ↓ feeds into D6 | Payments (enrollment payments)
+
+// === CONNECTION VALIDATION FOR DATA STORES ===
+
+// VALIDATION RULES:
+// 1. Every data store must have at least one write operation
+// 2. Every data store should have at least one read operation
+// 3. Master data stores should be read by multiple processes
+// 4. Transaction data stores should have clear write processes
+// 5. No direct data store to data store connections
+// 6. All data store connections must go through processes
+
+// CONSISTENCY CHECKS:
+// □ User data consistency across D1, D3, D4, D5
+// □ Program data consistency across D2, D3, D4
+// □ Enrollment data consistency across D3, D4, D5, D6
+// □ Assessment data consistency across D4, D8, D9
+// □ Payment data consistency across D6, D8, D9
+
+// ERROR HANDLING CONNECTIONS:
+// (Process) --error_log--> D9 | Audit Logs
+// (Process) --validation_failure--> D7 | Notifications Database
+// D9 | Audit Logs --error_analysis--> (8.0 | System Monitoring)
+// (8.0 | System Monitoring) --alert_notification--> D7 | Notifications Database
+
+// ========================================
+// COMPLETE DATA STORE INPUT/OUTPUT MAPPING
+// ========================================
+
+// === DATA STORE INPUT/OUTPUT DETERMINATION METHODOLOGY ===
+
+// INPUT ANALYSIS: What data flows INTO each data store
+// - New record creation (INSERT operations)
+// - Record updates (UPDATE operations) 
+// - Status changes and modifications
+// - Batch data imports
+// - System-generated data
+
+// OUTPUT ANALYSIS: What data flows OUT OF each data store
+// - Record retrieval for processing (SELECT operations)
+// - Data for validation and verification
+// - Historical data for reporting
+// - Reference data for other processes
+// - Aggregated data for analytics
+
+// === COMPLETE INPUT/OUTPUT MAPPING BY DATA STORE ===
+
+// D1 | USERS DATABASE
+// Purpose: Master repository for all user accounts and profiles
+// 
+// INPUTS (What flows INTO D1):
+// (1.0 | User Management) --new_user_registration--> D1 | Users Database
+//   Content: user_id, email, password_hash, first_name, last_name, user_type, registration_date
+// (1.0 | User Management) --profile_updates--> D1 | Users Database  
+//   Content: updated_profile_info, contact_details, preferences, academic_background
+// (1.0 | User Management) --password_changes--> D1 | Users Database
+//   Content: new_password_hash, password_change_date, security_questions
+// (1.0 | User Management) --account_status_updates--> D1 | Users Database
+//   Content: account_status, suspension_reason, activation_date, last_login
+// (8.0 | Authentication) --login_timestamps--> D1 | Users Database
+//   Content: last_login_date, login_ip_address, session_duration
+// (2.0 | Program Management) --enrollment_status_sync--> D1 | Users Database
+//   Content: current_programs, enrollment_count, academic_status
+//
+// OUTPUTS (What flows OUT OF D1):
+// D1 | Users Database --authentication_data--> (8.0 | Authentication)
+//   Content: user_credentials, password_hash, account_status, security_settings
+// D1 | Users Database --student_profiles--> (2.0 | Program Management)
+//   Content: student_id, name, academic_level, enrollment_eligibility, contact_info
+// D1 | Users Database --tutor_profiles--> (3.0 | Content Management)
+//   Content: tutor_id, name, qualifications, specializations, availability
+// D1 | Users Database --user_details--> (4.0 | Assessment Management)
+//   Content: student_info, assessment_permissions, grade_access_rights
+// D1 | Users Database --attendance_participants--> (5.0 | Attendance Tracking)
+//   Content: participant_id, name, program_enrollment, session_permissions
+// D1 | Users Database --payment_account_info--> (7.0 | Payment Processing)
+//   Content: billing_info, payment_history_access, account_balance
+// D1 | Users Database --user_statistics--> (6.0 | Reporting System)
+//   Content: user_counts, registration_trends, demographic_data, activity_levels
+// D1 | Users Database --notification_recipients--> (9.0 | Notification System)
+//   Content: user_preferences, contact_methods, notification_settings
+
+// D2 | PROGRAMS DATABASE  
+// Purpose: Master catalog of all educational programs and courses
+//
+// INPUTS (What flows INTO D2):
+// (2.0 | Program Management) --new_program_creation--> D2 | Programs Database
+//   Content: program_id, program_name, description, duration, prerequisites, tuition_fee
+// (2.0 | Program Management) --program_updates--> D2 | Programs Database
+//   Content: updated_curriculum, schedule_changes, fee_adjustments, capacity_limits
+// (3.0 | Content Management) --course_materials--> D2 | Programs Database
+//   Content: lesson_plans, study_materials, resource_links, assignment_templates
+// (3.0 | Content Management) --curriculum_structure--> D2 | Programs Database
+//   Content: module_organization, learning_objectives, assessment_criteria
+// (2.0 | Program Management) --program_status_changes--> D2 | Programs Database
+//   Content: active_status, enrollment_status, suspension_reasons, archive_date
+//
+// OUTPUTS (What flows OUT OF D2):
+// D2 | Programs Database --available_programs--> (2.0 | Program Management)
+//   Content: active_programs, enrollment_capacity, prerequisites, scheduling_info
+// D2 | Programs Database --course_catalog--> (3.0 | Content Management)
+//   Content: course_structure, content_requirements, delivery_methods
+// D2 | Programs Database --assessment_programs--> (4.0 | Assessment Management)
+//   Content: program_assessments, grading_criteria, completion_requirements
+// D2 | Programs Database --session_programs--> (5.0 | Attendance Tracking)
+//   Content: scheduled_sessions, attendance_requirements, session_structure
+// D2 | Programs Database --program_pricing--> (7.0 | Payment Processing)
+//   Content: tuition_fees, payment_schedules, discount_eligibility
+// D2 | Programs Database --program_analytics--> (6.0 | Reporting System)
+//   Content: enrollment_statistics, completion_rates, program_performance
+
+// D3 | ENROLLMENTS DATABASE
+// Purpose: Student enrollment records and program participation tracking
+//
+// INPUTS (What flows INTO D3):
+// (2.0 | Program Management) --new_enrollments--> D3 | Enrollments Database
+//   Content: enrollment_id, student_id, program_id, enrollment_date, status, payment_status
+// (2.0 | Program Management) --enrollment_status_updates--> D3 | Enrollments Database
+//   Content: status_changes, progress_updates, completion_dates, withdrawal_reasons
+// (4.0 | Assessment Management) --progress_tracking--> D3 | Enrollments Database
+//   Content: assessment_completion, grade_updates, milestone_achievements
+// (5.0 | Attendance Tracking) --attendance_impact--> D3 | Enrollments Database
+//   Content: attendance_rates, session_participation, absence_records
+// (7.0 | Payment Processing) --payment_confirmations--> D3 | Enrollments Database
+//   Content: payment_status, transaction_records, outstanding_balances
+//
+// OUTPUTS (What flows OUT OF D3):
+// D3 | Enrollments Database --enrolled_students--> (4.0 | Assessment Management)
+//   Content: active_enrollments, student_program_mapping, assessment_eligibility
+// D3 | Enrollments Database --session_participants--> (5.0 | Attendance Tracking)
+//   Content: enrolled_students_per_session, attendance_requirements, participant_lists
+// D3 | Enrollments Database --payment_due_accounts--> (7.0 | Payment Processing)
+//   Content: outstanding_balances, payment_schedules, billing_information
+// D3 | Enrollments Database --enrollment_reports--> (6.0 | Reporting System)
+//   Content: enrollment_statistics, completion_rates, student_progress_data
+// D3 | Enrollments Database --enrollment_notifications--> (9.0 | Notification System)
+//   Content: enrollment_confirmations, progress_alerts, completion_notices
+
+// D4 | ASSESSMENTS DATABASE
+// Purpose: Assessment content, submissions, and grading records
+//
+// INPUTS (What flows INTO D4):
+// (4.0 | Assessment Management) --assessment_creation--> D4 | Assessments Database
+//   Content: assessment_id, questions, rubrics, due_dates, point_values, instructions
+// (4.0 | Assessment Management) --student_submissions--> D4 | Assessments Database
+//   Content: submission_id, student_responses, submission_timestamp, file_attachments
+// (4.0 | Assessment Management) --grading_results--> D4 | Assessments Database
+//   Content: scores, feedback, grade_letters, grading_timestamp, tutor_comments
+// (3.0 | Content Management) --assessment_templates--> D4 | Assessments Database
+//   Content: question_banks, assessment_formats, grading_rubrics, standard_assessments
+//
+// OUTPUTS (What flows OUT OF D4):
+// D4 | Assessments Database --available_assessments--> (4.0 | Assessment Management)
+//   Content: pending_assessments, assessment_templates, grading_guidelines
+// D4 | Assessments Database --grade_records--> (6.0 | Reporting System)
+//   Content: individual_grades, class_averages, performance_trends, completion_rates
+// D4 | Assessments Database --student_grades--> (2.0 | Program Management)
+//   Content: current_grades, progress_indicators, completion_status
+// D4 | Assessments Database --grade_notifications--> (9.0 | Notification System)
+//   Content: new_grades, feedback_available, assessment_reminders
+
+// D5 | ATTENDANCE DATABASE
+// Purpose: Session attendance records and participation tracking
+//
+// INPUTS (What flows INTO D5):
+// (5.0 | Attendance Tracking) --attendance_records--> D5 | Attendance Database
+//   Content: session_id, student_id, attendance_status, check_in_time, check_out_time
+// (5.0 | Attendance Tracking) --session_creation--> D5 | Attendance Database
+//   Content: session_details, scheduled_time, location, required_participants
+// (5.0 | Attendance Tracking) --attendance_updates--> D5 | Attendance Database
+//   Content: late_arrivals, early_departures, excuse_reasons, makeup_sessions
+//
+// OUTPUTS (What flows OUT OF D5):
+// D5 | Attendance Database --attendance_history--> (6.0 | Reporting System)
+//   Content: attendance_rates, participation_trends, absence_patterns
+// D5 | Attendance Database --session_attendance--> (5.0 | Attendance Tracking)
+//   Content: current_session_participants, attendance_status, real_time_tracking
+// D5 | Attendance Database --attendance_alerts--> (9.0 | Notification System)
+//   Content: absence_notifications, attendance_warnings, session_reminders
+// D5 | Attendance Database --attendance_impact--> (2.0 | Program Management)
+//   Content: attendance_rates_for_enrollment_status, participation_requirements
+
+// D6 | PAYMENTS DATABASE
+// Purpose: Financial transactions and payment processing records
+//
+// INPUTS (What flows INTO D6):
+// (7.0 | Payment Processing) --payment_transactions--> D6 | Payments Database
+//   Content: transaction_id, amount, payment_method, transaction_date, status
+// (7.0 | Payment Processing) --payment_confirmations--> D6 | Payments Database
+//   Content: confirmation_numbers, receipt_data, payment_verification
+// (7.0 | Payment Processing) --refund_records--> D6 | Payments Database
+//   Content: refund_amounts, refund_reasons, refund_dates, approval_status
+//
+// OUTPUTS (What flows OUT OF D6):
+// D6 | Payments Database --payment_history--> (7.0 | Payment Processing)
+//   Content: previous_transactions, payment_patterns, outstanding_balances
+// D6 | Payments Database --financial_reports--> (6.0 | Reporting System)
+//   Content: revenue_data, payment_statistics, financial_summaries
+// D6 | Payments Database --payment_notifications--> (9.0 | Notification System)
+//   Content: payment_confirmations, overdue_notices, receipt_deliveries
+// D6 | Payments Database --enrollment_payments--> (2.0 | Program Management)
+//   Content: payment_status_for_enrollments, outstanding_balances
+
+// D7 | NOTIFICATIONS DATABASE
+// Purpose: System notifications and communication management
+//
+// INPUTS (What flows INTO D7):
+// (9.0 | Notification System) --new_notifications--> D7 | Notifications Database
+//   Content: notification_id, recipient_id, message_content, notification_type, priority
+// (4.0 | Assessment Management) --grade_notifications--> D7 | Notifications Database
+//   Content: grade_alerts, assessment_feedback, deadline_reminders
+// (5.0 | Attendance Tracking) --attendance_alerts--> D7 | Notifications Database
+//   Content: absence_notifications, session_reminders, attendance_warnings
+// (7.0 | Payment Processing) --payment_notifications--> D7 | Notifications Database
+//   Content: payment_confirmations, overdue_notices, receipt_notifications
+// (2.0 | Program Management) --enrollment_notifications--> D7 | Notifications Database
+//   Content: enrollment_confirmations, program_updates, schedule_changes
+//
+// OUTPUTS (What flows OUT OF D7):
+// D7 | Notifications Database --pending_notifications--> (9.0 | Notification System)
+//   Content: undelivered_messages, scheduled_notifications, retry_queue
+// D7 | Notifications Database --notification_history--> (6.0 | Reporting System)
+//   Content: delivery_statistics, notification_effectiveness, communication_patterns
+// D7 | Notifications Database --user_notifications--> (1.0 | User Management)
+//   Content: user_specific_notifications, preference_updates, delivery_confirmations
+
+// D8 | REPORTS DATABASE
+// Purpose: Generated reports and analytical data storage
+//
+// INPUTS (What flows INTO D8):
+// (6.0 | Reporting System) --generated_reports--> D8 | Reports Database
+//   Content: report_id, report_type, generated_data, creation_timestamp, parameters
+// (6.0 | Reporting System) --analytics_data--> D8 | Reports Database
+//   Content: statistical_analysis, trend_data, performance_metrics, comparisons
+// (6.0 | Reporting System) --scheduled_reports--> D8 | Reports Database
+//   Content: automated_reports, recurring_analytics, dashboard_data
+//
+// OUTPUTS (What flows OUT OF D8):
+// D8 | Reports Database --historical_reports--> (6.0 | Reporting System)
+//   Content: previous_reports, trend_comparisons, historical_data
+// D8 | Reports Database --report_access--> (1.0 | User Management)
+//   Content: user_accessible_reports, permission_based_data, custom_dashboards
+// D8 | Reports Database --administrative_reports--> (8.0 | System Administration)
+//   Content: system_performance_reports, usage_statistics, administrative_analytics
+
+// D9 | AUDIT LOGS
+// Purpose: System activity tracking and security monitoring
+//
+// INPUTS (What flows INTO D9):
+// (1.0 | User Management) --user_activity_logs--> D9 | Audit Logs
+//   Content: login_attempts, profile_changes, account_modifications, access_requests
+// (2.0 | Program Management) --program_activity_logs--> D9 | Audit Logs
+//   Content: enrollment_changes, program_modifications, administrative_actions
+// (4.0 | Assessment Management) --assessment_activity_logs--> D9 | Audit Logs
+//   Content: grade_changes, assessment_submissions, grading_activities
+// (7.0 | Payment Processing) --transaction_logs--> D9 | Audit Logs
+//   Content: payment_attempts, transaction_details, financial_activities
+// (8.0 | System Administration) --system_activity_logs--> D9 | Audit Logs
+//   Content: configuration_changes, system_maintenance, administrative_actions
+//
+// OUTPUTS (What flows OUT OF D9):
+// D9 | Audit Logs --security_analysis--> (8.0 | System Administration)
+//   Content: suspicious_activities, access_patterns, security_incidents
+// D9 | Audit Logs --compliance_reports--> (6.0 | Reporting System)
+//   Content: audit_trails, compliance_data, regulatory_reporting
+// D9 | Audit Logs --activity_monitoring--> (8.0 | System Administration)
+//   Content: system_usage_patterns, performance_indicators, error_tracking
+
+// D10 | SYSTEM CONFIGURATION
+// Purpose: Application settings and system parameters
+//
+// INPUTS (What flows INTO D10):
+// (8.0 | System Administration) --configuration_updates--> D10 | System Configuration
+//   Content: system_settings, application_parameters, feature_toggles, security_policies
+// (8.0 | System Administration) --policy_changes--> D10 | System Configuration
+//   Content: business_rules, validation_rules, workflow_configurations
+//
+// OUTPUTS (What flows OUT OF D10):
+// D10 | System Configuration --application_settings--> (1.0 | User Management)
+//   Content: user_registration_rules, password_policies, account_settings
+// D10 | System Configuration --program_configuration--> (2.0 | Program Management)
+//   Content: enrollment_rules, program_policies, capacity_settings
+// D10 | System Configuration --assessment_settings--> (4.0 | Assessment Management)
+//   Content: grading_policies, assessment_rules, submission_guidelines
+// D10 | System Configuration --payment_configuration--> (7.0 | Payment Processing)
+//   Content: payment_methods, pricing_rules, billing_configurations
+// D10 | System Configuration --notification_rules--> (9.0 | Notification System)
+//   Content: notification_policies, delivery_methods, escalation_rules
+
+// === DATA STORE INPUT/OUTPUT ANALYSIS SUMMARY ===
+
+// HIGH INPUT DATA STORES (Frequently Updated):
+// D1 | Users Database (6 input flows) - Central user management
+// D3 | Enrollments Database (5 input flows) - Active enrollment tracking  
+// D4 | Assessments Database (4 input flows) - Dynamic assessment data
+// D7 | Notifications Database (5 input flows) - High communication volume
+
+// HIGH OUTPUT DATA STORES (Frequently Accessed):
+// D1 | Users Database (8 output flows) - Most referenced data store
+// D2 | Programs Database (6 output flows) - Core business reference data
+// D10 | System Configuration (5 output flows) - System-wide settings
+
+// BALANCED INPUT/OUTPUT DATA STORES:
+// D5 | Attendance Database (3 inputs, 4 outputs) - Regular tracking data
+// D6 | Payments Database (3 inputs, 4 outputs) - Financial transactions
+// D9 | Audit Logs (5 inputs, 3 outputs) - Security and compliance
+
+// SPECIALIZED PURPOSE DATA STORES:
+// D8 | Reports Database (3 inputs, 3 outputs) - Analytical storage
+// D10 | System Configuration (2 inputs, 5 outputs) - Configuration distribution
+
+// === INPUT/OUTPUT VALIDATION CHECKLIST ===
+
+// DATA COMPLETENESS CHECK:
+// □ Every data store has at least one input source?
+// □ Every data store has at least one output destination?
+// □ All business processes generate appropriate data?
+// □ All reference data is properly sourced?
+
+// DATA CONSISTENCY CHECK:
+// □ Input data types match data store schema?
+// □ Output data fulfills process requirements?
+// □ Data transformations are clearly defined?
+// □ Data validation rules are enforced?
+
+// PROCESS DEPENDENCY CHECK:
+// □ All processes have required input data available?
+// □ All process outputs are properly stored or distributed?
+// □ Data dependencies between processes are satisfied?
+// □ Circular dependencies are avoided or managed?
+
+// PERFORMANCE CONSIDERATION CHECK:
+// □ High-volume data flows identified?
+// □ Frequently accessed data stores optimized?
+// □ Batch vs real-time requirements specified?
+// □ Data archival and purging strategies defined?
+
+// ========================================
+// COMPLETE INPUT/OUTPUT MAPPING: PROCESSES AND DATA STORES
+// ========================================
+
+// === PROCESS INPUT/OUTPUT DETERMINATION ===
+
+// Each process must have:
+// - INPUTS: Data required to perform the process function
+// - OUTPUTS: Data produced by the process function
+// - TRIGGERS: Events that initiate the process
+// - CONTROLS: Rules and constraints that govern the process
+
+// === COMPLETE PROCESS INPUT/OUTPUT MAPPING ===
+
+// PROCESS 1.0 | USER MANAGEMENT
+// Purpose: Handle user registration, authentication, profile management
+//
+// INPUTS TO PROCESS 1.0:
+// [Students] --registration_request--> (1.0 | User Management)
+//   Content: personal_info, contact_details, academic_background, password
+// [Tutors] --tutor_application--> (1.0 | User Management)
+//   Content: qualifications, experience, specializations, documents
+// [Admins] --user_administration_request--> (1.0 | User Management)
+//   Content: administrative_actions, user_modifications, account_management
+// D1 | Users Database --existing_user_data--> (1.0 | User Management)
+//   Content: current_profiles, authentication_records, account_status
+// D10 | System Configuration --user_policies--> (1.0 | User Management)
+//   Content: registration_rules, password_policies, account_settings
+//
+// OUTPUTS FROM PROCESS 1.0:
+// (1.0 | User Management) --registration_confirmation--> [Students]
+//   Content: account_created, login_credentials, welcome_information
+// (1.0 | User Management) --approval_notification--> [Tutors]
+//   Content: application_status, account_access, onboarding_info
+// (1.0 | User Management) --administration_results--> [Admins]
+//   Content: action_confirmations, user_reports, system_status
+// (1.0 | User Management) --new_user_data--> D1 | Users Database
+//   Content: user_records, profile_information, authentication_data
+// (1.0 | User Management) --user_activity_logs--> D9 | Audit Logs
+//   Content: registration_events, profile_changes, access_attempts
+// (1.0 | User Management) --authenticated_users--> (2.0 | Program Management)
+//   Content: verified_identities, user_permissions, account_status
+// (1.0 | User Management) --user_notifications--> (9.0 | Notification System)
+//   Content: welcome_messages, account_updates, security_alerts
+
+// PROCESS 2.0 | PROGRAM MANAGEMENT
+// Purpose: Handle program creation, enrollment, and program administration
+//
+// INPUTS TO PROCESS 2.0:
+// [Students] --enrollment_requests--> (2.0 | Program Management)
+//   Content: program_preferences, enrollment_applications, prerequisite_documents
+// [Admins] --program_administration--> (2.0 | Program Management)
+//   Content: program_creation, schedule_updates, capacity_management
+// (1.0 | User Management) --authenticated_users--> (2.0 | Program Management)
+//   Content: verified_student_identities, enrollment_permissions
+// D1 | Users Database --student_profiles--> (2.0 | Program Management)
+//   Content: academic_background, enrollment_history, eligibility_status
+// D2 | Programs Database --program_catalog--> (2.0 | Program Management)
+//   Content: available_programs, prerequisites, capacity_information
+// D3 | Enrollments Database --enrollment_records--> (2.0 | Program Management)
+//   Content: current_enrollments, enrollment_status, program_progress
+// D6 | Payments Database --payment_status--> (2.0 | Program Management)
+//   Content: payment_confirmations, outstanding_balances, billing_information
+// D10 | System Configuration --enrollment_policies--> (2.0 | Program Management)
+//   Content: enrollment_rules, capacity_limits, prerequisite_requirements
+//
+// OUTPUTS FROM PROCESS 2.0:
+// (2.0 | Program Management) --enrollment_confirmation--> [Students]
+//   Content: enrollment_status, program_details, schedule_information
+// (2.0 | Program Management) --program_reports--> [Admins]
+//   Content: enrollment_statistics, program_performance, capacity_reports
+// (2.0 | Program Management) --new_enrollments--> D3 | Enrollments Database
+//   Content: enrollment_records, student_program_mapping, enrollment_dates
+// (2.0 | Program Management) --program_updates--> D2 | Programs Database
+//   Content: program_modifications, schedule_changes, capacity_updates
+// (2.0 | Program Management) --enrolled_students--> (4.0 | Assessment Management)
+//   Content: student_lists, program_context, assessment_eligibility
+// (2.0 | Program Management) --session_participants--> (5.0 | Attendance Tracking)
+//   Content: enrolled_students, session_requirements, attendance_expectations
+// (2.0 | Program Management) --billing_information--> (7.0 | Payment Processing)
+//   Content: enrollment_fees, payment_schedules, billing_details
+// (2.0 | Program Management) --enrollment_notifications--> (9.0 | Notification System)
+//   Content: enrollment_confirmations, schedule_updates, program_announcements
+
+// PROCESS 3.0 | CONTENT MANAGEMENT
+// Purpose: Manage course materials, curriculum, and educational content
+//
+// INPUTS TO PROCESS 3.0:
+// [Tutors] --content_creation--> (3.0 | Content Management)
+//   Content: lesson_plans, study_materials, assignments, multimedia_content
+// [Admins] --content_administration--> (3.0 | Content Management)
+//   Content: content_approval, curriculum_standards, quality_guidelines
+// D1 | Users Database --tutor_profiles--> (3.0 | Content Management)
+//   Content: tutor_qualifications, content_permissions, specialization_areas
+// D2 | Programs Database --curriculum_requirements--> (3.0 | Content Management)
+//   Content: program_structure, learning_objectives, content_standards
+// D10 | System Configuration --content_policies--> (3.0 | Content Management)
+//   Content: content_guidelines, approval_workflows, quality_standards
+//
+// OUTPUTS FROM PROCESS 3.0:
+// (3.0 | Content Management) --content_approval_status--> [Tutors]
+//   Content: approval_notifications, revision_requests, publishing_status
+// (3.0 | Content Management) --content_reports--> [Admins]
+//   Content: content_statistics, quality_reports, usage_analytics
+// (3.0 | Content Management) --course_materials--> D2 | Programs Database
+//   Content: approved_content, curriculum_updates, learning_resources
+// (3.0 | Content Management) --assessment_content--> D4 | Assessments Database
+//   Content: quiz_questions, assignment_templates, rubrics
+// (3.0 | Content Management) --content_notifications--> (9.0 | Notification System)
+//   Content: content_updates, new_materials, revision_notifications
+
+// PROCESS 4.0 | ASSESSMENT MANAGEMENT
+// Purpose: Handle assessments, grading, and academic evaluation
+//
+// INPUTS TO PROCESS 4.0:
+// [Students] --assessment_submissions--> (4.0 | Assessment Management)
+//   Content: assignment_responses, quiz_answers, project_submissions, uploaded_files
+// [Tutors] --grading_input--> (4.0 | Assessment Management)
+//   Content: grades, feedback, rubric_evaluations, assessment_creation
+// [Admins] --assessment_administration--> (4.0 | Assessment Management)
+//   Content: assessment_policies, grading_standards, academic_regulations
+// (2.0 | Program Management) --enrolled_students--> (4.0 | Assessment Management)
+//   Content: student_lists, program_assessments, enrollment_context
+// D1 | Users Database --student_information--> (4.0 | Assessment Management)
+//   Content: student_profiles, academic_records, assessment_permissions
+// D3 | Enrollments Database --enrollment_status--> (4.0 | Assessment Management)
+//   Content: active_enrollments, program_progress, assessment_eligibility
+// D4 | Assessments Database --assessment_templates--> (4.0 | Assessment Management)
+//   Content: existing_assessments, grading_rubrics, question_banks
+// D10 | System Configuration --grading_policies--> (4.0 | Assessment Management)
+//   Content: grading_scales, assessment_rules, deadline_policies
+//
+// OUTPUTS FROM PROCESS 4.0:
+// (4.0 | Assessment Management) --grade_reports--> [Students]
+//   Content: individual_grades, feedback, progress_reports, performance_analytics
+// (4.0 | Assessment Management) --grading_confirmations--> [Tutors]
+//   Content: grading_status, grade_submission_confirmations, grading_analytics
+// (4.0 | Assessment Management) --assessment_reports--> [Admins]
+//   Content: class_performance, grading_statistics, assessment_analytics
+// (4.0 | Assessment Management) --assessment_results--> D4 | Assessments Database
+//   Content: graded_assessments, student_scores, feedback_records
+// (4.0 | Assessment Management) --progress_updates--> D3 | Enrollments Database
+//   Content: academic_progress, completion_status, grade_milestones
+// (4.0 | Assessment Management) --grade_data--> (6.0 | Reporting System)
+//   Content: performance_metrics, statistical_data, trend_information
+// (4.0 | Assessment Management) --grade_notifications--> (9.0 | Notification System)
+//   Content: grade_alerts, feedback_available, deadline_reminders
+
+// PROCESS 5.0 | ATTENDANCE TRACKING
+// Purpose: Track student attendance and session participation
+//
+// INPUTS TO PROCESS 5.0:
+// [Students] --attendance_check_in--> (5.0 | Attendance Tracking)
+//   Content: student_identification, session_participation, check_in_timestamps
+// [Tutors] --attendance_management--> (5.0 | Attendance Tracking)
+//   Content: session_creation, attendance_verification, attendance_corrections
+// [Admins] --attendance_administration--> (5.0 | Attendance Tracking)
+//   Content: attendance_policies, session_scheduling, attendance_requirements
+// (2.0 | Program Management) --session_participants--> (5.0 | Attendance Tracking)
+//   Content: enrolled_students, session_requirements, expected_participants
+// D1 | Users Database --participant_information--> (5.0 | Attendance Tracking)
+//   Content: student_details, enrollment_status, attendance_permissions
+// D3 | Enrollments Database --enrollment_context--> (5.0 | Attendance Tracking)
+//   Content: program_enrollments, session_eligibility, attendance_requirements
+// D5 | Attendance Database --attendance_history--> (5.0 | Attendance Tracking)
+//   Content: previous_attendance, attendance_patterns, session_records
+// D10 | System Configuration --attendance_policies--> (5.0 | Attendance Tracking)
+//   Content: attendance_rules, session_requirements, tracking_methods
+//
+// OUTPUTS FROM PROCESS 5.0:
+// (5.0 | Attendance Tracking) --attendance_confirmation--> [Students]
+//   Content: check_in_confirmations, attendance_status, session_details
+// (5.0 | Attendance Tracking) --attendance_reports--> [Tutors]
+//   Content: session_attendance, student_participation, attendance_summaries
+// (5.0 | Attendance Tracking) --attendance_analytics--> [Admins]
+//   Content: attendance_statistics, participation_trends, session_analytics
+// (5.0 | Attendance Tracking) --attendance_records--> D5 | Attendance Database
+//   Content: session_attendance, participation_data, attendance_timestamps
+// (5.0 | Attendance Tracking) --attendance_impact--> D3 | Enrollments Database
+//   Content: attendance_rates, participation_records, enrollment_status_updates
+// (5.0 | Attendance Tracking) --attendance_data--> (6.0 | Reporting System)
+//   Content: attendance_statistics, participation_metrics, trend_data
+// (5.0 | Attendance Tracking) --attendance_alerts--> (9.0 | Notification System)
+//   Content: absence_notifications, attendance_warnings, session_reminders
+
+// PROCESS 6.0 | REPORTING SYSTEM
+// Purpose: Generate reports, analytics, and business intelligence
+//
+// INPUTS TO PROCESS 6.0:
+// [Admins] --report_requests--> (6.0 | Reporting System)
+//   Content: report_specifications, data_requirements, analytical_queries
+// [Tutors] --performance_inquiries--> (6.0 | Reporting System)
+//   Content: student_progress_requests, class_performance_queries
+// D1 | Users Database --user_statistics--> (6.0 | Reporting System)
+//   Content: user_demographics, registration_trends, activity_patterns
+// D2 | Programs Database --program_analytics--> (6.0 | Reporting System)
+//   Content: program_performance, enrollment_data, completion_rates
+// D3 | Enrollments Database --enrollment_statistics--> (6.0 | Reporting System)
+//   Content: enrollment_trends, program_participation, student_progress
+// D4 | Assessments Database --academic_performance--> (6.0 | Reporting System)
+//   Content: grade_distributions, assessment_results, performance_trends
+// D5 | Attendance Database --attendance_statistics--> (6.0 | Reporting System)
+//   Content: attendance_rates, participation_data, session_analytics
+// D6 | Payments Database --financial_data--> (6.0 | Reporting System)
+//   Content: revenue_information, payment_trends, financial_performance
+// D7 | Notifications Database --communication_metrics--> (6.0 | Reporting System)
+//   Content: notification_effectiveness, delivery_statistics, engagement_data
+// D9 | Audit Logs --system_activity_data--> (6.0 | Reporting System)
+//   Content: usage_patterns, system_performance, compliance_data
+//
+// OUTPUTS FROM PROCESS 6.0:
+// (6.0 | Reporting System) --analytical_reports--> [Admins]
+//   Content: comprehensive_reports, business_intelligence, performance_dashboards
+// (6.0 | Reporting System) --performance_reports--> [Tutors]
+//   Content: student_progress_reports, class_analytics, teaching_effectiveness
+// (6.0 | Reporting System) --generated_reports--> D8 | Reports Database
+//   Content: report_data, analytical_results, historical_reports
+// (6.0 | Reporting System) --report_notifications--> (9.0 | Notification System)
+//   Content: report_availability, scheduled_reports, analytical_alerts
+
+// PROCESS 7.0 | PAYMENT PROCESSING
+// Purpose: Handle financial transactions, billing, and payment management
+//
+// INPUTS TO PROCESS 7.0:
+// [Students] --payment_submissions--> (7.0 | Payment Processing)
+//   Content: payment_information, billing_details, transaction_requests
+// [Admins] --payment_administration--> (7.0 | Payment Processing)
+//   Content: pricing_updates, refund_processing, financial_administration
+// (2.0 | Program Management) --billing_requirements--> (7.0 | Payment Processing)
+//   Content: enrollment_fees, payment_schedules, billing_information
+// D1 | Users Database --payment_account_info--> (7.0 | Payment Processing)
+//   Content: billing_profiles, payment_methods, account_information
+// D3 | Enrollments Database --payment_context--> (7.0 | Payment Processing)
+//   Content: enrollment_details, payment_requirements, billing_schedules
+// D6 | Payments Database --payment_history--> (7.0 | Payment Processing)
+//   Content: transaction_records, payment_patterns, account_balances
+// D10 | System Configuration --payment_policies--> (7.0 | Payment Processing)
+//   Content: payment_methods, pricing_rules, billing_configurations
+//
+// OUTPUTS FROM PROCESS 7.0:
+// (7.0 | Payment Processing) --payment_confirmations--> [Students]
+//   Content: transaction_receipts, payment_status, billing_updates
+// (7.0 | Payment Processing) --financial_reports--> [Admins]
+//   Content: revenue_reports, transaction_summaries, financial_analytics
+// (7.0 | Payment Processing) --transaction_records--> D6 | Payments Database
+//   Content: payment_data, transaction_details, financial_records
+// (7.0 | Payment Processing) --payment_confirmations--> D3 | Enrollments Database
+//   Content: payment_status_updates, enrollment_confirmations, billing_status
+// (7.0 | Payment Processing) --financial_data--> (6.0 | Reporting System)
+//   Content: revenue_metrics, payment_statistics, financial_performance
+// (7.0 | Payment Processing) --payment_notifications--> (9.0 | Notification System)
+//   Content: payment_confirmations, billing_reminders, financial_alerts
+// (7.0 | Payment Processing) --transaction_logs--> D9 | Audit Logs
+//   Content: payment_activities, transaction_audits, financial_compliance
+
+// PROCESS 8.0 | SYSTEM ADMINISTRATION
+// Purpose: Manage system configuration, security, and technical administration
+//
+// INPUTS TO PROCESS 8.0:
+// [Admins] --administrative_requests--> (8.0 | System Administration)
+//   Content: system_configuration, security_policies, administrative_commands
+// D9 | Audit Logs --system_monitoring_data--> (8.0 | System Administration)
+//   Content: system_performance, security_events, compliance_monitoring
+// D10 | System Configuration --current_settings--> (8.0 | System Administration)
+//   Content: system_parameters, configuration_status, policy_settings
+//
+// OUTPUTS FROM PROCESS 8.0:
+// (8.0 | System Administration) --administrative_results--> [Admins]
+//   Content: configuration_confirmations, system_status, administrative_reports
+// (8.0 | System Administration) --system_updates--> D10 | System Configuration
+//   Content: configuration_changes, policy_updates, system_settings
+// (8.0 | System Administration) --administrative_logs--> D9 | Audit Logs
+//   Content: administrative_activities, system_changes, security_actions
+// (8.0 | System Administration) --system_notifications--> (9.0 | Notification System)
+//   Content: system_alerts, maintenance_notices, security_notifications
+
+// PROCESS 9.0 | NOTIFICATION SYSTEM
+// Purpose: Manage all system communications and notifications
+//
+// INPUTS TO PROCESS 9.0:
+// (1.0 | User Management) --user_notifications--> (9.0 | Notification System)
+//   Content: account_updates, welcome_messages, security_alerts
+// (2.0 | Program Management) --enrollment_notifications--> (9.0 | Notification System)
+//   Content: enrollment_confirmations, program_updates, schedule_changes
+// (3.0 | Content Management) --content_notifications--> (9.0 | Notification System)
+//   Content: new_content_alerts, material_updates, content_approvals
+// (4.0 | Assessment Management) --grade_notifications--> (9.0 | Notification System)
+//   Content: grade_releases, feedback_availability, assessment_deadlines
+// (5.0 | Attendance Tracking) --attendance_alerts--> (9.0 | Notification System)
+//   Content: absence_notifications, session_reminders, attendance_warnings
+// (6.0 | Reporting System) --report_notifications--> (9.0 | Notification System)
+//   Content: report_availability, analytical_insights, performance_alerts
+// (7.0 | Payment Processing) --payment_notifications--> (9.0 | Notification System)
+//   Content: payment_confirmations, billing_reminders, financial_alerts
+// (8.0 | System Administration) --system_notifications--> (9.0 | Notification System)
+//   Content: system_maintenance, security_alerts, administrative_announcements
+// D1 | Users Database --notification_preferences--> (9.0 | Notification System)
+//   Content: user_communication_preferences, contact_methods, notification_settings
+// D7 | Notifications Database --pending_notifications--> (9.0 | Notification System)
+//   Content: queued_messages, delivery_status, notification_history
+// D10 | System Configuration --notification_rules--> (9.0 | Notification System)
+//   Content: delivery_policies, notification_templates, communication_rules
+//
+// OUTPUTS FROM PROCESS 9.0:
+// (9.0 | Notification System) --notifications--> [Students]
+//   Content: personalized_messages, alerts, reminders, system_updates
+// (9.0 | Notification System) --notifications--> [Tutors]
+//   Content: teaching_alerts, administrative_updates, student_notifications
+// (9.0 | Notification System) --notifications--> [Admins]
+//   Content: system_alerts, administrative_notifications, performance_reports
+// (9.0 | Notification System) --delivery_records--> D7 | Notifications Database
+//   Content: notification_logs, delivery_confirmations, communication_history
+// (9.0 | Notification System) --communication_metrics--> (6.0 | Reporting System)
+//   Content: delivery_statistics, engagement_rates, notification_effectiveness
+
+// === INPUT/OUTPUT FLOW ANALYSIS BY COMPONENT TYPE ===
+
+// EXTERNAL ENTITY INPUT/OUTPUT PATTERNS:
+// [Students]: 4 inputs to system, 5 outputs from system
+// [Tutors]: 3 inputs to system, 3 outputs from system  
+// [Admins]: 6 inputs to system, 6 outputs from system
+
+// PROCESS INPUT/OUTPUT COMPLEXITY:
+// High Complexity (5+ inputs, 5+ outputs):
+// - (1.0 | User Management): 5 inputs, 7 outputs
+// - (2.0 | Program Management): 8 inputs, 8 outputs  
+// - (4.0 | Assessment Management): 8 inputs, 7 outputs
+// - (9.0 | Notification System): 11 inputs, 4 outputs
+
+// Medium Complexity (3-5 inputs/outputs):
+// - (3.0 | Content Management): 5 inputs, 5 outputs
+// - (5.0 | Attendance Tracking): 8 inputs, 7 outputs
+// - (6.0 | Reporting System): 10 inputs, 4 outputs
+// - (7.0 | Payment Processing): 7 inputs, 7 outputs
+
+// Lower Complexity (2-3 inputs/outputs):
+// - (8.0 | System Administration): 3 inputs, 4 outputs
+
+// DATA STORE ACCESS INTENSITY:
+// Most Accessed (7+ connections):
+// - D1 | Users Database: 8 total connections
+// - D3 | Enrollments Database: 10 total connections
+// - D10 | System Configuration: 7 total connections
+
+// Moderately Accessed (4-6 connections):
+// - D2 | Programs Database: 6 total connections
+// - D4 | Assessments Database: 6 total connections
+// - D6 | Payments Database: 6 total connections
+// - D7 | Notifications Database: 6 total connections
+// - D9 | Audit Logs: 5 total connections
+
+// Specialized Access (2-3 connections):
+// - D5 | Attendance Database: 4 total connections
+// - D8 | Reports Database: 3 total connections
+
+// === CRITICAL FLOW DEPENDENCIES ===
+
+// AUTHENTICATION DEPENDENCY CHAIN:
+// [Users] → (1.0 | User Management) → D1 | Users Database → (All Processes)
+
+// ENROLLMENT DEPENDENCY CHAIN:
+// [Students] → (2.0 | Program Management) → D3 | Enrollments → (4.0, 5.0, 7.0)
+
+// ACADEMIC FLOW CHAIN:
+// (2.0 | Program Management) → (4.0 | Assessment) → (6.0 | Reporting)
+
+// COMMUNICATION FLOW CHAIN:
+// (All Processes) → (9.0 | Notification) → [All External Entities]
+
+// FINANCIAL FLOW CHAIN:
+// (2.0 | Program Management) → (7.0 | Payment Processing) → D6 | Payments
+
+// === VALIDATION MATRIX ===
+
+// PROCESS VALIDATION:
+// □ Every process has at least one external entity input or output?
+// □ Every process connects to appropriate data stores?
+// □ Process inputs support the process function?
+// □ Process outputs fulfill system requirements?
+
+// DATA STORE VALIDATION:
+// □ Every data store receives data from at least one process?
+// □ Every data store provides data to at least one process?
+// □ Data store inputs match expected data types?
+// □ Data store outputs support dependent processes?
+
+// SYSTEM INTEGRATION VALIDATION:
+// □ All external entity needs are addressed?
+// □ All business processes are supported?
+// □ All data dependencies are satisfied?
+// □ All communication requirements are met?
+
+// PATTERN 3: PROCESS TO PROCESS CONNECTIONS
+// Rule: Processes can send data to other processes
+
+// Sequential Processing:
+// (1.0 | Data Collection) --raw_data--> (2.0 | Data Validation)
+// (2.0 | Data Validation) --validated_data--> (3.0 | Data Processing)
+
+// Parallel Processing:
+// (1.0 | Order Processing) --order_details--> (4.0 | Inventory Management)
+// (1.0 | Order Processing) --payment_info--> (5.0 | Payment Processing)
+
+// Feedback Loops:
+// (3.0 | Assessment) --grade_data--> (4.0 | Reporting)
+// (4.0 | Reporting) --grade_analysis--> (3.0 | Assessment)
+
+// === DETAILED CONNECTION EXAMPLES BY SYSTEM TYPE ===
+
+// EXAMPLE 1: LEARNING MANAGEMENT SYSTEM (LMS) CONNECTIONS
+
+// External Entity Connections:
+// [Students] --login_credentials--> (1.0 | User Management)
+// [Students] --enrollment_request--> (2.0 | Program Management)
+// [Students] --assignment_submission--> (4.0 | Assessment Management)
+// [Students] --payment_info--> (7.0 | Payment Processing)
+
+// [Tutors] --login_credentials--> (1.0 | User Management)
+// [Tutors] --course_content--> (3.0 | Content Management)
+// [Tutors] --grade_submission--> (4.0 | Assessment Management)
+// [Tutors] --attendance_data--> (5.0 | Attendance Tracking)
+
+// [Admins] --system_config--> (8.0 | System Configuration)
+// [Admins] --user_management_request--> (1.0 | User Management)
+// [Admins] --report_request--> (6.0 | Reporting System)
+
+// Process Output Connections:
+// (1.0 | User Management) --login_confirmation--> [Students]
+// (1.0 | User Management) --access_permissions--> [Tutors]
+// (2.0 | Program Management) --enrollment_confirmation--> [Students]
+// (4.0 | Assessment Management) --grade_report--> [Students]
+// (6.0 | Reporting System) --system_reports--> [Admins]
+
+// Data Store Connections:
+// Process to Data Store (Write):
+// (1.0 | User Management) --new_user_data--> D1 | Users
+// (2.0 | Program Management) --enrollment_record--> D2 | Enrollments
+// (3.0 | Content Management) --course_materials--> D3 | Content
+// (4.0 | Assessment Management) --assessment_results--> D4 | Assessments
+// (5.0 | Attendance Tracking) --attendance_record--> D5 | Attendance
+// (7.0 | Payment Processing) --payment_record--> D6 | Payments
+
+// Data Store to Process (Read):
+// D1 | Users --user_profile--> (1.0 | User Management)
+// D1 | Users --student_info--> (2.0 | Program Management)
+// D2 | Enrollments --enrollment_status--> (4.0 | Assessment Management)
+// D3 | Content --course_materials--> (2.0 | Program Management)
+// D4 | Assessments --grade_history--> (6.0 | Reporting System)
+
+// Process to Process Connections:
+// (1.0 | User Management) --authenticated_user--> (2.0 | Program Management)
+// (2.0 | Program Management) --enrolled_students--> (4.0 | Assessment Management)
+// (4.0 | Assessment Management) --grade_data--> (6.0 | Reporting System)
+// (5.0 | Attendance Tracking) --attendance_summary--> (6.0 | Reporting System)
+// (7.0 | Payment Processing) --payment_confirmation--> (2.0 | Program Management)
+
+// EXAMPLE 2: E-COMMERCE SYSTEM CONNECTIONS
+
+// External Entity Connections:
+// [Customers] --product_search--> (1.0 | Product Catalog)
+// [Customers] --order_request--> (2.0 | Order Processing)
+// [Customers] --payment_details--> (3.0 | Payment Processing)
+// [Suppliers] --product_info--> (1.0 | Product Catalog)
+// [Suppliers] --inventory_update--> (4.0 | Inventory Management)
+
+// Process Interconnections:
+// (1.0 | Product Catalog) --product_details--> (2.0 | Order Processing)
+// (2.0 | Order Processing) --inventory_check--> (4.0 | Inventory Management)
+// (2.0 | Order Processing) --payment_request--> (3.0 | Payment Processing)
+// (3.0 | Payment Processing) --payment_confirmation--> (2.0 | Order Processing)
+// (4.0 | Inventory Management) --stock_status--> (1.0 | Product Catalog)
+
+// === CONNECTION VALIDATION RULES ===
+
+// RULE 1: BALANCING WITH CONTEXT DIAGRAM
+// Every data flow in Context Diagram MUST appear in Level 1
+// Check: All external inputs/outputs accounted for?
+// Validation: Count flows in Context vs Level 1
+
+// RULE 2: NO ORPHANED COMPONENTS
+// Every process must have at least one input and one output
+// Every data store must be accessed by at least one process
+// Every external entity must connect to at least one process
+
+// RULE 3: DATA FLOW CONNECTIVITY
+// External Entity → Process ✓
+// Process → External Entity ✓
+// Process → Data Store ✓
+// Data Store → Process ✓
+// Process → Process ✓
+// External Entity → Data Store ✗ (FORBIDDEN)
+// Data Store → External Entity ✗ (FORBIDDEN)
+// External Entity → External Entity ✗ (FORBIDDEN)
+// Data Store → Data Store ✗ (FORBIDDEN)
+
+// RULE 4: DATA FLOW LABELING
+// Use specific, meaningful names
+// Describe the actual data content
+// Avoid control flow terms (start, stop, activate)
+// Examples:
+// Good: customer_profile, order_details, payment_confirmation
+// Bad: data, information, signal, control
+
+// === COMMON CONNECTION PATTERNS BY FUNCTION ===
+
+// AUTHENTICATION PATTERN:
+// [User] --credentials--> (1.0 | Authentication)
+// D1 | Users --user_account--> (1.0 | Authentication)
+// (1.0 | Authentication) --auth_token--> (Other Processes)
+// (1.0 | Authentication) --login_status--> [User]
+
+// CRUD OPERATIONS PATTERN:
+// Create: (Process) --new_record--> Data Store
+// Read: Data Store --existing_record--> (Process)
+// Update: (Process) <--record_data--> Data Store
+// Delete: (Process) --delete_request--> Data Store
+
+// TRANSACTION PROCESSING PATTERN:
+// [User] --transaction_request--> (1.0 | Request Validation)
+// (1.0 | Request Validation) --validated_request--> (2.0 | Transaction Processing)
+// (2.0 | Transaction Processing) --transaction_record--> D1 | Transactions
+// (2.0 | Transaction Processing) --confirmation--> [User]
+
+// REPORTING PATTERN:
+// Multiple Data Stores --source_data--> (Reporting Process)
+// (Reporting Process) --generated_report--> [Users]
+// (Reporting Process) --report_metadata--> D_Reports | Report Archive
+
+// === ADVANCED CONNECTION TECHNIQUES ===
+
+// TEMPORAL DATA FLOWS:
+// Show different data flows for different time periods
+// Example: daily_transactions, monthly_summary, annual_report
+
+// CONDITIONAL DATA FLOWS:
+// Use conditions in flow labels
+// Example: approved_application, rejected_application
+
+// AGGREGATED DATA FLOWS:
+// Show summarized data between processes
+// Example: sales_summary, user_statistics, performance_metrics
+
+// ERROR HANDLING FLOWS:
+// Include error and exception data flows
+// Example: error_log, validation_errors, system_alerts
+
+// === LAYOUT STRATEGY FOR LEVEL 1 DFD ===
+
+// CENTER ARRANGEMENT:
+// Place most important processes in center
+// Arrange supporting processes around them
+// Position data stores near their primary processes
+
+// EXTERNAL ENTITY PLACEMENT:
+// Position around perimeter of diagram
+// Group related entities together
+// Maintain clear separation from internal components
+
+// DATA FLOW OPTIMIZATION:
+// Minimize crossing lines
+// Use curved lines when necessary
+// Group related flows together
+// Maintain consistent arrow styles
+
+// VISUAL HIERARCHY:
+// Use consistent sizing for similar components
+// Highlight critical processes with color/shading
+// Maintain clear visual separation between levels
+
+// === QUALITY CHECKLIST FOR LEVEL 1 DFD ===
+
+// COMPLETENESS:
+// □ All Context Diagram flows represented?
+// □ All major business processes included?
+// □ All necessary data stores identified?
+// □ All external entities connected?
+
+// CORRECTNESS:
+// □ No forbidden connections (entity-to-store, etc.)?
+// □ All processes have inputs and outputs?
+// □ Data flow names are meaningful?
+// □ Numbering scheme consistent?
+
+// CLARITY:
+// □ Layout is clean and readable?
+// □ No excessive line crossings?
+// □ Components properly labeled?
+// □ Visual hierarchy maintained?
+
+// CONSISTENCY:
+// □ Naming conventions followed?
+// □ Symbol usage standardized?
+// □ Level numbering correct?
+// □ Balancing with Context maintained?
+
+// === PRACTICAL TIPS FOR CONNECTION DESIGN ===
+
+// TIP 1: START WITH EXTERNAL FLOWS
+// Begin with Context Diagram external flows
+// Connect these to appropriate Level 1 processes
+// This ensures balancing is maintained
+
+// TIP 2: IDENTIFY CORE PROCESS CHAINS
+// Find main business process sequences
+// Connect these first before adding supporting flows
+// This creates the backbone of your DFD
+
+// TIP 3: ADD DATA STORE CONNECTIONS
+// Connect processes to their required data stores
+// Consider both read and write operations
+// Show bidirectional flows where appropriate
+
+// TIP 4: VALIDATE WITH SCENARIOS
+// Walk through business scenarios
+// Trace data flows from input to output
+// Ensure all necessary connections exist
+
+// TIP 5: ITERATE AND REFINE
+// Start with basic connections
+// Add detail incrementally
+// Review and adjust layout for clarity
+
+// === DOCUMENTATION TEMPLATE FOR CONNECTIONS ===
+
+// For each connection, document:
+// 1. Source component and type
+// 2. Destination component and type
+// 3. Data flow name and description
+// 4. Frequency (real-time, batch, periodic)
+// 5. Volume (high, medium, low)
+// 6. Business rules or constraints
+// 7. Error handling requirements
+
+// Example Documentation:
+// Connection: [Students] --enrollment_request--> (2.0 | Program Management)
+// Description: Student submits program enrollment application
+// Frequency: On-demand (user initiated)
+// Volume: Medium (50-100 per day)
+// Data: student_id, program_id, enrollment_date, prerequisites
+// Business Rules: Student must be authenticated, program must be available
+// Error Handling: Invalid program ID returns error message
+
+// This comprehensive guide provides all the patterns and techniques needed
+// to create professional Level 1 DFDs with proper connections and relationships.

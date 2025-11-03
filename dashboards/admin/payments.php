@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../../assets/icons.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/data-helpers.php';
@@ -7,9 +7,29 @@ requireRole('admin');
 // Handle filter parameters
 $status_filter = $_GET['status'] ?? '';
 $search_filter = $_GET['search'] ?? '';
+$month_filter = $_GET['month'] ?? '';
+$year_filter = $_GET['year'] ?? '';
 
-// Get payment data
-$payments = getPayments($status_filter ?: null, null, $search_filter ?: null);
+// Handle pagination parameters
+$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$limit = 10; // Items per page
+$offset = ($page - 1) * $limit;
+
+// Prepare date filters array
+$date_filters = [
+    'month' => $month_filter ?: null,
+    'year' => $year_filter ?: null
+];
+
+// Get payment data with pagination and date filters
+$payments = getPaymentsPaginated($status_filter ?: null, $search_filter ?: null, $limit, $offset, $date_filters);
+$total_payments = getTotalPaymentsCount($status_filter ?: null, $search_filter ?: null, $date_filters);
+$total_pages = ceil($total_payments / $limit);
+
+// Calculate pagination info
+$showingFrom = $total_payments > 0 ? $offset + 1 : 0;
+$showingTo = min($offset + $limit, $total_payments);
+
 $payment_stats = getPaymentStats();
 ?>
 <!DOCTYPE html>
@@ -136,6 +156,75 @@ $payment_stats = getPaymentStats();
       background-color: #f3f4f6;
       color: #6b7280;
     }
+
+    /* Pagination Styles */
+    .pagination {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .pagination a, .pagination span {
+      transition: all 0.2s ease;
+    }
+
+    .pagination a:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .pagination .cursor-not-allowed {
+      opacity: 0.5;
+    }
+
+    /* Date Filter Styles */
+    .date-filters-row {
+      border-top: 1px solid #e5e7eb;
+      padding-top: 1rem;
+      margin-top: 1rem;
+    }
+
+    .date-filter-label {
+      font-weight: 500;
+      color: #374151;
+      margin-right: 1rem;
+    }
+
+    .filter-input, .filter-select {
+      transition: all 0.2s ease;
+      border: 1px solid #d1d5db;
+    }
+
+    .filter-input:focus, .filter-select:focus {
+      border-color: #10b981;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    /* Filter dropdown z-index management */
+    .filter-dropdown-container {
+      position: relative;
+      z-index: 100;
+    }
+
+    .filter-dropdown-container select {
+      position: relative;
+      z-index: 101;
+    }
+
+    .filter-dropdown-container svg {
+      z-index: 102;
+    }
+
+    /* Ensure main content area doesn't overflow behind sidebar */
+    main {
+      position: relative;
+      z-index: 10;
+    }
+
+    /* Sidebar has lower z-index */
+    .sidebar {
+      z-index: 5;
+    }
   </style>
 </head>
 
@@ -149,13 +238,16 @@ $payment_stats = getPaymentStats();
     <div class="lg:ml-64 flex-1">
       <?php 
       require_once '../../includes/header.php';
+      
+      // Get admin notifications
+      $admin_notifications = getAdminNotifications(15);
+      
       renderHeader(
         'Payments',
         '',
         'admin',
-        $_SESSION['name'] ?? 'Admin',
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
+        $_SESSION['username'] ?? 'Admin',
+        $admin_notifications
       );
       ?>
 
@@ -164,36 +256,73 @@ $payment_stats = getPaymentStats();
         <!-- Search and Filter Section -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
           <div class="p-4">
-            <form method="GET" action="" class="flex items-center justify-between">
-              <div class="flex items-center space-x-4">
-                <!-- Search Input -->
-                <div class="relative">
-                  <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
-                  </svg>
-                  <input type="text" name="search" value="<?php echo htmlspecialchars($search_filter); ?>" placeholder="Search payments..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent w-64">
+            <form method="GET" action="">
+              <!-- Single row: All filters with proper spacing -->
+              <div class="flex items-center justify-between gap-6 flex-wrap">
+                <div class="flex items-center gap-6 flex-wrap min-w-0">
+                  <!-- Search Input -->
+                  <div class="relative flex-shrink-0">
+                    <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
+                    </svg>
+                    <input type="text" name="search" value="<?php echo htmlspecialchars($search_filter); ?>" placeholder="Search payments..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent" style="width: 280px;">
+                  </div>
+
+                  <!-- Status Filter -->
+                  <div class="filter-dropdown-container relative flex-shrink-0" style="min-width: 180px;">
+                    <select name="status" class="bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent w-full" onchange="this.form.submit()" style="-webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none;">
+                      <option value="" <?php echo empty($status_filter) ? 'selected' : ''; ?>>All Status</option>
+                      <option value="validated" <?php echo $status_filter === 'validated' ? 'selected' : ''; ?>>Validated</option>
+                      <option value="pending" <?php echo $status_filter === 'pending' ? 'selected' : ''; ?>>Pending</option>
+                      <option value="overdue" <?php echo $status_filter === 'overdue' ? 'selected' : ''; ?>>Overdue</option>
+                      <option value="pending_validation" <?php echo $status_filter === 'pending_validation' ? 'selected' : ''; ?>>Pending Validation</option>
+                      <option value="rejected" <?php echo $status_filter === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
+                    </select>
+                    <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                  </div>
+
+                  <!-- Month Filter -->
+                  <div class="filter-dropdown-container relative flex-shrink-0" style="min-width: 140px;">
+                    <select name="month" class="bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent w-full" onchange="this.form.submit()" style="-webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none;">
+                      <option value="" <?php echo empty($month_filter) ? 'selected' : ''; ?>>All Months</option>
+                      <?php
+                      $months = [
+                        1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
+                        5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
+                        9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
+                      ];
+                      foreach ($months as $num => $name): ?>
+                        <option value="<?php echo $num; ?>" <?php echo $month_filter == $num ? 'selected' : ''; ?>><?php echo $name; ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                    <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                  </div>
+
+                  <!-- Year Filter -->
+                  <div class="filter-dropdown-container relative flex-shrink-0" style="min-width: 120px;">
+                    <select name="year" class="bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent w-full" onchange="this.form.submit()" style="-webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none;">
+                      <option value="" <?php echo empty($year_filter) ? 'selected' : ''; ?>>All Years</option>
+                      <?php
+                      $current_year = date('Y');
+                      for ($year = $current_year; $year >= $current_year - 5; $year--): ?>
+                        <option value="<?php echo $year; ?>" <?php echo $year_filter == $year ? 'selected' : ''; ?>><?php echo $year; ?></option>
+                      <?php endfor; ?>
+                    </select>
+                    <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="currentColor" viewBox="0 0 20 20" style="z-index: 31;">
+                      <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                  </div>
                 </div>
 
-                <!-- Status Filter -->
-                <div class="relative">
-                  <select name="status" class="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent" onchange="this.form.submit()">
-                    <option value="" <?php echo empty($status_filter) ? 'selected' : ''; ?>>All Status</option>
-                    <option value="validated" <?php echo $status_filter === 'validated' ? 'selected' : ''; ?>>Validated</option>
-                    <option value="pending" <?php echo $status_filter === 'pending' ? 'selected' : ''; ?>>Pending</option>
-                    <option value="overdue" <?php echo $status_filter === 'overdue' ? 'selected' : ''; ?>>Overdue</option>
-                    <option value="pending_validation" <?php echo $status_filter === 'pending_validation' ? 'selected' : ''; ?>>Pending Validation</option>
-                    <option value="rejected" <?php echo $status_filter === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
-                  </select>
-                  <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                  </svg>
-                </div>
+                <!-- Clear Filters Button -->
+                <a href="?" class="px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 flex-shrink-0">
+                  Clear Filters
+                </a>
               </div>
-
-              <!-- Clear Filters Button -->
-              <a href="?" class="px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                Clear Filters
-              </a>
             </form>
           </div>
         </div>
@@ -264,6 +393,24 @@ $payment_stats = getPaymentStats();
                         $statusClass = 'status-overdue';
                         $urgencyClass = 'bg-red-50 border-l-4 border-red-400';
                         break;
+                      case 'overdue_pending_validation':
+                        $statusColor = 'red';
+                        $statusText = 'Overdue - Pending Validation';
+                        if (isset($payment['days_overdue']) && $payment['days_overdue'] > 0) {
+                          $statusText = "Overdue ({$payment['days_overdue']} days) - Pending Validation";
+                        }
+                        $statusClass = 'status-overdue';
+                        $urgencyClass = 'bg-red-50 border-l-4 border-red-400';
+                        break;
+                      case 'overdue_rejected':
+                        $statusColor = 'red';
+                        $statusText = 'Overdue - Rejected';
+                        if (isset($payment['days_overdue']) && $payment['days_overdue'] > 0) {
+                          $statusText = "Overdue ({$payment['days_overdue']} days) - Rejected";
+                        }
+                        $statusClass = 'status-overdue';
+                        $urgencyClass = 'bg-red-50 border-l-4 border-red-400';
+                        break;
                       case 'due_today':
                         $statusColor = 'orange';
                         $statusText = 'Due Today';
@@ -303,19 +450,18 @@ $payment_stats = getPaymentStats();
 
                     // Create action buttons based on status
                     $actionButton = '';
-                    if ($payment_status === 'pending_validation' || $payment_status === 'pending_verification') {
+                    if ($payment_status === 'pending_validation' || $payment_status === 'pending_verification' || $payment_status === 'overdue_pending_validation') {
                       $actionButton = '<div class="flex space-x-3">
                                         <button onclick="showValidateModal(\'' . htmlspecialchars($payment['payment_id']) . '\', this.closest(\'tr\'))" class="text-green-600 hover:text-green-800 text-xs font-medium">Validate</button>
                                         <button onclick="showDetailsModal(\'' . htmlspecialchars($payment['payment_id']) . '\', this.closest(\'tr\'))" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Details</button>
                                       </div>';
                     } elseif ($payment['status'] === 'validated') {
                       $actionButton = '<div class="flex space-x-3">
-                                        <button onclick="showReceiptModal(\'' . htmlspecialchars($payment['payment_id']) . '\', this.closest(\'tr\'))" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Receipt</button>
                                         <button onclick="showDetailsModal(\'' . htmlspecialchars($payment['payment_id']) . '\', this.closest(\'tr\'))" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Details</button>
+                                        <button onclick="showReceiptModal(\'' . htmlspecialchars($payment['payment_id']) . '\', this.closest(\'tr\'))" class="text-green-600 hover:text-green-800 text-xs font-medium">Receipt</button>
                                       </div>';
-                    } elseif ($payment['status'] === 'rejected') {
+                    } elseif ($payment['status'] === 'rejected' || $payment_status === 'overdue_rejected') {
                       $actionButton = '<div class="flex space-x-3">
-                                        <button onclick="triggerStudentResubmit(\'' . htmlspecialchars($payment['payment_id']) . '\', \'' . addslashes(htmlspecialchars($payment['program_name'])) . '\', ' . floatval($payment['amount']) . ')" class="text-orange-600 hover:text-orange-800 text-xs font-medium">Resubmit</button>
                                         <button onclick="showDetailsModal(\'' . htmlspecialchars($payment['payment_id']) . '\', this.closest(\'tr\'))" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Details</button>
                                       </div>';
                     } else {
@@ -341,8 +487,8 @@ $payment_stats = getPaymentStats();
                       <!-- Student -->
                       <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
-                          <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center mr-3">
-                            <span class="text-xs font-medium text-gray-600"><?= $initials ?></span>
+                          <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-xs font-medium text-white"><?= $initials ?></span>
                           </div>
                           <div>
                             <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($payment['student_name'] ?? 'Unknown Student') ?></div>
@@ -432,20 +578,83 @@ $payment_stats = getPaymentStats();
               </tbody>
             </table>
           </div>
-        </div>
-
-        <!-- Pagination -->
-        <div class="mt-6 flex items-center justify-between">
-          <div class="text-sm text-gray-700">
-            Showing <span class="font-medium"><?= count($payments) > 0 ? 1 : 0 ?></span> to <span class="font-medium"><?= count($payments) ?></span> of <span class="font-medium"><?= count($payments) ?></span> results
+          
+          <!-- Pagination -->
+          <?php if ($total_pages > 1): ?>
+          <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+          <div class="flex-1 flex justify-between sm:hidden">
+            <?php if ($page > 1): ?>
+              <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+            <?php else: ?>
+              <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-50 cursor-not-allowed">Previous</span>
+            <?php endif; ?>
+            <?php if ($page < $total_pages): ?>
+              <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+            <?php else: ?>
+              <span class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-50 cursor-not-allowed">Next</span>
+            <?php endif; ?>
           </div>
-          <div class="flex items-center space-x-2">
-            <button class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-500 hover:bg-gray-50">Previous</button>
-            <button class="px-3 py-1 bg-tplearn-green text-white rounded text-sm">1</button>
-            <button class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50">2</button>
-            <button class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50">3</button>
-            <button class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50">Next</button>
+          <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p class="text-sm text-gray-700">
+                Showing <span class="font-medium"><?php echo $showingFrom; ?></span> to <span class="font-medium"><?php echo $showingTo; ?></span> of <span class="font-medium"><?php echo $total_payments; ?></span> results
+              </p>
+            </div>
+            <div>
+              <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <?php if ($page > 1): ?>
+                  <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    <span class="sr-only">Previous</span>
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </a>
+                <?php else: ?>
+                  <span class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-50 text-sm font-medium text-gray-300 cursor-not-allowed">
+                    <span class="sr-only">Previous</span>
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </span>
+                <?php endif; ?>
+                
+                <?php 
+                // Show page numbers
+                $startPage = max(1, $page - 2);
+                $endPage = min($total_pages, $page + 2);
+                
+                for ($i = $startPage; $i <= $endPage; $i++): 
+                ?>
+                  <?php if ($i == $page): ?>
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-tplearn-green text-sm font-medium text-white">
+                      <?php echo $i; ?>
+                    </span>
+                  <?php else: ?>
+                    <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                      <?php echo $i; ?>
+                    </a>
+                  <?php endif; ?>
+                <?php endfor; ?>
+                
+                <?php if ($page < $total_pages): ?>
+                  <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    <span class="sr-only">Next</span>
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </a>
+                <?php else: ?>
+                  <span class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-50 text-sm font-medium text-gray-300 cursor-not-allowed">
+                    <span class="sr-only">Next</span>
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </span>
+                <?php endif; ?>
+              </nav>
+            </div>
           </div>
+          <?php endif; ?>
         </div>
       </main>
     </div>
@@ -616,7 +825,7 @@ $payment_stats = getPaymentStats();
           <p class="text-xs text-gray-500">Blk 2 Lot 47 Carissa 4A, Kaypian, City of San Jose Del Monte, Bulacan</p>
           
           <div class="mt-6 mb-6">
-            <h2 class="text-lg font-bold text-gray-800">OFFICIAL PAYMENT RECEIPT</h2>
+            <h2 class="text-lg font-bold text-gray-800">PAYMENT RECEIPT</h2>
           </div>
           
           <div class="border-t border-b border-gray-200 py-4">
@@ -645,7 +854,7 @@ $payment_stats = getPaymentStats();
                 </div>
                 <div class="mb-3">
                   <span class="text-gray-600 font-medium">Student ID:</span>
-                  <div id="receiptStudentId" class="text-gray-800 font-mono">TP2025-210</div>
+                  <div id="receiptStudentId" class="text-gray-800 font-mono">TPS2025-210</div>
                 </div>
               </div>
               <div>
@@ -706,7 +915,7 @@ $payment_stats = getPaymentStats();
 
         <!-- Footer -->
         <div class="border-t border-gray-300 pt-6 text-center">
-          <p class="text-sm text-gray-700 font-medium mb-2">This is an official receipt for your payment.</p>
+          <p class="text-sm text-gray-700 font-medium mb-2">This is a receipt for your payment.</p>
           <p class="text-xs text-gray-500 mb-1">Thank you for choosing TPLearn!</p>
           <p class="text-xs text-gray-500">For inquiries, please contact Email: tplearnph@gmail.com</p>
           
@@ -812,7 +1021,15 @@ $payment_stats = getPaymentStats();
           <div class="space-y-6">
             <!-- Timeline -->
             <div class="bg-gray-50 rounded-lg p-6">
-              <h3 class="text-lg font-semibold text-gray-800 mb-4">Payment Timeline</h3>
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Payment Timeline</h3>
+                <button onclick="showCompleteTimeline()" class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors flex items-center shadow-md">
+                  <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                  </svg>
+                  More Details
+                </button>
+              </div>
               <div class="space-y-4">
                 <div class="flex items-center">
                   <div class="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
@@ -867,16 +1084,886 @@ $payment_stats = getPaymentStats();
     </div>
   </div>
 
+  <!-- Complete Payment Timeline Modal -->
+  <div id="completeTimelineModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 items-center justify-center p-4">
+    <div class="bg-white rounded-xl max-w-5xl w-full max-h-[95vh] overflow-hidden shadow-2xl flex flex-col">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50 flex-shrink-0">
+        <div>
+          <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+            <svg class="w-6 h-6 mr-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+            </svg>
+            Complete Payment Timeline
+          </h2>
+          <p id="timelinePaymentId" class="text-green-600 font-mono text-sm mt-1">Loading...</p>
+        </div>
+        <button onclick="closeCompleteTimelineModal()" class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Content -->
+      <div id="completeTimelineContent" class="p-8 overflow-y-auto flex-1 min-h-0">
+        <!-- Content will be loaded dynamically -->
+        <div class="flex items-center justify-center min-h-[400px]">
+          <div class="text-center">
+            <svg class="animate-spin h-8 w-8 text-green-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-gray-600">Loading complete payment timeline...</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Modal Footer -->
+      <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+        <button onclick="closeCompleteTimelineModal()" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // Ensure functions are available in global scope
+    window.showReceiptModal = window.showReceiptModal || function(paymentId, row) {
+      console.error('showReceiptModal function not loaded yet');
+    };
+    window.showDetailsModal = window.showDetailsModal || function(paymentId, row) {
+      console.error('showDetailsModal function not loaded yet');
+    };
+
+    // Add error handling for script execution
+    window.addEventListener('error', function(e) {
+      if (e.message && (e.message.includes('showReceiptModal') || e.message.includes('showDetailsModal'))) {
+        console.error('JavaScript function error:', e);
+      }
+    });
+
+    // Date filter interaction handling
+    document.addEventListener('DOMContentLoaded', function() {
+      // Month and year filters can now work together without conflicts
+      const monthFilter = document.querySelector('select[name="month"]');
+      const yearFilter = document.querySelector('select[name="year"]');
+      
+      // Optional: Add any specific interaction logic for month/year combination
+      // Currently they work independently which is the desired behavior
+    });
+
+    // Payment method display function
+    function getPaymentMethodDisplay(method) {
+      const methodMap = {
+        // Cash payments
+        'cash': 'Cash',
+        
+        // E-Wallet payments
+        'gcash': 'E-Wallet',
+        'maya': 'E-Wallet', 
+        'ewallet': 'E-Wallet',
+        
+        // Bank transfers
+        'bpi': 'Bank Transfer',
+        'bdo': 'Bank Transfer',
+        'metrobank': 'Bank Transfer',
+        'landbank': 'Bank Transfer',
+        'unionbank': 'Bank Transfer',
+        'pnb': 'Bank Transfer',
+        'bank_transfer': 'Bank Transfer',
+        
+        // Other methods
+        'check': 'Check'
+      };
+      return methodMap[method] || (method ? method.charAt(0).toUpperCase() + method.slice(1) : 'N/A');
+    }
+
+    // Close modal functions
+    function closeDetailsModal() {
+      const modal = document.getElementById('detailsModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.style.overflow = 'auto';
+    }
+
+    // Ensure closeDetailsModal is available globally
+    window.closeDetailsModal = closeDetailsModal;
+
+    function closeCompleteTimelineModal() {
+      const modal = document.getElementById('completeTimelineModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.style.overflow = 'auto';
+    }
+
+    // Payment Details Modal Functions
+    function showDetailsModal(paymentId, row) {
+      const modal = document.getElementById('detailsModal');
+      const detailsContent = document.querySelector('#detailsModal .p-8');
+      
+      // Store the payment ID for use in other functions
+      window.currentPaymentId = paymentId;
+      
+      // Extract actual payment ID from formatted payment_id (PAY-YYYYMMDD-XXX)
+      let actualPaymentId = paymentId;
+      const matches = paymentId.toString().match(/PAY-\d{8}-(\d+)/);
+      if (matches) {
+        actualPaymentId = matches[1];
+      }
+      
+      // Show loading state
+      detailsContent.innerHTML = `
+        <div class="flex items-center justify-center p-8">
+          <div class="text-center">
+            <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-gray-600">Loading payment details...</p>
+          </div>
+        </div>
+      `;
+      
+      // Show modal
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+
+      // Load both payment details and history simultaneously
+      Promise.all([
+        fetch(`../../api/payments.php?action=get_payment_details&id=${actualPaymentId}`).then(r => r.json()),
+        fetch(`../../api/payment-history.php?payment_id=${encodeURIComponent(paymentId)}`).then(r => r.json())
+      ])
+      .then(([paymentResponse, historyResponse]) => {
+        console.log('API responses:', { paymentResponse, historyResponse });
+        
+        // Handle different response structures
+        const payment = paymentResponse.success ? paymentResponse.payment : paymentResponse;
+        const history = historyResponse.success ? historyResponse.history : [];
+        
+        if (payment && historyResponse.success) {
+          renderPaymentDetails(payment, history);
+          
+          // Load the actual payment proof attachment data
+          if (payment.reference_number) {
+            loadPaymentProof(window.currentPaymentId);
+          }
+        } else {
+          throw new Error(paymentResponse.error || historyResponse.error || 'Failed to load payment details');
+        }
+      })
+      .catch(error => {
+        console.error('Error loading payment details:', error);
+        detailsContent.innerHTML = `
+          <div class="text-center py-8">
+            <div class="text-red-600 mb-4">
+              <svg class="w-12 h-12 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Error Loading Payment Details</h3>
+            <p class="text-gray-600">${error.message}</p>
+          </div>
+        `;
+      });
+    }
+
+    function loadPaymentProof(paymentId) {
+      console.log('Loading payment proof for details modal:', paymentId);
+      
+      // Extract numeric payment ID for API call
+      let actualPaymentId = paymentId;
+      const matches = paymentId.toString().match(/PAY-\d{8}-(\d+)/);
+      if (matches) {
+        actualPaymentId = matches[1];
+      }
+
+      const receiptName = document.getElementById('detailsReceiptName');
+      if (receiptName) {
+        receiptName.textContent = 'Loading...';
+      }
+
+      console.log('Fetching payment proof for payment:', actualPaymentId);
+      const apiUrl = `../../api/payments.php?action=get_receipt_attachment&payment_id=${encodeURIComponent(actualPaymentId)}`;
+      console.log('API URL:', apiUrl);
+
+      // Fetch payment proof info
+      fetch(apiUrl, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+        .then(response => {
+          console.log('API Response status:', response.status);
+          return response.json();
+        })
+        .then(data => {
+          console.log('API Response data:', data);
+          if (data.success && data.attachment) {
+            const attachment = data.attachment;
+            
+            // Store attachment globally for fullsize view
+            window.currentDetailsAttachment = attachment;
+            window.currentDetailsPaymentId = paymentId;
+            
+            if (receiptName) {
+              receiptName.textContent = attachment.original_name || attachment.filename || 'Receipt Image';
+            }
+            
+            console.log('Payment proof loaded successfully');
+          } else {
+            // No attachment found or error
+            if (receiptName) {
+              receiptName.textContent = 'No payment proof found';
+            }
+            
+            const container = document.getElementById('detailsPaymentProofContainer');
+            if (container) {
+              container.innerHTML = `
+                <div class="flex items-center justify-center p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
+                  <div class="text-center">
+                    <div class="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-2">
+                      <svg class="w-6 h-6 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
+                      </svg>
+                    </div>
+                    <p class="text-sm text-gray-600">No payment proof found</p>
+                    <p class="text-xs text-gray-500">Student has not uploaded payment proof</p>
+                  </div>
+                </div>
+              `;
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error loading receipt:', error);
+          console.error('Full error details:', error.message, error.stack);
+          
+          if (receiptName) {
+            receiptName.textContent = 'Error loading payment proof';
+          }
+          
+          const container = document.getElementById('detailsPaymentProofContainer');
+          if (container) {
+            container.innerHTML = `
+              <div class="flex items-center justify-center p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+                <div class="text-center">
+                  <div class="w-10 h-10 bg-red-200 rounded-lg flex items-center justify-center mx-auto mb-2">
+                    <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
+                    </svg>
+                  </div>
+                  <p class="text-sm text-red-700">Error loading payment proof</p>
+                  <p class="text-xs text-red-600">Error: ${error.message}</p>
+                  <p class="text-xs text-red-600">Please check console for details</p>
+                </div>
+              </div>
+            `;
+          }
+        });
+    }
+
+    // Function to open payment proof in fullsize for details modal
+    function openDetailsPaymentProofFullsize() {
+      const attachment = window.currentDetailsAttachment;
+      if (!attachment) {
+        alert('No payment proof available to view');
+        return;
+      }
+      
+      // Use the showPaymentProofModal function with the attachment data
+      showPaymentProofModal(attachment, window.currentDetailsPaymentId);
+    }
+
+    function showPaymentProofModal(attachment, paymentId) {
+      // Create modal for displaying payment proof image
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4';
+      modal.innerHTML = `
+        <div class="max-w-5xl w-full bg-white rounded-lg overflow-hidden shadow-2xl flex flex-col" style="max-height: 90vh;">
+          <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Payment Proof</h3>
+                <p class="text-sm text-gray-600">${attachment.original_name || attachment.filename || 'Receipt Image'}</p>
+                ${attachment.file_size ? `<p class="text-xs text-gray-500">${formatFileSize(attachment.file_size)}</p>` : ''}
+              </div>
+            </div>
+            <button onclick="this.closest('.fixed').remove(); document.body.style.overflow = 'auto';" class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="p-4 overflow-auto flex items-center justify-center bg-gray-100 flex-1 min-h-0">
+            <div class="max-w-full max-h-full">
+              ${attachment.mime_type && attachment.mime_type.startsWith('image/') ? 
+                `<img src="../../api/serve-receipt.php?id=${attachment.id}" 
+                     alt="Payment Proof" 
+                     class="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                     onload="console.log('Payment proof image loaded successfully')"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                 <div style="display: none;" class="text-center p-8">
+                   <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                   </svg>
+                   <p class="text-gray-600">Error loading image</p>
+                   <p class="text-sm text-gray-500">The payment proof image could not be loaded</p>
+                 </div>` :
+                `<div class="text-center p-12">
+                   <svg class="w-20 h-20 text-gray-400 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                     <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
+                   </svg>
+                 </div>`
+              }
+            </div>
+          </div>
+          
+          <div class="flex justify-between items-center p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+            <div class="text-sm text-gray-500">
+              \${attachment.mime_type ? \`Type: \${attachment.mime_type}\` : ''}
+              \${attachment.upload_date ? \` • Uploaded: \${new Date(attachment.upload_date).toLocaleDateString()}\` : ''}
+            </div>
+            <div class="flex space-x-3">
+              <button onclick="this.closest('.fixed').remove(); document.body.style.overflow = 'auto';" 
+                      class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                Close
+              </button>
+              <a href="../../api/serve-receipt.php?id=\${attachment.id}" target="_blank"
+                 class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                </svg>
+                Download
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+      document.body.style.overflow = 'hidden';
+
+      // Close modal when clicking outside
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          modal.remove();
+          document.body.style.overflow = 'auto';
+        }
+      });
+
+      // Close with ESC key
+      const handleEscKey = function(e) {
+        if (e.key === 'Escape') {
+          modal.remove();
+          document.body.style.overflow = 'auto';
+          document.removeEventListener('keydown', handleEscKey);
+        }
+      };
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Ensure showDetailsModal is available globally
+    window.showDetailsModal = showDetailsModal;
+
+    function showCompleteTimeline(paymentId) {
+      console.log('Opening complete timeline for payment:', paymentId);
+      
+      // Validate payment ID
+      if (!paymentId || paymentId === 'undefined') {
+        alert('Error: Payment ID is missing. Please try refreshing the page.');
+        return;
+      }
+      
+      const modal = document.getElementById('completeTimelineModal');
+      const paymentIdElement = document.getElementById('timelinePaymentId');
+      const contentElement = document.getElementById('completeTimelineContent');
+      
+      // Show modal
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+      
+      // Set payment ID
+      paymentIdElement.textContent = paymentId;
+      
+      // Show loading state
+      contentElement.innerHTML = `
+        <div class="flex items-center justify-center p-8">
+          <div class="text-center">
+            <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-gray-600">Loading complete payment timeline...</p>
+          </div>
+        </div>
+      `;
+      
+      // Extract numeric ID for API calls
+      let actualPaymentId = paymentId;
+      const matches = paymentId.toString().match(/PAY-\d{8}-(\d+)/);
+      if (matches) {
+        actualPaymentId = matches[1];
+      }
+
+      // Load timeline data
+      Promise.all([
+        fetch(`../../api/payments.php?action=get_payment_details&id=${actualPaymentId}`).then(r => r.json()),
+        fetch(`../../api/payment-history.php?payment_id=${encodeURIComponent(paymentId)}`).then(r => r.json())
+      ])
+      .then(([paymentResponse, historyResponse]) => {
+        console.log('Timeline API responses:', { paymentResponse, historyResponse });
+        
+        // Handle different response structures
+        const paymentData = paymentResponse.success ? paymentResponse.payment : paymentResponse;
+        const historyData = historyResponse.success ? historyResponse.history : [];
+        
+        if (paymentData && historyResponse.success) {
+          renderCompleteTimeline(paymentData, historyData);
+        } else {
+          throw new Error(paymentResponse.error || historyResponse.error || 'Failed to load data');
+        }
+      })
+      .catch(error => {
+        console.error('Error loading complete timeline:', error);
+        contentElement.innerHTML = `
+          <div class="text-center py-8">
+            <div class="text-red-600 mb-4">
+              <svg class="w-12 h-12 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Error Loading Timeline</h3>
+            <p class="text-gray-600">${error.message}</p>
+          </div>
+        `;
+      });
+    }
+
+    function renderPaymentDetails(payment, history) {
+      const detailsContent = document.querySelector('#detailsModal .p-8');
+      
+      // Function to format dates consistently
+      function formatDateTime(timestamp) {
+        if (!timestamp) return 'N/A';
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        }) + ' at ' + date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+
+      detailsContent.innerHTML = `
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <!-- Payment Overview Panel -->
+          <div class="space-y-6">
+            <!-- Payment Information -->
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl">
+              <h3 class="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+                <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"></path>
+                </svg>
+                Payment Information
+              </h3>
+              <div class="space-y-3 text-sm">
+                <div>
+                  <span class="text-blue-700 font-medium">Payment ID:</span>
+                  <div class="text-blue-900 font-semibold">${window.currentPaymentId}</div>
+                </div>
+                <div>
+                  <span class="text-blue-700 font-medium">Amount:</span>
+                  <div class="text-blue-900 font-semibold text-lg">₱${parseFloat(payment.amount || 0).toLocaleString()}</div>
+                </div>
+                ${payment.payment_method ? `
+                <div>
+                  <span class="text-blue-700 font-medium">Payment Method:</span>
+                  <div class="text-blue-900">${getPaymentMethodDisplay(payment.payment_method)}</div>
+                </div>
+                ` : ''}
+                ${payment.reference_number ? `
+                <div>
+                  <span class="text-blue-700 font-medium">Reference Number:</span>
+                  <div class="text-blue-900">${payment.reference_number}</div>
+                </div>
+                ` : ''}
+                <div>
+                  <span class="text-blue-700 font-medium">Status:</span>
+                  <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-1 ${
+                    payment.status === 'validated' ? 'bg-green-100 text-green-800' :
+                    payment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                    payment.status === 'pending' && payment.reference_number ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-blue-100 text-blue-800'
+                  }">
+                    ${payment.status === 'validated' ? '✓ Validated' :
+                      payment.status === 'rejected' ? '✗ Rejected' :
+                      payment.status === 'pending' && payment.reference_number ? '⏳ Pending Validation' :
+                      '💳 Awaiting Payment'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Student Information -->
+            <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl">
+              <h3 class="text-lg font-semibold text-green-900 mb-4 flex items-center">
+                <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                </svg>
+                Student Information
+              </h3>
+              <div class="space-y-3 text-sm">
+                <div>
+                  <span class="text-green-700 font-medium">Full Name:</span>
+                  <div class="text-green-900 text-base">${payment.student_name || 'N/A'}</div>
+                </div>
+                <div>
+                  <span class="text-green-700 font-medium">Student ID:</span>
+                  <div class="text-green-900">${payment.student_id || 'N/A'}</div>
+                </div>
+                <div>
+                  <span class="text-green-700 font-medium">Program Enrolled:</span>
+                  <div class="text-green-900 text-base font-medium">${payment.program_name || 'N/A'}</div>
+                </div>
+                ${payment.installment_number ? `
+                <div>
+                  <span class="text-green-700 font-medium">Installment:</span>
+                  <div class="text-green-900">${payment.installment_number} of ${payment.total_installments || 1}</div>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+
+          <!-- Timeline & Status Panel -->
+          <div class="space-y-6">
+            <!-- Payment Timeline -->
+            <div class="bg-white border border-gray-200 p-6 rounded-xl">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                  <svg class="w-6 h-6 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                  </svg>
+                  Payment Timeline
+                </h3>
+                <button onclick="showCompleteTimeline(window.currentPaymentId)" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                  </svg>
+                  <span>More</span>
+                </button>
+              </div>
+              <div class="flow-root">
+                <ul class="space-y-4">
+                  ${history.length > 0 ? history.map((event, index) => {
+                    // Get icon and color based on action type
+                    let iconData = { color: 'bg-gray-500', icon: '●', title: 'Unknown Action' };
+                    
+                    switch(event.action) {
+                      case 'created':
+                        iconData = { color: 'bg-blue-500', icon: '●', title: 'Payment Created' };
+                        break;
+                      case 'payment_submitted':
+                        iconData = { color: 'bg-yellow-500', icon: '●', title: 'Payment Submitted' };
+                        break;
+                      case 'validated':
+                        iconData = { color: 'bg-green-500', icon: '●', title: 'Payment Validated' };
+                        break;
+                      case 'rejected':
+                        iconData = { color: 'bg-red-500', icon: '●', title: 'Payment Rejected' };
+                        break;
+                      case 'resubmitted':
+                        iconData = { color: 'bg-purple-500', icon: '●', title: 'Payment Resubmitted' };
+                        break;
+                    }
+                    
+                    return '<li><div class="flex items-start space-x-3">' +
+                      '<div class="flex-shrink-0"><div class="w-2 h-2 ' + iconData.color + ' rounded-full mt-2"></div></div>' +
+                      '<div class="min-w-0 flex-1">' +
+                      '<div class="text-sm font-medium text-gray-900">' + iconData.title + '</div>' +
+                      '<div class="text-sm text-gray-600">' + formatDateTime(event.created_at || event.timestamp) + '</div>' +
+                      '</div></div></li>';
+                  }).join('') : '<li class="text-center py-4 text-gray-500">No timeline data available</li>'}
+                </ul>
+              </div>
+            </div>
+
+            <!-- Additional Details -->
+            <div class="bg-gray-50 p-6 rounded-xl">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <svg class="w-6 h-6 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                </svg>
+                Additional Details
+              </h3>
+              <div class="space-y-3 text-sm">
+                ${payment.due_date ? `
+                  <div>
+                    <span class="text-gray-700 font-medium">Due Date:</span>
+                    <div class="text-gray-900">${formatDateTime(payment.due_date)}</div>
+                  </div>
+                ` : ''}
+                
+                ${payment.notes ? `
+                  <div>
+                    <span class="text-gray-700 font-medium">${payment.status === 'rejected' ? 'Rejection Reason:' : 'Admin Notes:'}</span>
+                    <div class="text-gray-900 ${payment.status === 'rejected' ? 'bg-red-50 border border-red-200' : 'bg-white'} p-3 rounded-lg border mt-1">${payment.notes}</div>
+                  </div>
+                ` : ''}
+
+                <!-- Payment Proof - Only show if payment has reference number (was submitted) -->
+                ${payment.reference_number ? `
+                <div class="pt-3 border-t border-gray-200">
+                  <span class="text-gray-700 font-medium">Payment Proof:</span>
+                  <div id="detailsPaymentProofContainer" class="mt-3">
+                    <div class="flex items-center justify-between p-4 bg-white border-2 border-blue-200 rounded-lg">
+                      <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                          </svg>
+                        </div>
+                        <div>
+                          <p class="text-sm font-medium text-gray-800" id="detailsReceiptName">Loading...</p>
+                          <p class="text-xs text-gray-500">Uploaded payment proof</p>
+                        </div>
+                      </div>
+                      <button onclick="openDetailsPaymentProofFullsize()" class="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        View Full Size
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCompleteTimeline(payment, history) {
+      const contentElement = document.getElementById('completeTimelineContent');
+      
+      // Simple timeline rendering to match Payment Details format
+      function getTimelineIcon(action) {
+        switch (action) {
+          case 'created':
+            return { color: 'bg-blue-500', title: 'Payment Created' };
+          case 'payment_submitted':
+            return { color: 'bg-yellow-500', title: 'Payment Submitted' };
+          case 'validated':
+            return { color: 'bg-green-500', title: 'Payment Validated' };
+          case 'rejected':
+            return { color: 'bg-red-500', title: 'Payment Rejected' };
+          case 'resubmitted':
+            return { color: 'bg-purple-500', title: 'Payment Resubmitted' };
+          default:
+            return { color: 'bg-gray-500', title: 'Unknown Action' };
+        }
+      }
+
+      function formatDateTime(timestamp) {
+        if (!timestamp) return 'N/A';
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        }) + ' at ' + date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+
+      function formatStatusText(status) {
+        if (!status) return '';
+        return status
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase());
+      }
+
+      const content = `
+        <div class="max-w-4xl mx-auto">
+          <!-- Payment Overview -->
+          <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl mb-8 border border-green-200">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-gray-900">${payment.program_name || 'Payment Program'}</h3>
+                <p class="text-green-600 font-mono text-lg">${payment.payment_id || ('PAY-' + new Date(payment.created_at).toISOString().slice(0,10).replace(/-/g,'') + '-' + String(payment.id).padStart(3, '0'))}</p>
+              </div>
+              <div class="text-right">
+                <div class="text-3xl font-bold text-gray-900">₱${parseFloat(payment.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                <div class="text-sm text-gray-600">Installment ${payment.installment_number || 1} of ${payment.total_installments || 1}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Complete Timeline -->
+          <div class="bg-white border border-gray-200 p-6 rounded-xl">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <svg class="w-6 h-6 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+              </svg>
+              Complete Payment Timeline
+            </h3>
+            <div class="flow-root">
+              <ul class="space-y-6">
+                ${history.length > 0 ? history.map((event, index) => {
+                  const iconData = getTimelineIcon(event.action);
+                  const newStatus = event.new_status || event.status;
+                  const oldStatus = event.old_status;
+                  const timestamp = event.created_at || event.timestamp;
+                  const isLatest = index === history.length - 1;
+                  
+                  // Calculate relative time
+                  const eventDate = new Date(timestamp);
+                  const now = new Date();
+                  const diffMs = now - eventDate;
+                  const diffMins = Math.floor(diffMs / 60000);
+                  const diffHours = Math.floor(diffMs / 3600000);
+                  const diffDays = Math.floor(diffMs / 86400000);
+                  
+                  let relativeTime = '';
+                  if (diffMins < 1) {
+                    relativeTime = 'Just now';
+                  } else if (diffMins < 60) {
+                    relativeTime = diffMins + ' minute' + (diffMins === 1 ? '' : 's') + ' ago';
+                  } else if (diffHours < 24) {
+                    relativeTime = diffHours + ' hour' + (diffHours === 1 ? '' : 's') + ' ago';
+                  } else if (diffDays < 7) {
+                    relativeTime = diffDays + ' day' + (diffDays === 1 ? '' : 's') + ' ago';
+                  } else {
+                    relativeTime = formatDateTime(timestamp).split(' at ')[0];
+                  }
+                  
+                  return '<li><div class="relative">' +
+                    '<div class="flex items-start space-x-3">' +
+                    '<div class="flex-shrink-0">' +
+                      '<div class="w-3 h-3 ' + iconData.color + ' rounded-full mt-1.5 ' + 
+                      (isLatest ? 'ring-2 ring-green-200 ring-offset-1' : '') + '"></div>' +
+                    '</div>' +
+                    '<div class="min-w-0 flex-1 pb-6">' +
+                      '<div class="flex items-center justify-between">' +
+                        '<div class="text-sm font-medium text-gray-900">' + iconData.title +
+                        (isLatest ? ' <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 ml-2">Latest</span>' : '') +
+                        '</div>' +
+                        '<div class="text-xs text-gray-500">' + relativeTime + '</div>' +
+                      '</div>' +
+                      
+                      // Status transition display
+                      (oldStatus && newStatus && oldStatus !== newStatus ? 
+                        '<div class="mt-2 flex items-center space-x-2 text-xs">' +
+                          '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">' + 
+                            formatStatusText(oldStatus) + 
+                          '</span>' +
+                          '<svg class="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">' +
+                            '<path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>' +
+                          '</svg>' +
+                          '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs ' + 
+                            (iconData.color.replace('bg-', 'bg-').replace('-500', '-100')) + ' ' + 
+                            (iconData.color.replace('bg-', 'text-').replace('-500', '-800')) + '">' + 
+                            formatStatusText(newStatus) + 
+                          '</span>' +
+                        '</div>' : '') +
+                      
+                      // Full timestamp
+                      '<div class="text-xs text-gray-500 mt-2">' + formatDateTime(timestamp) + '</div>' +
+                      
+                      // Event description/notes
+                      (event.notes ? 
+                        '<div class="text-sm text-gray-600 mt-2 bg-gray-50 p-3 rounded-lg border-l-4 ' + 
+                        iconData.color.replace('bg-', 'border-') + '">' + event.notes + '</div>' : '') +
+                      
+                      // Additional details
+                      '<div class="mt-3 space-y-1">' +
+                        (event.performed_by ? 
+                          '<div class="flex items-center text-xs text-gray-500">' +
+                            '<svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">' +
+                              '<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>' +
+                            '</svg>' +
+                            'Performed by: ' + event.performed_by +
+                          '</div>' : '') +
+                        
+                        (event.reference_number ? 
+                          '<div class="flex items-center text-xs text-gray-500">' +
+                            '<svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">' +
+                              '<path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path>' +
+                            '</svg>' +
+                            'Reference: <code class="ml-1 px-1.5 py-0.5 bg-gray-200 text-gray-800 rounded font-mono text-xs">' + 
+                            event.reference_number + '</code>' +
+                          '</div>' : '') +
+                        
+                        (event.amount ? 
+                          '<div class="flex items-center text-xs text-gray-500">' +
+                            '<svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">' +
+                              '<path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"></path>' +
+                              '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd"></path>' +
+                            '</svg>' +
+                            'Amount: ₱' + parseFloat(event.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) +
+                          '</div>' : '') +
+                      '</div>' +
+                    '</div>' +
+                    '</div></div></li>';
+                }).join('') : '<li class="text-center py-8 text-gray-500">No timeline data available</li>'}
+              </ul>
+            </div>
+          </div>
+        </div>
+      `;
+
+      contentElement.innerHTML = content;
+    }
+
     // Add interactive functionality
     document.addEventListener('DOMContentLoaded', function() {
-      // Action button handlers
-      document.querySelectorAll('button[class*="text-"]').forEach(button => {
+      // Action button handlers - only target buttons inside table rows
+      document.querySelectorAll('tbody tr button[class*="text-"]').forEach(button => {
+        // Skip buttons that already have onclick handlers
+        if (button.hasAttribute('onclick')) {
+          return;
+        }
+        
         button.addEventListener('click', function(e) {
           e.preventDefault();
           const action = this.textContent.trim();
           const row = this.closest('tr');
-          const paymentId = row.querySelector('td:first-child').textContent;
+          if (!row) {
+            console.error('Cannot find parent row for button');
+            return;
+          }
+          
+          const paymentIdEl = row.querySelector('td:first-child');
+          if (!paymentIdEl) {
+            console.error('Cannot find payment ID element');
+            return;
+          }
+          
+          const paymentId = paymentIdEl.textContent;
 
           console.log(`Action: ${action} for Payment ID: ${paymentId}`);
 
@@ -908,15 +1995,297 @@ $payment_stats = getPaymentStats();
       });
     });
 
+    // Global variable to store current payment ID for modals
+    let currentPaymentId = null;
+
+    // Complete Payment Timeline Functions
+    function showCompleteTimeline(paymentId) {
+      console.log('Opening complete timeline for payment:', paymentId);
+      
+      // Validate payment ID
+      if (!paymentId || paymentId === 'undefined') {
+        alert('Error: Payment ID is missing. Please try refreshing the page.');
+        return;
+      }
+      
+      const modal = document.getElementById('completeTimelineModal');
+      const paymentIdElement = document.getElementById('timelinePaymentId');
+      const contentElement = document.getElementById('completeTimelineContent');
+      
+      // Show modal
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+      
+      // Set payment ID
+      paymentIdElement.textContent = paymentId;
+      
+      // Show loading state
+      contentElement.innerHTML = `
+        <div class="flex items-center justify-center p-8">
+          <div class="text-center">
+            <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-gray-600">Loading complete payment timeline...</p>
+          </div>
+        </div>
+      `;
+      
+      // Extract numeric ID for API calls
+      let actualPaymentId = paymentId;
+      const matches = paymentId.toString().match(/PAY-\d{8}-(\d+)/);
+      if (matches) {
+        actualPaymentId = matches[1];
+      }
+
+      // Load timeline data
+      Promise.all([
+        fetch(`../../api/payments.php?action=get_payment_details&id=${actualPaymentId}`).then(r => r.json()),
+        fetch(`../../api/payment-history.php?payment_id=${encodeURIComponent(paymentId)}`).then(r => r.json())
+      ])
+      .then(([paymentResponse, historyResponse]) => {
+        console.log('Timeline API responses:', { paymentResponse, historyResponse });
+        
+        // Handle different response structures
+        const paymentData = paymentResponse.success ? paymentResponse.payment : paymentResponse;
+        const historyData = historyResponse.success ? historyResponse.history : [];
+        
+        if (paymentData && historyResponse.success) {
+          renderCompleteTimeline(paymentData, historyData);
+        } else {
+          throw new Error(paymentResponse.error || historyResponse.error || 'Failed to load data');
+        }
+      })
+      .catch(error => {
+        console.error('Error loading complete timeline:', error);
+        contentElement.innerHTML = `
+          <div class="text-center py-8">
+            <div class="text-red-600 mb-4">
+              <svg class="w-12 h-12 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Error Loading Timeline</h3>
+            <p class="text-gray-600">${error.message}</p>
+          </div>
+        `;
+      });
+    }
+
+    function closeCompleteTimelineModal() {
+      const modal = document.getElementById('completeTimelineModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.style.overflow = 'auto';
+    }
+
+    function renderCompleteTimeline(payment, history) {
+      const contentElement = document.getElementById('completeTimelineContent');
+      
+      // Simple timeline rendering to match student interface
+      function getTimelineIcon(action) {
+        switch (action) {
+          case 'created':
+            return { color: 'bg-blue-500', title: 'Payment Created' };
+          case 'payment_submitted':
+            return { color: 'bg-yellow-500', title: 'Payment Submitted' };
+          case 'validated':
+            return { color: 'bg-green-500', title: 'Payment Validated' };
+          case 'rejected':
+            return { color: 'bg-red-500', title: 'Payment Rejected' };
+          case 'resubmitted':
+            return { color: 'bg-purple-500', title: 'Payment Resubmitted' };
+          default:
+            return { color: 'bg-gray-500', title: 'Unknown Action' };
+        }
+      }
+
+      function formatDateTime(timestamp) {
+        if (!timestamp) return 'N/A';
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        }) + ' at ' + date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+
+      function formatStatusText(status) {
+        if (!status) return '';
+        return status
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase());
+      }
+
+      const content = `
+        <div class="max-w-4xl mx-auto">
+          <!-- Payment Overview -->
+          <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl mb-8 border border-green-200">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-gray-900">${payment.program_name || 'Payment Program'}</h3>
+                <p class="text-green-600 font-mono text-lg">${payment.payment_id || ('PAY-' + new Date(payment.created_at).toISOString().slice(0,10).replace(/-/g,'') + '-' + String(payment.id).padStart(3, '0'))}</p>
+              </div>
+              <div class="text-right">
+                <div class="text-3xl font-bold text-gray-900">₱${parseFloat(payment.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                <div class="text-sm text-gray-600">Installment ${payment.installment_number || 1} of ${payment.total_installments || 1}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Complete Timeline -->
+          <div class="bg-white border border-gray-200 p-6 rounded-xl">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <svg class="w-6 h-6 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+              </svg>
+              Complete Payment Timeline
+            </h3>
+            <div class="flow-root">
+              <ul class="space-y-6">
+                ${history.length > 0 ? history.map((event, index) => {
+                  const iconData = getTimelineIcon(event.action);
+                  const newStatus = event.new_status || event.status;
+                  const oldStatus = event.old_status;
+                  const timestamp = event.created_at || event.timestamp;
+                  const isLatest = index === history.length - 1;
+                  
+                  // Calculate relative time
+                  const eventDate = new Date(timestamp);
+                  const now = new Date();
+                  const diffMs = now - eventDate;
+                  const diffMins = Math.floor(diffMs / 60000);
+                  const diffHours = Math.floor(diffMs / 3600000);
+                  const diffDays = Math.floor(diffMs / 86400000);
+                  
+                  let relativeTime = '';
+                  if (diffMins < 1) {
+                    relativeTime = 'Just now';
+                  } else if (diffMins < 60) {
+                    relativeTime = diffMins + ' minute' + (diffMins === 1 ? '' : 's') + ' ago';
+                  } else if (diffHours < 24) {
+                    relativeTime = diffHours + ' hour' + (diffHours === 1 ? '' : 's') + ' ago';
+                  } else if (diffDays < 7) {
+                    relativeTime = diffDays + ' day' + (diffDays === 1 ? '' : 's') + ' ago';
+                  } else {
+                    relativeTime = formatDateTime(timestamp).split(' at ')[0];
+                  }
+                  
+                  return '<li><div class="relative">' +
+                    '<div class="flex items-start space-x-3">' +
+                    '<div class="flex-shrink-0">' +
+                      '<div class="w-3 h-3 ' + iconData.color + ' rounded-full mt-1.5 ' + 
+                      (isLatest ? 'ring-2 ring-green-200 ring-offset-1' : '') + '"></div>' +
+                    '</div>' +
+                    '<div class="min-w-0 flex-1 pb-6">' +
+                      '<div class="flex items-center justify-between">' +
+                        '<div class="text-sm font-medium text-gray-900">' + iconData.title +
+                        (isLatest ? ' <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 ml-2">Latest</span>' : '') +
+                        '</div>' +
+                        '<div class="text-xs text-gray-500">' + relativeTime + '</div>' +
+                      '</div>' +
+                      
+                      // Status transition display
+                      (oldStatus && newStatus && oldStatus !== newStatus ? 
+                        '<div class="mt-2 flex items-center space-x-2 text-xs">' +
+                          '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">' + 
+                            formatStatusText(oldStatus) + 
+                          '</span>' +
+                          '<svg class="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">' +
+                            '<path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>' +
+                          '</svg>' +
+                          '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs ' + 
+                            (iconData.color.replace('bg-', 'bg-').replace('-500', '-100')) + ' ' + 
+                            (iconData.color.replace('bg-', 'text-').replace('-500', '-800')) + '">' + 
+                            formatStatusText(newStatus) + 
+                          '</span>' +
+                        '</div>' : '') +
+                      
+                      // Full timestamp
+                      '<div class="text-xs text-gray-500 mt-2">' + formatDateTime(timestamp) + '</div>' +
+                      
+                      // Event description/notes
+                      (event.notes ? 
+                        '<div class="text-sm text-gray-600 mt-2 bg-gray-50 p-3 rounded-lg border-l-4 ' + 
+                        iconData.color.replace('bg-', 'border-') + '">' + event.notes + '</div>' : '') +
+                      
+                      // Additional details
+                      '<div class="mt-3 space-y-1">' +
+                        (event.performed_by ? 
+                          '<div class="flex items-center text-xs text-gray-500">' +
+                            '<svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">' +
+                              '<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>' +
+                            '</svg>' +
+                            'Performed by: ' + event.performed_by +
+                          '</div>' : '') +
+                        
+                        (event.reference_number ? 
+                          '<div class="flex items-center text-xs text-gray-500">' +
+                            '<svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">' +
+                              '<path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path>' +
+                            '</svg>' +
+                            'Reference: <code class="ml-1 px-1.5 py-0.5 bg-gray-200 text-gray-800 rounded font-mono text-xs">' + 
+                            event.reference_number + '</code>' +
+                          '</div>' : '') +
+                        
+                        (event.amount ? 
+                          '<div class="flex items-center text-xs text-gray-500">' +
+                            '<svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">' +
+                              '<path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"></path>' +
+                              '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd"></path>' +
+                            '</svg>' +
+                            'Amount: ₱' + parseFloat(event.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) +
+                          '</div>' : '') +
+                      '</div>' +
+                    '</div>' +
+                    '</div></div></li>';
+                }).join('') : '<li class="text-center py-8 text-gray-500">No timeline data available</li>'}
+              </ul>
+            </div>
+          </div>
+        </div>
+      `;
+
+      contentElement.innerHTML = content;
+    }
+
+    function renderTimelineError() {
+      const contentElement = document.getElementById('completeTimelineContent');
+      contentElement.innerHTML = `
+        <div class="flex items-center justify-center min-h-[400px]">
+          <div class="text-center">
+            <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="text-gray-600">Failed to load payment timeline</p>
+            <p class="text-sm text-gray-500 mt-2">Please try again or contact support if the problem persists</p>
+          </div>
+        </div>
+      `;
+    }
+
     // Receipt Modal Functions
     function showReceiptModal(paymentId, row) {
-      // Extract data from the table row
-      const studentName = row.querySelector('td:nth-child(3) .text-sm.font-medium').textContent;
-      const studentId = row.querySelector('td:nth-child(3) .text-xs').textContent;
-      const programName = row.querySelector('td:nth-child(5)').textContent.trim();
-      const amount = row.querySelector('td:nth-child(4)').textContent;
-      const dueDate = row.querySelector('td:nth-child(7)').textContent.replace(/\s+/g, ' ').trim();
-      const status = row.querySelector('td:nth-child(8) .status-badge').textContent;
+      // Extract data from the table row with null safety
+      const studentNameEl = row.querySelector('td:nth-child(3) .text-sm.font-medium');
+      const studentIdEl = row.querySelector('td:nth-child(3) .text-xs');
+      const programNameEl = row.querySelector('td:nth-child(5)');
+      const amountEl = row.querySelector('td:nth-child(4)');
+      const dueDateEl = row.querySelector('td:nth-child(7)');
+      const statusEl = row.querySelector('td:nth-child(8) .status-badge');
+      
+      const studentName = studentNameEl ? studentNameEl.textContent : 'Unknown Student';
+      const studentId = studentIdEl ? studentIdEl.textContent : 'Unknown ID';
+      const programName = programNameEl ? programNameEl.textContent.trim() : 'Unknown Program';
+      const amount = amountEl ? amountEl.textContent : '₱0.00';
+      const dueDate = dueDateEl ? dueDateEl.textContent.replace(/\s+/g, ' ').trim() : 'No due date';
+      const status = statusEl ? statusEl.textContent : 'Unknown';
 
       // Create the professional receipt modal
       const modal = document.createElement('div');
@@ -942,7 +2311,7 @@ $payment_stats = getPaymentStats();
                 <img src="../../assets/logo.png" alt="TPLearn Logo" class="h-12 w-12 mr-3">
                 <h1 class="text-3xl font-bold text-blue-600">TPLearn</h1>
               </div>
-              <p class="text-lg text-gray-600 font-medium">Official Payment Receipt</p>
+              <p class="text-lg text-gray-600 font-medium">Payment Receipt</p>
               <p class="text-sm text-gray-500 mt-2">Learning Management System</p>
             </div>
             
@@ -1075,6 +2444,9 @@ $payment_stats = getPaymentStats();
       document.body.style.overflow = 'hidden';
     }
 
+    // Ensure showReceiptModal is available globally
+    window.showReceiptModal = showReceiptModal;
+
     function closeReceiptModal() {
       const modal = document.getElementById('receiptModal');
       if (modal) {
@@ -1082,6 +2454,9 @@ $payment_stats = getPaymentStats();
       }
       document.body.style.overflow = 'auto';
     }
+
+    // Ensure closeReceiptModal is available globally
+    window.closeReceiptModal = closeReceiptModal;
 
     function downloadReceiptPDF(paymentId) {
       const modal = document.createElement('div');
@@ -1241,7 +2616,7 @@ $payment_stats = getPaymentStats();
               <div class="logo-section">
                 <span class="company-name">TPLearn</span>
               </div>
-              <div class="receipt-title">Official Payment Receipt</div>
+              <div class="receipt-title">Payment Receipt</div>
               <div class="subtitle">Learning Management System</div>
             </div>
             
@@ -1447,6 +2822,9 @@ $payment_stats = getPaymentStats();
       document.body.style.overflow = 'hidden';
     }
 
+    // Ensure showValidateModal is available globally
+    window.showValidateModal = showValidateModal;
+
     function closeValidateModal() {
       document.getElementById('validateModal').classList.add('hidden');
       document.body.style.overflow = 'auto';
@@ -1591,8 +2969,8 @@ $payment_stats = getPaymentStats();
             if (actionsCell) {
               actionsCell.innerHTML = `
                 <div class="flex space-x-2">
-                  <button onclick="showReceiptModal('${paymentId}', this.closest('tr'))" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Receipt</button>
                   <button onclick="showDetailsModal('${paymentId}', this.closest('tr'))" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Details</button>
+                  <button onclick="showReceiptModal('${paymentId}', this.closest('tr'))" class="text-green-600 hover:text-green-800 text-xs font-medium">Receipt</button>
                 </div>
               `;
             }
@@ -1747,7 +3125,6 @@ $payment_stats = getPaymentStats();
                   
                   actionsCell.innerHTML = `
                     <div class="flex space-x-2">
-                      <button onclick="triggerStudentResubmit('${paymentId}', '${programName}', ${amount})" class="text-orange-600 hover:text-orange-800 text-xs font-medium">Resubmit</button>
                       <button onclick="viewPaymentDetails('${paymentId}')" class="text-gray-600 hover:text-gray-800 text-xs font-medium">Details</button>
                     </div>
                   `;
@@ -1953,10 +3330,10 @@ $payment_stats = getPaymentStats();
     // Receipt Modal Functions
     function generateReceipt(paymentId) {
       // Show receipt modal with database data
-      showReceiptModal(paymentId, null);
+      showReceiptModalFromDatabase(paymentId, null);
     }
 
-    function showReceiptModal(paymentId, row) {
+    function showReceiptModalFromDatabase(paymentId, row) {
       // Show loading state
       const modal = document.getElementById('receiptModal');
       modal.classList.remove('hidden');
@@ -2024,7 +3401,7 @@ $payment_stats = getPaymentStats();
                 <p class="text-xs text-gray-500">Blk 2 Lot 47 Carissa 4A, Kaypian, City of San Jose Del Monte, Bulacan</p>
                 
                 <div class="mt-6 mb-6">
-                  <h2 class="text-lg font-bold text-gray-800">OFFICIAL PAYMENT RECEIPT</h2>
+                  <h2 class="text-lg font-bold text-gray-800">PAYMENT RECEIPT</h2>
                 </div>
                 
                 <div class="border-t border-b border-gray-200 py-4">
@@ -2114,7 +3491,7 @@ $payment_stats = getPaymentStats();
 
               <!-- Footer -->
               <div class="border-t border-gray-300 pt-6 text-center">
-                <p class="text-sm text-gray-700 font-medium mb-2">This is an official receipt for your payment.</p>
+                <p class="text-sm text-gray-700 font-medium mb-2">This is a receipt for your payment.</p>
                 <p class="text-xs text-gray-500 mb-1">Thank you for choosing TPLearn!</p>
                 <p class="text-xs text-gray-500">For inquiries, please contact Email: tplearnph@gmail.com</p>
                 
@@ -2333,10 +3710,10 @@ $payment_stats = getPaymentStats();
           const receiptText = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-                              TPLearn
+                             TPLearn
                  Tisa at Pepara's Academic and Tutorial Services
 
-                        OFFICIAL PAYMENT RECEIPT
+                           PAYMENT RECEIPT
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -2370,7 +3747,7 @@ ${paymentData.notes ? `Notes: ${paymentData.notes}` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Thank you for your payment!
-This is an official receipt generated by TPLearn system.
+This is a receipt generated by TPLearn system.
 For inquiries, please contact TPLearn Support.
 
 Generated on ${receiptDate} by TPLearn Payment Management System
@@ -2413,932 +3790,13 @@ Generated on ${receiptDate} by TPLearn Payment Management System
       showDetailsModal(paymentId, null);
     }
 
-    function showDetailsModal(paymentId, row) {
-      // Show loading state
-      const modal = document.getElementById('detailsModal');
-      modal.classList.remove('hidden');
-      document.body.style.overflow = 'hidden';
-
-      // Show loading in details content
-      const detailsContent = modal.querySelector('.p-8');
-      const originalContent = detailsContent.innerHTML;
-      detailsContent.innerHTML = `
-        <div class="flex items-center justify-center p-8">
-          <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span class="text-gray-600">Loading payment details...</span>
-        </div>
-      `;
-
-      // Extract actual payment ID from the formatted payment_id (PAY-YYYYMMDD-XXX)
-      let actualPaymentId = paymentId;
-      const matches = paymentId.match(/PAY-\d{8}-(\d+)/);
-      if (matches) {
-        actualPaymentId = matches[1];
-      }
-
-      // Fetch payment details from database  
-      fetch(`../../api/payments.php?action=get_payment_details&id=${actualPaymentId}`, {
-        method: 'GET',
-        credentials: 'same-origin',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          if (data.success && data.payment) {
-            const payment = data.payment;
-
-            // Format dates properly
-            const formatDateTime = (dateString) => {
-              if (!dateString) return 'N/A';
-              const date = new Date(dateString);
-              return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              }) + ' at ' + date.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit'
-              });
-            };
-
-            // Generate comprehensive details content with real database data
-            detailsContent.innerHTML = `
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <!-- Payment Overview Panel -->
-                <div class="space-y-6">
-                  <!-- Payment Information -->
-                  <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl">
-                    <h3 class="text-lg font-semibold text-blue-900 mb-4 flex items-center">
-                      <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"></path>
-                      </svg>
-                      Payment Information
-                    </h3>
-                    <div class="space-y-3 text-sm">
-                      <div>
-                        <span class="text-blue-700 font-medium">Payment ID:</span>
-                        <div class="text-blue-900 font-semibold">${paymentId}</div>
-                      </div>
-                      <div>
-                        <span class="text-blue-700 font-medium">Amount:</span>
-                        <div class="text-blue-900 font-semibold text-lg">₱${parseFloat(payment.amount || 0).toLocaleString()}</div>
-                      </div>
-                      ${payment.status === 'awaiting' ? '' : `
-                      <div>
-                        <span class="text-blue-700 font-medium">Payment Method:</span>
-                        <div class="text-blue-900">${getPaymentMethodDisplay(payment.payment_method)}</div>
-                      </div>
-                      <div>
-                        <span class="text-blue-700 font-medium">Reference Number:</span>
-                        <div class="text-blue-900">${payment.reference_number || 'N/A'}</div>
-                      </div>
-                      `}
-                      <div>
-                        <span class="text-blue-700 font-medium">Status:</span>
-                        <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-1 ${
-                          payment.status === 'validated' ? 'bg-green-100 text-green-800' :
-                          payment.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }">
-                          ${payment.status === 'validated' ? '✓ Validated' :
-                            payment.status === 'rejected' ? '✗ Rejected' :
-                            '⏳ ' + (payment.status || 'Pending')}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Student Information -->
-                  <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl">
-                    <h3 class="text-lg font-semibold text-green-900 mb-4 flex items-center">
-                      <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
-                      </svg>
-                      Student Information
-                    </h3>
-                    <div class="space-y-3 text-sm">
-                      <div>
-                        <span class="text-green-700 font-medium">Full Name:</span>
-                        <div class="text-green-900 text-base">${payment.student_name || 'N/A'}</div>
-                      </div>
-                      <div>
-                        <span class="text-green-700 font-medium">Student ID:</span>
-                        <div class="text-green-900">${payment.student_id || 'N/A'}</div>
-                      </div>
-                      <div>
-                        <span class="text-green-700 font-medium">Program Enrolled:</span>
-                        <div class="text-green-900 text-base font-medium">${payment.program_name || 'N/A'}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Timeline & Status Panel -->
-                <div class="space-y-6">
-                  <!-- Payment Timeline -->
-                  <div class="bg-white border border-gray-200 p-6 rounded-xl">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <svg class="w-6 h-6 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
-                      </svg>
-                      Payment Timeline
-                    </h3>
-                    <div class="space-y-4">
-                      <div class="flex items-start space-x-3">
-                        <div class="flex-shrink-0">
-                          <div class="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                        </div>
-                        <div>
-                          <div class="text-sm font-medium text-gray-900">Payment Created</div>
-                          <div class="text-sm text-gray-600">${formatDateTime(payment.created_at)}</div>
-                        </div>
-                      </div>
-                      
-                      ${payment.payment_date && payment.payment_date !== '0000-00-00 00:00:00' && payment.reference_number && payment.payment_method ? `
-                        <div class="flex items-start space-x-3">
-                          <div class="flex-shrink-0">
-                            <div class="w-2 h-2 bg-yellow-500 rounded-full mt-2"></div>
-                          </div>
-                          <div>
-                            <div class="text-sm font-medium text-gray-900">Payment Submitted</div>
-                            <div class="text-sm text-gray-600">${formatDateTime(payment.payment_date)}</div>
-                          </div>
-                        </div>
-                      ` : ''}
-                      
-                      ${payment.status === 'validated' && payment.validated_at ? `
-                        <div class="flex items-start space-x-3">
-                          <div class="flex-shrink-0">
-                            <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                          </div>
-                          <div>
-                            <div class="text-sm font-medium text-gray-900">Payment Validated</div>
-                            <div class="text-sm text-gray-600">${formatDateTime(payment.validated_at)}</div>
-                            ${payment.validator_name ? `<div class="text-sm text-gray-500">by ${payment.validator_name}</div>` : ''}
-                          </div>
-                        </div>
-                      ` : payment.status === 'rejected' && payment.validated_at ? `
-                        <div class="flex items-start space-x-3">
-                          <div class="flex-shrink-0">
-                            <div class="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
-                          </div>
-                          <div>
-                            <div class="text-sm font-medium text-gray-900">Payment Rejected</div>
-                            <div class="text-sm text-gray-600">${formatDateTime(payment.validated_at)}</div>
-                            ${payment.validator_name ? `<div class="text-sm text-gray-500">by ${payment.validator_name}</div>` : ''}
-                          </div>
-                        </div>
-                      ` : ''}
-                    </div>
-                  </div>
-
-                  <!-- Additional Details -->
-                  <div class="bg-gray-50 p-6 rounded-xl">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <svg class="w-6 h-6 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                      </svg>
-                      Additional Details
-                    </h3>
-                    <div class="space-y-3 text-sm">
-                      ${payment.installment_number ? `
-                        <div>
-                          <span class="text-gray-700 font-medium">Installment:</span>
-                          <div class="text-gray-900">${payment.installment_number} of ${payment.total_installments || 1}</div>
-                        </div>
-                      ` : ''}
-                      
-                      ${payment.due_date ? `
-                        <div>
-                          <span class="text-gray-700 font-medium">Due Date:</span>
-                          <div class="text-gray-900">${formatDateTime(payment.due_date)}</div>
-                        </div>
-                      ` : ''}
-                      
-                      ${payment.notes ? `
-                        <div>
-                          <span class="text-gray-700 font-medium">Admin Notes:</span>
-                          <div class="text-gray-900 bg-white p-3 rounded-lg border mt-1">${payment.notes}</div>
-                        </div>
-                      ` : ''}
-
-                      <!-- Payment Proof - Only show if payment has reference number (was submitted) -->
-                      ${payment.reference_number ? `
-                      <div class="pt-3 border-t border-gray-200">
-                        <span class="text-gray-700 font-medium">Payment Proof:</span>
-                        <div id="detailsPaymentProofContainer" class="mt-3">
-                          <div class="flex items-center justify-between p-4 bg-white border-2 border-purple-200 rounded-lg">
-                            <div class="flex items-center space-x-3">
-                              <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
-                                </svg>
-                              </div>
-                              <div>
-                                <p id="detailsPaymentProofFileName" class="text-sm font-medium text-gray-800">Loading...</p>
-                                <p class="text-xs text-gray-500">Uploaded payment proof</p>
-                              </div>
-                            </div>
-                            <div class="flex space-x-2">
-                              <button onclick="openDetailsPaymentProofFullsize()" class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors">
-                                View Full Size
-                              </button>
-                            </div>
-                          </div>
-                          <div id="detailsPaymentProofPreview" class="mt-3 bg-gray-50 rounded-lg p-4 min-h-48 flex items-center justify-center">
-                            <div class="text-center">
-                              <svg class="animate-spin h-8 w-8 text-purple-600 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              <p class="text-sm text-gray-600">Loading payment proof...</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      ` : ''}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            `;
-
-            // Store current payment ID for receipt generation from details
-            window.currentDetailsPaymentId = paymentId;
-            window.currentDetailsPaymentData = payment;
-
-            // Show/hide validate button based on payment status
-            const validateButton = document.getElementById('detailsValidateButton');
-            if (payment.status === 'pending' && payment.reference_number) {
-              validateButton.classList.remove('hidden');
-            } else {
-              validateButton.classList.add('hidden');
-            }
-
-            // Show/hide generate receipt button based on payment status
-            const generateReceiptButton = document.getElementById('detailsGenerateReceiptButton');
-            // Show receipt button only for validated payments
-            if (payment.status === 'validated') {
-              generateReceiptButton.classList.remove('hidden');
-            } else {
-              // Hide for pending, awaiting, rejected, or any other status
-              generateReceiptButton.classList.add('hidden');
-            }
-
-            // Load payment proof if payment has reference number
-            if (payment.reference_number) {
-              loadDetailsPaymentProof(paymentId);
-            }
-
-          } else {
-            throw new Error(data.message || 'Failed to fetch payment details');
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching payment details:', error);
-          detailsContent.innerHTML = `
-            <div class="text-center p-8">
-              <div class="text-red-600 mb-4">
-                <svg class="w-12 h-12 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                </svg>
-              </div>
-              <h3 class="text-lg font-semibold text-gray-900 mb-2">Error Loading Details</h3>
-              <p class="text-gray-600 mb-4">${error.message}</p>
-              <button onclick="closeDetailsModal()" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Close</button>
-            </div>
-          `;
-        });
-      window.currentDetailsRow = row;
-
-      // Show modal
-      document.getElementById('detailsModal').classList.remove('hidden');
-      document.body.style.overflow = 'hidden';
-    }
-
-    function closeDetailsModal() {
-      document.getElementById('detailsModal').classList.add('hidden');
-      document.body.style.overflow = 'auto';
-      window.currentDetailsPaymentId = null;
-      window.currentDetailsPaymentData = null;
-    }
-
-    function generateReceiptFromDetails() {
-      const paymentId = window.currentDetailsPaymentId;
-
-      if (paymentId) {
-        closeDetailsModal();
-        showReceiptModal(paymentId, null);
-      } else {
-        TPAlert.warning('No payment selected for receipt generation.', 'No Payment Selected');
-      }
-    }
-
-    function viewReceiptAttachment() {
-      const paymentId = window.currentDetailsPaymentId;
-
-      if (!paymentId) {
-        TPAlert.warning('No payment selected', 'No Payment Selected');
-        return;
-      }
-
-      // Extract numeric payment ID from formatted string (PAY-YYYYMMDD-XXX)
-      let actualPaymentId = paymentId;
-      const matches = paymentId.match(/PAY-\d{8}-(\d+)/);
-      if (matches) {
-        actualPaymentId = matches[1];
-      }
-
-      // Fetch payment proof information
-      fetch(`../../api/payments.php?action=get_receipt_attachment&payment_id=${actualPaymentId}`, {
-        method: 'GET',
-        credentials: 'same-origin',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success && data.attachment) {
-            showReceiptImageModal(data.attachment);
-          } else {
-            throw new Error(data.error || 'No payment proof found');
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching payment proof:', error);
-          TPAlert.error('Error loading payment proof: ' + error.message, 'Load Error');
-        });
-    }
-
-    function showReceiptImageModal(attachment) {
-      // Create modal for displaying receipt image
-      const modal = document.createElement('div');
-      modal.className = 'fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4';
-      modal.innerHTML = `
-        <div class="max-w-4xl max-h-[90vh] bg-white rounded-lg overflow-hidden">
-          <div class="flex items-center justify-between p-4 border-b border-gray-200">
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900">Payment Receipt</h3>
-              <p class="text-sm text-gray-600">${attachment.filename}</p>
-            </div>
-            <button onclick="this.closest('.fixed').remove()" class="p-2 text-gray-400 hover:text-gray-600">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-          <div class="p-4 flex flex-col items-center">
-            ${attachment.mime_type.startsWith('image/') ? 
-              `<img src="../../api/serve-file.php?id=${attachment.id}" 
-                   alt="Payment Receipt" 
-                   class="max-w-full max-h-[70vh] object-contain rounded shadow-lg"
-                   onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-               <div style="display: none;" class="text-center p-8">
-                 <div class="text-red-600 mb-4">
-                   <svg class="w-12 h-12 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
-                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                   </svg>
-                 </div>
-                 <p class="text-gray-600">Unable to load image</p>
-               </div>` :
-              `<div class="text-center p-8">
-                 <div class="text-blue-600 mb-4">
-                   <svg class="w-12 h-12 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
-                     <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
-                   </svg>
-                 </div>
-                 <p class="text-gray-700 font-medium mb-2">${attachment.filename}</p>
-                 <p class="text-gray-600 mb-4">File type: ${attachment.mime_type}</p>
-                 <a href="../../api/serve-file.php?id=${attachment.id}" 
-                    target="_blank" 
-                    class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                   Download File
-                 </a>
-               </div>`
-            }
-          </div>
-          <div class="flex justify-end space-x-2 p-4 border-t border-gray-200">
-            <a href="../../api/serve-file.php?id=${attachment.id}" 
-               download="${attachment.filename}"
-               class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-              Download
-            </a>
-            <button onclick="this.closest('.fixed').remove()" 
-                    class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
-              Close
-            </button>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(modal);
-
-      // Close modal when clicking outside
-      modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-          modal.remove();
-        }
-      });
-    }
-
-    // Function to load payment proof in details modal
-    function loadDetailsPaymentProof(paymentId) {
-      const container = document.getElementById('detailsPaymentProofContainer');
-      const fileName = document.getElementById('detailsPaymentProofFileName');
-      const preview = document.getElementById('detailsPaymentProofPreview');
-      
-      if (!container || !fileName || !preview) {
-        console.log('Details payment proof elements not found');
-        return;
-      }
-
-      console.log('Loading payment proof for details modal:', paymentId);
-
-      // Store current payment ID for fullscreen modal
-      window.currentPaymentId = paymentId;
-
-      // Extract numeric payment ID from formatted string
-      let actualPaymentId = paymentId;
-      const matches = paymentId.match(/PAY-\d{8}-(\d+)/);
-      if (matches) {
-        actualPaymentId = matches[1];
-      }
-
-      // Fetch payment proof information
-      fetch(`../../api/payments.php?action=get_receipt_attachment&payment_id=${actualPaymentId}`, {
-        method: 'GET',
-        credentials: 'same-origin',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success && data.attachment) {
-            const attachment = data.attachment;
-            fileName.textContent = attachment.original_name || attachment.filename;
-            
-            // Store attachment data for fullsize view
-            window.currentDetailsAttachment = attachment;
-            
-            // Check if it's an image
-            if (attachment.mime_type && attachment.mime_type.startsWith('image/')) {
-              const img = document.createElement('img');
-              // Use payment_id parameter instead of attachment id
-              img.src = `../../api/serve-payment-receipt.php?payment_id=${actualPaymentId}`;
-              img.alt = 'Payment Proof';
-              img.className = 'max-w-full h-auto rounded-lg shadow-sm';
-              img.style.maxHeight = '200px';
-              img.style.cursor = 'pointer';
-              img.onclick = () => openDetailsPaymentProofFullsize();
-              
-              preview.innerHTML = '';
-              preview.appendChild(img);
-              
-              // Handle image load error
-              img.onerror = () => {
-                console.error('Failed to load image:', img.src);
-                preview.innerHTML = `
-                  <div class="text-center py-8">
-                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
-                    </svg>
-                    <p class="text-sm text-gray-500">Could not load image</p>
-                    <p class="text-xs text-gray-400">${attachment.original_name}</p>
-                    <button onclick="openDetailsPaymentProofFullsize()" class="mt-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors">
-                      Try Full Size
-                    </button>
-                  </div>
-                `;
-              };
-
-              // Add loading handler
-              img.onload = () => {
-                console.log('Payment proof image loaded successfully');
-              };
-            } else {
-              // Non-image file
-              preview.innerHTML = `
-                <div class="text-center py-8">
-                  <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
-                  </svg>
-                  <p class="text-sm text-gray-600">File: ${attachment.original_name}</p>
-                  <p class="text-xs text-gray-400">Click "View Full Size" to download</p>
-                </div>
-              `;
-            }
-          } else {
-            // No payment proof found
-            fileName.textContent = 'No payment proof found';
-            preview.innerHTML = `
-              <div class="text-center py-8">
-                <svg class="w-12 h-12 text-gray-300 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
-                </svg>
-                <p class="text-sm text-gray-500">No payment proof found</p>
-                <p class="text-xs text-gray-400">${data.error || 'Student has not uploaded payment proof yet'}</p>
-              </div>
-            `;
-          }
-        })
-        .catch(error => {
-          console.error('Error loading payment proof for details:', error);
-          fileName.textContent = 'Error loading payment proof';
-          preview.innerHTML = `
-            <div class="text-center py-8">
-              <svg class="w-12 h-12 text-red-300 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-              </svg>
-              <p class="text-sm text-red-500">Error loading payment proof</p>
-              <p class="text-xs text-red-400">${error.message}</p>
-            </div>
-          `;
-        });
-    }
-
-    // Helper function to format file size
-    function formatFileSize(bytes) {
-      if (!bytes || bytes === 0) return '0 bytes';
-      const k = 1024;
-      const sizes = ['bytes', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return Math.round(bytes / Math.pow(k, i) * 10) / 10 + ' ' + sizes[i];
-    }
-
-    // Function to open payment proof in fullsize for details modal
-    function openDetailsPaymentProofFullsize() {
-      const attachment = window.currentDetailsAttachment;
-      if (!attachment) {
-        TPAlert.warning('No payment proof available', 'No Proof Available');
-        return;
-      }
-
-      const paymentId = window.currentDetailsPaymentId;
-      
-      // Extract numeric payment ID from formatted string
-      let actualPaymentId = paymentId;
-      const matches = paymentId?.match(/PAY-\d{8}-(\d+)/);
-      if (matches) {
-        actualPaymentId = matches[1];
-      }
-
-      const modal = document.createElement('div');
-      modal.className = 'fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4';
-      
-      modal.innerHTML = `
-        <div class="max-w-5xl w-full bg-white rounded-lg overflow-hidden shadow-2xl flex flex-col" style="max-height: 90vh;">
-          <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
-                </svg>
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900">Payment Proof</h3>
-                <p class="text-sm text-gray-600">${attachment.original_name || attachment.filename || 'Receipt Image'}</p>
-                ${attachment.file_size ? `<p class="text-xs text-gray-500">${formatFileSize(attachment.file_size)}</p>` : ''}
-              </div>
-            </div>
-            <button onclick="this.closest('.fixed').remove(); document.body.style.overflow = 'auto';" class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-              </svg>
-            </button>
-          </div>
-          
-          <div class="p-4 overflow-auto flex items-center justify-center bg-gray-100 flex-1 min-h-0">
-            <div class="max-w-full max-h-full">
-              ${attachment.mime_type && attachment.mime_type.startsWith('image/') ? 
-                `<img src="../../api/serve-receipt.php?id=${attachment.id}" 
-                     alt="Payment Proof" 
-                     class="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-                     onload="console.log('Payment proof image loaded successfully')"
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                 <div style="display: none;" class="text-center p-8">
-                   <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                   </svg>
-                   <p class="text-gray-600">Error loading image</p>
-                   <p class="text-sm text-gray-500">The payment proof image could not be loaded</p>
-                 </div>` :
-                `<div class="text-center p-12">
-                   <svg class="w-20 h-20 text-gray-400 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
-                     <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
-                   </svg>
-                 </div>`
-              }
-            </div>
-          </div>
-          
-          <div class="flex justify-between items-center p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-            <div class="text-sm text-gray-500">
-              ${attachment.mime_type ? `Type: ${attachment.mime_type}` : ''}
-              ${attachment.upload_date ? ` • Uploaded: ${new Date(attachment.upload_date).toLocaleDateString()}` : ''}
-            </div>
-            <div class="flex space-x-3">
-              <button onclick="this.closest('.fixed').remove(); document.body.style.overflow = 'auto';" 
-                      class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                Close
-              </button>
-              <a href="../../api/serve-receipt.php?id=${attachment.id}" target="_blank"
-                 class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
-                </svg>
-                Download
-              </a>
-            </div>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(modal);
-      document.body.style.overflow = 'hidden';
-      
-      // Close modal when clicking outside
-      modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-          modal.remove();
-          document.body.style.overflow = 'auto';
-        }
-      });
-
-      // Close with ESC key
-      const handleEscKey = function(e) {
-        if (e.key === 'Escape') {
-          modal.remove();
-          document.body.style.overflow = 'auto';
-          document.removeEventListener('keydown', handleEscKey);
-        }
+    function formatDate(date) {
+      const options = {
+        year: 'numeric',
+        month: 'long', 
+        day: 'numeric'
       };
-      document.addEventListener('keydown', handleEscKey);
-    }
-
-    function validatePaymentFromDetails() {
-      const paymentId = window.currentDetailsPaymentId;
-      const paymentData = window.currentDetailsPaymentData;
-
-      if (paymentId && paymentData) {
-        // Store the payment data temporarily before closing details modal
-        window.tempPaymentDataForValidation = paymentData;
-        closeDetailsModal();
-        // Pass the formatted payment ID directly (PAY-YYYYMMDD-XXX format)
-        // No need to extract numeric ID since showValidateModal expects the formatted ID
-        showValidateModal(paymentId, null);
-      } else {
-        TPAlert.warning('No payment selected for validation.', 'No Payment Selected');
-      }
-    }
-
-    // Close modals when clicking outside
-    document.getElementById('receiptModal').addEventListener('click', function(e) {
-      if (e.target === this) {
-        closeReceiptModal();
-      }
-    });
-
-    document.getElementById('detailsModal').addEventListener('click', function(e) {
-      if (e.target === this) {
-        closeDetailsModal();
-      }
-    });
-  </script>
-
-  <!-- Include html2pdf library for PDF generation -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-  <!-- Payment Management JavaScript -->
-  <script>
-    // Payment validation function - opens modal for review
-    function validatePayment(paymentId) {
-      // Find the table row for this payment
-      const rows = document.querySelectorAll('tbody tr');
-      let targetRow = null;
-
-      for (let row of rows) {
-        // Look for the payment ID in the row - check both first cell and search through all cells
-        const paymentIdCell = row.querySelector('td:first-child');
-        if (paymentIdCell) {
-          const cellText = paymentIdCell.textContent.trim();
-          if (cellText === paymentId) {
-            targetRow = row;
-            break;
-          }
-        }
-
-        // Also search through all cells in case the structure is different
-        const allCells = row.querySelectorAll('td');
-        for (let cell of allCells) {
-          if (cell.textContent.trim() === paymentId) {
-            targetRow = row;
-            break;
-          }
-        }
-
-        if (targetRow) break;
-      }
-
-      if (targetRow) {
-        showValidateModal(paymentId, targetRow);
-      } else {
-        console.log('Payment ID being searched:', paymentId);
-        console.log('Available rows:', Array.from(rows).map(row => row.querySelector('td:first-child')?.textContent?.trim()));
-        TPAlert.error('Payment row not found. Please refresh the page and try again.', 'Row Not Found');
-      }
-    }
-
-    // Payment rejection function
-    function rejectPayment(paymentId) {
-      TPAlert.input(
-        `Enter reason for rejecting payment ${paymentId}:`,
-        'Payment Rejection',
-        'Enter rejection reason...',
-        'Reject Payment'
-      ).then((result) => {
-        if (result.isConfirmed && result.value && result.value.trim() !== '') {
-          const reason = result.value.trim();
-          
-          // Create form data
-          const formData = new FormData();
-          formData.append('action', 'reject_payment');
-          formData.append('payment_id', paymentId);
-          formData.append('rejection_reason', reason);
-
-          // Send AJAX request
-          fetch('../../api/payments.php', {
-              method: 'POST',
-              body: formData
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              TPAlert.success('Payment rejected successfully!', 'Payment Rejected');
-              location.reload(); // Refresh the page to show updated status
-            } else {
-              TPAlert.error('Error rejecting payment: ' + (data.message || 'Unknown error'), 'Rejection Failed');
-            }
-          })
-          .catch(error => {
-            console.error('Error:', error);
-            TPAlert.error('Network error occurred while rejecting payment', 'Network Error');
-          });
-        } else if (result.value !== undefined) {
-          TPAlert.warning('Rejection reason is required', 'Reason Required');
-        }
-      });
-    }
-
-    // Function to trigger student resubmit modal with real data
-    function triggerStudentResubmit(paymentId, programName, amount) {
-      console.log('Triggering resubmit for payment:', paymentId, programName, amount);
-      
-      // Extract actual payment ID from formatted payment_id (PAY-YYYYMMDD-XXX)
-      let actualPaymentId = paymentId;
-      const matches = paymentId.match(/PAY-\d{8}-(\d+)/);
-      if (matches) {
-        actualPaymentId = matches[1];
-      }
-
-      // Fetch rejection reason and payment details
-      fetch(`../../api/payments.php?action=get_rejection_reason&payment_id=${actualPaymentId}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            // Show resubmit modal with real data
-            showResubmitModal(
-              paymentId,
-              data.payment_details.program_name,
-              data.payment_details.amount,
-              data.rejection_reason,
-              data.payment_details
-            );
-          } else {
-            console.error('Failed to fetch rejection reason:', data.error);
-            // Show modal with default data if API fails
-            showResubmitModal(paymentId, programName, amount, 'Payment was rejected. Please resubmit with correct details.');
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching rejection reason:', error);
-          // Show modal with default data if fetch fails
-          showResubmitModal(paymentId, programName, amount, 'Payment was rejected. Please resubmit with correct details.');
-        });
-    }
-
-    // Function to show the resubmit modal with real data
-    function showResubmitModal(paymentId, programName, amount, rejectionReason, paymentDetails = null) {
-      const modal = document.createElement('div');
-      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-      modal.id = 'admin-resubmit-modal';
-      modal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-          <!-- Header -->
-          <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-            <div class="flex items-center">
-              <svg class="w-6 h-6 text-orange-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-              </svg>
-              <h3 class="text-xl font-semibold text-gray-900">Resubmit Payment - Admin Initiated</h3>
-            </div>
-            <button onclick="closeAdminResubmitModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-
-          <!-- Payment Information -->
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div class="flex items-center mb-3">
-              <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
-              </svg>
-              <h4 class="text-lg font-medium text-blue-900">Payment Information</h4>
-            </div>
-            <div class="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span class="font-medium text-blue-700">Payment ID:</span>
-                <span class="text-blue-600">${paymentId}</span>
-              </div>
-              <div>
-                <span class="font-medium text-blue-700">Program:</span>
-                <span class="text-blue-600">${programName}</span>
-              </div>
-              <div>
-                <span class="font-medium text-blue-700">Amount:</span>
-                <span class="text-blue-600">₱${parseFloat(amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
-              </div>
-              ${paymentDetails ? `
-              <div>
-                <span class="font-medium text-blue-700">Student:</span>
-                <span class="text-blue-600">${paymentDetails.student_name || 'N/A'}</span>
-              </div>
-              ` : ''}
-            </div>
-          </div>
-
-          <!-- Rejection Reason -->
-          <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <div class="flex items-center mb-2">
-              <svg class="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-              </svg>
-              <h4 class="text-lg font-medium text-red-900">Rejection Reason</h4>
-            </div>
-            <p class="text-red-800 text-sm font-medium bg-red-100 p-3 rounded">${rejectionReason}</p>
-          </div>
-
-          <!-- Note for Admin -->
-          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <div class="flex items-center mb-2">
-              <svg class="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <h4 class="text-lg font-medium text-yellow-900">Admin Note</h4>
-            </div>
-            <p class="text-yellow-800 text-sm">
-              This resubmit modal is being initiated by an admin. In a production environment, this would:
-              <br>• Notify the student via email/notification
-              <br>• Allow the student to access this modal from their dashboard
-              <br>• Track resubmission attempts and admin actions
-            </p>
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="flex justify-end space-x-3">
-            <button onclick="closeAdminResubmitModal()" 
-                    class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-              Cancel
-            </button>
-            <button onclick="notifyStudentForResubmit('${paymentId}')" 
-                    class="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
-              Notify Student for Resubmission
-            </button>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(modal);
-    }
-
-    function closeAdminResubmitModal() {
-      const modal = document.getElementById('admin-resubmit-modal');
-      if (modal) {
-        modal.remove();
-      }
+      return date.toLocaleDateString('en-US', options);
     }
 
     function notifyStudentForResubmit(paymentId) {

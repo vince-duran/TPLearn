@@ -174,6 +174,31 @@ try {
       echo json_encode(['success' => true, 'data' => $programs]);
       break;
 
+    case '':
+      // Default action when no action is specified - return active programs
+      if ($_SESSION['role'] === 'admin') {
+        // Admin gets all programs with detailed info
+        $programs = $db->getRows(
+          "SELECT p.*, 
+                  CONCAT(tp.first_name, ' ', tp.last_name) as tutor_name,
+                  COUNT(DISTINCT e.id) as total_enrollments,
+                  COUNT(DISTINCT CASE WHEN e.status = 'active' THEN e.id END) as active_enrollments
+           FROM programs p
+           LEFT JOIN tutor_profiles tp ON p.tutor_id = tp.user_id
+           LEFT JOIN enrollments e ON p.id = e.program_id
+           GROUP BY p.id
+           ORDER BY p.created_at DESC"
+        );
+      } else {
+        // Other users get only active programs
+        $programs = $db->getRows(
+          "SELECT * FROM programs WHERE status = 'active' ORDER BY name"
+        );
+      }
+      
+      echo json_encode(['success' => true, 'data' => $programs]);
+      break;
+
     default:
       throw new Exception('Invalid action');
   }

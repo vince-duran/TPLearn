@@ -283,6 +283,9 @@ try {
         if (!$enrollment || $enrollment['student_user_id'] != $currentUser['id']) {
           throw new Exception('Access denied');
         }
+      } elseif ($_SESSION['role'] !== 'admin') {
+        // Only students and admins are allowed to access payment details
+        throw new Exception('Access denied');
       }
 
       echo json_encode(['success' => true, 'payment' => $payment]);
@@ -544,6 +547,15 @@ try {
         }
       }
 
+      // Get file data for base64 encoding
+      $file_path = __DIR__ . '/../uploads/payment_receipts/' . $attachment['filename'];
+      $base64_data = null;
+      
+      if (file_exists($file_path)) {
+        $file_data = file_get_contents($file_path);
+        $base64_data = base64_encode($file_data);
+      }
+
       echo json_encode([
         'success' => true,
         'attachment' => [
@@ -553,7 +565,8 @@ try {
           'file_path' => 'uploads/payment_receipts/' . $attachment['filename'],
           'mime_type' => $attachment['mime_type'],
           'file_size' => $attachment['file_size'],
-          'uploaded_at' => $attachment['created_at']
+          'uploaded_at' => $attachment['created_at'],
+          'base64_data' => $base64_data
         ]
       ]);
       break;
@@ -682,7 +695,7 @@ function generateReceiptHTML($payment)
   <body>
     <div class='header'>
       <div class='company-name'>TPLearn</div>
-      <div class='receipt-title'>Official Payment Receipt</div>
+      <div class='receipt-title'>Payment Receipt</div>
     </div>
     
     <div class='details'>

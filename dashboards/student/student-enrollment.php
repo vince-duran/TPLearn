@@ -1,6 +1,7 @@
 <?php
 require_once '../../includes/auth.php';
 require_once '../../includes/data-helpers.php';
+require_once '../../includes/schedule-conflict.php';
 require_once '../../assets/icons.php';
 requireRole('student');
 
@@ -26,52 +27,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enroll_program'])) {
   } else {
     $program_id = (int)$_POST['program_id'];
 
-    // Store program ID in session and redirect to enrollment process
-    $_SESSION['enrollment_program_id'] = $program_id;
-    header('Location: enrollment-process.php?program_id=' . $program_id);
-    exit();
+    // Check enrollment eligibility (capacity and duplicate enrollment)
+    $eligibility_check = validateEnrollmentEligibility($_SESSION['user_id'], $program_id);
+    
+    if (!$eligibility_check['eligible']) {
+      $error_message = "Enrollment Failed: " . $eligibility_check['reason'];
+      $_SESSION['enrollment_error'] = $error_message; // Store in session
+    } else {
+      // Check for schedule conflicts
+      $conflict_check = checkScheduleConflict($_SESSION['user_id'], $program_id);
+      
+      if ($conflict_check['has_conflict']) {
+        $conflicting_programs = array_map(function($conflict) {
+          return $conflict['program_name'];
+        }, $conflict_check['conflicting_programs']);
+        
+        $error_message = "Schedule Conflict Detected! This program overlaps with your enrolled program(s): " . 
+                        implode(', ', $conflicting_programs) . ". " .
+                        "Please choose a different program or contact support to resolve the conflict.";
+        $_SESSION['enrollment_error'] = $error_message; // Store in session
+      } else {
+        // No conflicts, proceed with enrollment process
+        $_SESSION['enrollment_program_id'] = $program_id;
+        header('Location: enrollment-process.php?program_id=' . $program_id);
+        exit();
+      }
+    }
   }
 }
 
 // Generate CSRF token
 $_SESSION['csrf_token'] = $_SESSION['csrf_token'] ?? bin2hex(random_bytes(32));
 
-// Handle success messages from URL parameters or session
+// Handle success and error messages - ensure only one shows at a time
 $success_message = '';
 $error_message = '';
 
-// Check for enrollment success
+// Priority 1: Check for enrollment success (highest priority)
 if (isset($_GET['success']) && $_GET['success'] === 'enrollment_confirmed') {
-  // Clear any error messages when we have success
-  $error_message = '';
-
   if (isset($_SESSION['enrollment_success'])) {
     $enrollment_data = $_SESSION['enrollment_success'];
-    $success_message = "🎉 Enrollment Confirmed! You have successfully enrolled in '{$enrollment_data['program_name']}'. {$enrollment_data['message']}";
+    $success_message = "Enrollment Confirmed! You have successfully enrolled in '{$enrollment_data['program_name']}'. {$enrollment_data['message']}";
     unset($_SESSION['enrollment_success']); // Clear the session data
   } else {
-    $success_message = "🎉 Enrollment confirmed successfully! Your application is now pending review.";
+    $success_message = "Enrollment confirmed successfully! Your application is now pending review.";
+  }
+  
+  // Clear any conflicting error parameters from URL
+  if (isset($_GET['error'])) {
+    // Redirect to clean URL with only success parameter
+    header('Location: student-enrollment.php?success=enrollment_confirmed');
+    exit();
   }
 }
-// Check for error messages from URL parameters (only if no success message)
-elseif (isset($_GET['error'])) {
+// Priority 2: Check for error messages from URL parameters (only if no success)
+elseif (isset($_GET['error']) && empty($success_message)) {
   switch ($_GET['error']) {
     case 'missing_parameters':
-      $error_message = "Missing required enrollment parameters.";
+      $error_message = "Enrollment Failed: Missing required enrollment parameters.";
       break;
     case 'program_not_found':
-      $error_message = "The requested program was not found.";
+      $error_message = "Enrollment Failed: The requested program was not found.";
       break;
     case 'enrollment_not_eligible':
-      $error_message = isset($_GET['message']) ? urldecode($_GET['message']) : "You are not eligible to enroll in this program.";
+      $error_message = "Enrollment Failed: " . (isset($_GET['message']) ? urldecode($_GET['message']) : "You are not eligible to enroll in this program.");
+      break;
+    case 'schedule_conflict':
+      $error_message = "Enrollment Failed: " . (isset($_GET['message']) ? urldecode($_GET['message']) : "Schedule conflict detected with your enrolled programs.");
       break;
     case 'database_error':
-      $error_message = "A database error occurred. Please try again.";
+      $error_message = "Enrollment Failed: A database error occurred. Please try again.";
       break;
     default:
-      $error_message = "An error occurred. Please try again.";
+      $error_message = "Enrollment Failed: An error occurred. Please try again.";
       break;
   }
+}
+// Priority 3: Check for session-stored error messages (lowest priority)
+elseif (empty($success_message) && empty($error_message) && isset($_SESSION['enrollment_error'])) {
+  $error_message = "Enrollment Failed: " . $_SESSION['enrollment_error'];
+  unset($_SESSION['enrollment_error']); // Clear after displaying
 }
 
 // Get filter parameters from URL
@@ -113,7 +148,7 @@ function getStudentAvailablePrograms($student_id, $filters = [], $page = 1, $per
     $sql = "SELECT p.id, p.name, p.description, p.fee, p.status, p.age_group,
                    p.max_students, p.session_type, p.location, p.start_date, p.end_date,
                    p.start_time, p.end_time, p.days, p.difficulty_level, p.category,
-                   p.duration_weeks, p.tutor_id,
+                   p.duration_weeks, p.tutor_id, p.cover_image,
                    CONCAT(tp.first_name, ' ', tp.last_name) as tutor_name,
                    COUNT(e_count.id) as enrolled_count,
                    e_student.status as enrollment_status,
@@ -166,7 +201,7 @@ function getStudentAvailablePrograms($student_id, $filters = [], $page = 1, $per
     $sql .= " GROUP BY p.id, p.name, p.description, p.fee, p.status, p.age_group,
                        p.max_students, p.session_type, p.location, p.start_date, p.end_date,
                        p.start_time, p.end_time, p.days, p.difficulty_level, p.category,
-                       p.duration_weeks, p.tutor_id, tp.first_name, tp.last_name,
+                       p.duration_weeks, p.tutor_id, p.cover_image, tp.first_name, tp.last_name,
                        e_student.status, e_student.enrollment_date
               ORDER BY p.start_date ASC, p.name ASC
               LIMIT ? OFFSET ?";
@@ -271,9 +306,24 @@ function enrollStudent($student_id, $program_id)
       ];
     }
 
-    // Check if program exists and is available
+    // Check for schedule conflicts
+    $conflict_result = checkScheduleConflict($student_id, $program_id);
+    if ($conflict_result['has_conflict']) {
+      $conflicting_programs = array_map(function($conflict) {
+        return $conflict['program_name'];
+      }, $conflict_result['conflicting_programs']);
+      
+      return [
+        'success' => false,
+        'message' => 'Schedule conflict detected! This program overlaps with your enrolled program(s): ' . 
+                    implode(', ', $conflicting_programs) . 
+                    '. Please choose a different program or contact support to resolve the conflict.'
+      ];
+    }
+
+    // Check if program exists and is available with enhanced capacity checking
     $program_sql = "SELECT id, name, max_students, status, start_date, end_date,
-                           (SELECT COUNT(*) FROM enrollments WHERE program_id = ? AND status IN ('pending', 'active')) as enrolled_count
+                           (SELECT COUNT(DISTINCT id) FROM enrollments WHERE program_id = ? AND status IN ('pending', 'active')) as enrolled_count
                     FROM programs WHERE id = ? AND status = 'active'";
     $program_stmt = $conn->prepare($program_sql);
     $program_stmt->bind_param("ii", $program_id, $program_id);
@@ -287,11 +337,14 @@ function enrollStudent($student_id, $program_id)
       ];
     }
 
-    // Check if program is full
-    if ($program['enrolled_count'] >= $program['max_students']) {
+    // Enhanced capacity check with exact count
+    $actual_capacity = (int)$program['max_students'];
+    $actual_enrolled = (int)$program['enrolled_count'];
+    
+    if ($actual_enrolled >= $actual_capacity) {
       return [
         'success' => false,
-        'message' => 'Program is full. No more spots available.'
+        'message' => "Program is at full capacity ($actual_enrolled/$actual_capacity). No more spots available."
       ];
     }
 
@@ -430,6 +483,58 @@ function getStatusBadge($status)
       border-color: #fecaca;
       color: #991b1b;
     }
+
+    /* Enhanced hover effects for program cards */
+    .program-card-hover {
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .program-card-hover::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      transition: left 0.5s ease;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .program-card-hover:hover::before {
+      left: 100%;
+    }
+
+    .program-card-hover:hover {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Smooth image zoom on hover */
+    .image-zoom {
+      transition: transform 0.4s ease;
+    }
+
+    .group:hover .image-zoom {
+      transform: scale(1.05);
+    }
+
+    /* Glow effect for buttons */
+    .btn-glow:hover {
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+    }
+
+    /* Pulse animation for enrollment buttons */
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+    }
+
+    .btn-pulse:hover {
+      animation: pulse-green 2s infinite;
+    }
   </style>
 </head>
 
@@ -442,15 +547,8 @@ function getStatusBadge($status)
     <!-- Main Content -->
     <div class="lg:ml-64 flex-1">
       <?php 
-      require_once '../../includes/header.php';
-      renderHeader(
-        'Program Enrollment',
-        '',
-        'student',
-        $display_name,
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
-      );
+      require_once '../../includes/student-header-standard.php';
+      renderStudentHeader('Program Enrollment', 'Enroll in available programs');
       ?>
 
       <!-- Main Content Area -->
@@ -458,64 +556,94 @@ function getStatusBadge($status)
 
         <!-- Success/Error Messages -->
         <?php if (!empty($success_message)): ?>
-          <div class="alert alert-success">
-            <?= iconWithSpacing('check-circle', 'md', 'success', 'mr-2') ?>
-            <?php echo htmlspecialchars($success_message); ?>
+          <div id="success-message" class="mb-6 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg flex items-center transition-all duration-500 ease-in-out">
+            <svg class="w-4 h-4 text-green-400 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+            </svg>
+            <div class="flex-1">
+              <p class="font-normal text-sm"><?php echo $success_message; ?></p>
+            </div>
           </div>
         <?php endif; ?>
 
         <?php if (!empty($error_message)): ?>
-          <div class="alert alert-error">
-            <?= iconWithSpacing('exclamation-triangle', 'md', 'warning', 'mr-2') ?>
-            <?php echo htmlspecialchars($error_message); ?>
+          <div id="error-message" class="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center transition-all duration-500 ease-in-out">
+            <svg class="w-4 h-4 text-red-400 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+            </svg>
+            <div class="flex-1">
+              <p class="font-normal text-sm">
+                <?php 
+                // Format error message to make "Enrollment Failed" bold and clean up duplicates
+                $formatted_message = $error_message;
+                
+                // Handle various duplicate patterns
+                if (strpos($formatted_message, 'Enrollment Failed:') !== false) {
+                  // Remove duplicate "Enrollment Failed:" patterns
+                  $formatted_message = preg_replace('/Enrollment Failed:\s*Enrollment Failed:\s*/', 'Enrollment Failed: ', $formatted_message);
+                  
+                  // Replace single "Enrollment Failed:" with bold version
+                  $formatted_message = preg_replace('/^Enrollment Failed:\s*/', '<strong>Enrollment Failed:</strong> ', $formatted_message);
+                }
+                
+                // Also handle "Schedule Conflict Detected!" case
+                if (strpos($formatted_message, 'Schedule Conflict Detected!') !== false) {
+                  $formatted_message = preg_replace('/^Schedule Conflict Detected!\s*/', '<strong>Schedule Conflict Detected!</strong> ', $formatted_message);
+                }
+                
+                echo $formatted_message; 
+                ?>
+              </p>
+            </div>
           </div>
         <?php endif; ?>
 
-        <!-- Search and Filter Bar -->
-        <div class="mb-6">
-          <form method="GET" class="flex flex-col sm:flex-row gap-4">
-            <!-- Search Input -->
-            <div class="flex-1 relative">
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <?= actionIcon('magnifying-glass', 'md', 'muted') ?>
-              </div>
-              <input type="text" name="search" value="<?php echo htmlspecialchars($search_filter); ?>"
-                placeholder="Search programs..."
-                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green">
-            </div>
+        <!-- Search and Filter Section -->
+        <div class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div class="p-4">
+            <form method="GET" action="" class="flex items-center justify-between">
+              <div class="flex items-center gap-6 flex-wrap min-w-0">
+                <!-- Search Input -->
+                <div class="relative flex-shrink-0">
+                  <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
+                  </svg>
+                  <input type="text" name="search" id="searchInput" value="<?php echo htmlspecialchars($search_filter); ?>" placeholder="Search programs..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent" style="width: 280px;">
+                </div>
 
-            <!-- Status Filter -->
-            <div class="relative">
-              <select name="status" class="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 text-sm focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green">
-                <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Programs</option>
-                <option value="upcoming" <?php echo $status_filter === 'upcoming' ? 'selected' : ''; ?>>Upcoming</option>
-                <option value="ongoing" <?php echo $status_filter === 'ongoing' ? 'selected' : ''; ?>>Ongoing</option>
-                <option value="ended" <?php echo $status_filter === 'ended' ? 'selected' : ''; ?>>Ended</option>
-              </select>
-              <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <?= actionIcon('chevron-down', 'sm', 'muted') ?>
-              </div>
-            </div>
+                <!-- Status Filter -->
+                <div class="relative flex-shrink-0" style="min-width: 140px; z-index: 50;">
+                  <select name="status" id="statusFilter" class="bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent w-full" onchange="this.form.submit()" style="position: relative; z-index: 50; -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none;">
+                    <option value="all" <?php echo $status_filter === 'all' || empty($status_filter) ? 'selected' : ''; ?>>All Status</option>
+                    <option value="upcoming" <?php echo $status_filter === 'upcoming' ? 'selected' : ''; ?>>Upcoming</option>
+                    <option value="ongoing" <?php echo $status_filter === 'ongoing' ? 'selected' : ''; ?>>Ongoing</option>
+                    <option value="ended" <?php echo $status_filter === 'ended' ? 'selected' : ''; ?>>Ended</option>
+                  </select>
+                  <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="currentColor" viewBox="0 0 20 20" style="z-index: 51;">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
 
-            <!-- Modality Filter -->
-            <div class="relative">
-              <select name="modality" class="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 text-sm focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green">
-                <option value="">All Modalities</option>
-                <option value="online" <?php echo $modality_filter === 'online' ? 'selected' : ''; ?>>Online</option>
-                <option value="physical" <?php echo $modality_filter === 'physical' ? 'selected' : ''; ?>>In-Person</option>
-                <option value="hybrid" <?php echo $modality_filter === 'hybrid' ? 'selected' : ''; ?>>Hybrid</option>
-              </select>
-              <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <?= actionIcon('chevron-down', 'sm', 'muted') ?>
+                <!-- Modality Filter -->
+                <div class="relative flex-shrink-0" style="min-width: 140px; z-index: 40;">
+                  <select name="modality" id="modalityFilter" class="bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent w-full" onchange="this.form.submit()" style="position: relative; z-index: 40; -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none;">
+                    <option value="" <?php echo empty($modality_filter) ? 'selected' : ''; ?>>All Modalities</option>
+                    <option value="online" <?php echo $modality_filter === 'online' ? 'selected' : ''; ?>>Online</option>
+                    <option value="physical" <?php echo $modality_filter === 'physical' ? 'selected' : ''; ?>>In-Person</option>
+                    <option value="hybrid" <?php echo $modality_filter === 'hybrid' ? 'selected' : ''; ?>>Hybrid</option>
+                  </select>
+                  <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="currentColor" viewBox="0 0 20 20" style="z-index: 41;">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
               </div>
-            </div>
 
-            <!-- Search Button -->
-            <button type="submit" class="px-4 py-2 bg-tplearn-green text-white rounded-lg hover:bg-green-700 transition-colors">
-              <?= iconWithSpacing('magnifying-glass', 'sm', 'secondary', 'mr-1') ?>
-              Search
-            </button>
-          </form>
+              <!-- Clear Filters Button -->
+              <a href="?" class="px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 hover:border-tplearn-green focus:outline-none focus:ring-2 focus:ring-green-400">
+                Clear Filters
+              </a>
+            </form>
+          </div>
         </div>
 
         <!-- Results Summary -->
@@ -600,42 +728,77 @@ function getStatusBadge($status)
               $gradient = $categoryGradients[$program['category']] ?? $categoryGradients['General'];
               ?>
 
-              <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100">
+              <div class="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-tplearn-green cursor-pointer transform hover:-translate-y-1 hover:scale-105 group program-card-hover">
                 <!-- Program Image -->
-                <div class="h-48 bg-gradient-to-br <?= $gradient ?> relative rounded-t-lg">
-                  <div class="absolute inset-0 bg-black bg-opacity-10 rounded-t-lg"></div>
-                  <div class="absolute top-4 left-4">
-                    <span class="inline-block <?= $status_badge['bg'] ?> <?= $status_badge['text'] ?> text-xs px-3 py-1 rounded-full font-medium shadow-sm">
-                      <?= htmlspecialchars($status_badge['label']) ?>
-                    </span>
-                  </div>
-
-                  <!-- Enrollment Status Badge -->
-                  <?php if ($enrollment_badge): ?>
-                    <div class="absolute top-4 right-4">
-                      <span class="inline-block <?= $enrollment_badge['bg'] ?> <?= $enrollment_badge['text'] ?> text-xs px-3 py-1 rounded-full font-medium shadow-sm">
-                        <?= htmlspecialchars($enrollment_badge['label']) ?>
+                <?php if (!empty($program['cover_image'])): ?>
+                  <!-- Use cover image -->
+                  <div class="h-48 relative rounded-t-lg overflow-hidden">
+                    <img src="../../serve_image.php?file=<?= htmlspecialchars(basename($program['cover_image'])) ?>" 
+                         alt="<?= htmlspecialchars($program['name']) ?> cover" 
+                         class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110 image-zoom"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <!-- Fallback gradient background (hidden by default) -->
+                    <div class="h-48 bg-gradient-to-br <?= $gradient ?> relative rounded-t-lg" style="display: none;">
+                      <div class="absolute inset-0 bg-black bg-opacity-10 rounded-t-lg"></div>
+                      <div class="absolute inset-0 flex items-center justify-center">
+                        <?= icon('book-open', '3xl text-white opacity-80') ?>
+                      </div>
+                    </div>
+                    <div class="absolute inset-0 bg-black bg-opacity-20 rounded-t-lg group-hover:bg-opacity-30 transition-all duration-300"></div>
+                    <div class="absolute top-4 left-4">
+                      <span class="inline-block <?= $status_badge['bg'] ?> <?= $status_badge['text'] ?> text-xs px-3 py-1 rounded-full font-medium shadow-sm transform group-hover:scale-105 transition-transform duration-300">
+                        <?= htmlspecialchars($status_badge['label']) ?>
                       </span>
                     </div>
-                  <?php endif; ?>
-
-                  <!-- Book Icon -->
-                  <div class="absolute inset-0 flex items-center justify-center">
-                    <?= icon('book-open', '3xl text-white opacity-80') ?>
+                    
+                    <!-- Enrollment Status Badge (only show for non-ended programs) -->
+                    <?php if ($enrollment_badge && $program['calculated_status'] !== 'ended'): ?>
+                      <div class="absolute top-4 right-4">
+                        <span class="inline-block <?= $enrollment_badge['bg'] ?> <?= $enrollment_badge['text'] ?> text-xs px-3 py-1 rounded-full font-medium shadow-sm transform group-hover:scale-105 transition-transform duration-300">
+                          <?= htmlspecialchars($enrollment_badge['label']) ?>
+                        </span>
+                      </div>
+                    <?php endif; ?>
                   </div>
-                </div>
+                <?php else: ?>
+                  <!-- Use gradient background (fallback) -->
+                  <div class="h-48 bg-gradient-to-br <?= $gradient ?> relative rounded-t-lg transition-all duration-300 group-hover:bg-gradient-to-bl">
+                    <div class="absolute inset-0 bg-black bg-opacity-10 rounded-t-lg group-hover:bg-opacity-20 transition-all duration-300"></div>
+                    <div class="absolute top-4 left-4">
+                      <span class="inline-block <?= $status_badge['bg'] ?> <?= $status_badge['text'] ?> text-xs px-3 py-1 rounded-full font-medium shadow-sm transform group-hover:scale-105 transition-transform duration-300">
+                        <?= htmlspecialchars($status_badge['label']) ?>
+                      </span>
+                    </div>
+
+                    <!-- Enrollment Status Badge (only show for non-ended programs) -->
+                    <?php if ($enrollment_badge && $program['calculated_status'] !== 'ended'): ?>
+                      <div class="absolute top-4 right-4">
+                        <span class="inline-block <?= $enrollment_badge['bg'] ?> <?= $enrollment_badge['text'] ?> text-xs px-3 py-1 rounded-full font-medium shadow-sm transform group-hover:scale-105 transition-transform duration-300">
+                          <?= htmlspecialchars($enrollment_badge['label']) ?>
+                        </span>
+                      </div>
+                    <?php endif; ?>
+
+                    <!-- Book Icon -->
+                    <div class="absolute inset-0 flex items-center justify-center">
+                      <div class="transform group-hover:scale-110 transition-transform duration-300">
+                        <?= icon('book-open', '3xl text-white opacity-80') ?>
+                      </div>
+                    </div>
+                  </div>
+                <?php endif; ?>
 
                 <!-- Program Details -->
-                <div class="p-6">
-                  <h3 class="text-lg font-semibold text-gray-900 mb-3 line-clamp-2"><?= htmlspecialchars($program['name']) ?></h3>
+                <div class="p-6 group-hover:bg-gray-50 transition-colors duration-300">
+                  <h3 class="text-lg font-semibold text-gray-900 mb-3 line-clamp-2 group-hover:text-tplearn-green transition-colors duration-300"><?= htmlspecialchars($program['name']) ?></h3>
 
                   <!-- Program Info -->
                   <div class="space-y-3 mb-4">
-                    <div class="flex items-center text-sm text-gray-600">
+                    <div class="flex items-center text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">
                       <?= iconWithSpacing('user', 'sm', 'secondary') ?>
                       <?= htmlspecialchars($program['age_group'] ?? 'All Ages') ?>
                     </div>
-                    <div class="flex items-center text-sm text-blue-600">
+                    <div class="flex items-center text-sm text-blue-600 group-hover:text-blue-700 transition-colors duration-300">
                       <span class="font-medium capitalize"><?= htmlspecialchars($program['session_type'] ?? 'Online') ?></span>
                       <span class="mx-2">•</span>
                       <span><?= htmlspecialchars($program['location'] ?? 'Online') ?></span>
@@ -664,7 +827,7 @@ function getStatusBadge($status)
                       ?>
                       <?= htmlspecialchars($days) ?> • <?= $start_time ?>-<?= $end_time ?>
                     </div>
-                    <div class="flex items-center text-sm text-gray-600">
+                    <div class="flex items-center text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">
                       <?= iconWithSpacing('users', 'sm', 'secondary') ?>
                       <?= $program['enrolled_count'] ?>/<?= $program['max_students'] ?> students
                       <?php
@@ -672,32 +835,32 @@ function getStatusBadge($status)
                         ($program['enrolled_count'] / $program['max_students']) * 100 : 0;
                       $available_slots = $program['max_students'] - $program['enrolled_count'];
                       ?>
-                      <div class="ml-2 flex-1 bg-gray-200 rounded-full h-2">
-                        <div class="bg-tplearn-green h-2 rounded-full" style="width: <?= min($enrollment_percentage, 100) ?>%"></div>
+                      <div class="ml-2 flex-1 bg-gray-200 rounded-full h-2 group-hover:bg-gray-300 transition-colors duration-300">
+                        <div class="bg-tplearn-green h-2 rounded-full group-hover:bg-green-500 transition-all duration-300" style="width: <?= min($enrollment_percentage, 100) ?>%"></div>
                       </div>
                       <?php if ($available_slots <= 3 && $available_slots > 0): ?>
-                        <span class="ml-2 text-xs text-orange-600 font-medium">
+                        <span class="ml-2 text-xs text-orange-600 font-medium group-hover:text-orange-700 transition-colors duration-300">
                           <?= $available_slots ?> left
                         </span>
                       <?php elseif ($available_slots <= 0): ?>
-                        <span class="ml-2 text-xs text-red-600 font-medium">Full</span>
+                        <span class="ml-2 text-xs text-red-600 font-medium group-hover:text-red-700 transition-colors duration-300">Full</span>
                       <?php endif; ?>
                     </div>
                   </div>
 
                   <!-- Program Description -->
-                  <p class="text-sm text-gray-600 mb-4"><?= htmlspecialchars(substr($program['description'] ?? 'No description available.', 0, 120)) ?><?= strlen($program['description'] ?? '') > 120 ? '...' : '' ?></p>
+                  <p class="text-sm text-gray-600 mb-4 group-hover:text-gray-700 transition-colors duration-300"><?= htmlspecialchars(substr($program['description'] ?? 'No description available.', 0, 120)) ?><?= strlen($program['description'] ?? '') > 120 ? '...' : '' ?></p>
 
                   <!-- Price and Action -->
                   <div class="flex items-center justify-between">
-                    <div class="text-xl font-bold text-tplearn-green">
+                    <div class="text-xl font-bold text-tplearn-green group-hover:text-green-600 transition-colors duration-300">
                       ₱<?= number_format((float)($program['fee'] ?? 0), 0) ?>
                     </div>
 
                     <div class="flex items-center space-x-2">
                       <!-- View Details button for all programs -->
                       <button onclick="viewProgramDetails(<?php echo $program['id']; ?>)"
-                        class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+                        class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 hover:shadow-md transform hover:scale-105 transition-all duration-200"
                         title="View program details">
                         <?= actionIcon('eye') ?>
                       </button>
@@ -708,14 +871,33 @@ function getStatusBadge($status)
                           <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                           <input type="hidden" name="program_id" value="<?php echo $program['id']; ?>">
                           <button type="submit" name="enroll_program"
-                            class="bg-tplearn-green text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition-colors"
-                            onclick="return confirm('Are you sure you want to enroll in this program?')">
+                            class="bg-tplearn-green text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-600 hover:shadow-lg transform hover:scale-105 transition-all duration-200 btn-glow btn-pulse"
+                            onclick="handleConfirmClick(this, 'Confirm Action', 'Are you sure you want to enroll in this program?')">
                             Enroll Now
                           </button>
                         </form>
                       <?php elseif ($is_enrolled): ?>
-                        <span class="bg-green-100 text-green-800 px-4 py-2 rounded-lg text-sm font-medium">
-                          <?php echo ucfirst($program['enrollment_status']); ?>
+                        <?php
+                        // Map enrollment status display names
+                        $status_display = $program['enrollment_status'];
+                        if ($status_display === 'cancelled') {
+                          $status_display = 'inactive';
+                        }
+                        
+                        // Set appropriate CSS classes based on status
+                        $status_classes = 'px-4 py-2 rounded-lg text-sm font-medium transform hover:scale-105 transition-all duration-200';
+                        if (in_array($program['enrollment_status'], ['active', 'completed'])) {
+                          $status_classes .= ' bg-green-100 text-green-800 hover:bg-green-200';
+                        } elseif ($program['enrollment_status'] === 'pending') {
+                          $status_classes .= ' bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
+                        } elseif ($program['enrollment_status'] === 'cancelled') {
+                          $status_classes .= ' bg-gray-100 text-gray-800 hover:bg-gray-200';
+                        } else {
+                          $status_classes .= ' bg-blue-100 text-blue-800 hover:bg-blue-200';
+                        }
+                        ?>
+                        <span class="<?php echo $status_classes; ?>">
+                          <?php echo ucfirst($status_display); ?>
                         </span>
                       <?php elseif (!$has_capacity): ?>
                         <span class="bg-red-100 text-red-800 px-4 py-2 rounded-lg text-sm font-medium"
@@ -825,6 +1007,16 @@ function getStatusBadge($status)
       }, 5000);
     });
 
+    // Clear filters functionality
+    function clearFilters() {
+      const url = new URL(window.location);
+      url.searchParams.delete('search');
+      url.searchParams.delete('status');
+      url.searchParams.delete('modality');
+      url.searchParams.delete('page');
+      window.location.href = url.toString();
+    }
+
     // Modal functionality for program details
     function viewProgramDetails(programId) {
       console.log('=== MODAL DEBUG ===');
@@ -858,7 +1050,7 @@ function getStatusBadge($status)
         })
         .catch(error => {
           console.error('Error:', error);
-          alert(`Error loading program details: ${error.message}. Please try again.`);
+          TPAlert.info('Information', `Error loading program details: ${error.message}. Please try again.`);
         });
     }
 
@@ -990,10 +1182,29 @@ function getStatusBadge($status)
           // Check if student is already enrolled (from API data)
           if (program.enrollment_status) {
             console.log('Showing enrollment status badge:', program.enrollment_status);
+            
+            // Map enrollment status display names
+            let statusDisplay = program.enrollment_status;
+            if (statusDisplay === 'cancelled') {
+              statusDisplay = 'inactive';
+            }
+            
+            // Set appropriate CSS classes based on status
+            let statusClasses = 'px-4 py-2 rounded-lg text-sm font-medium';
+            if (['active', 'completed'].includes(program.enrollment_status)) {
+              statusClasses += ' bg-green-100 text-green-800';
+            } else if (program.enrollment_status === 'pending') {
+              statusClasses += ' bg-yellow-100 text-yellow-800';
+            } else if (program.enrollment_status === 'cancelled') {
+              statusClasses += ' bg-gray-100 text-gray-800';
+            } else {
+              statusClasses += ' bg-blue-100 text-blue-800';
+            }
+            
             // Student is already enrolled
             actionContainer.innerHTML = `
-              <span class="bg-green-100 text-green-800 px-4 py-2 rounded-lg text-sm font-medium">
-                ${program.enrollment_status.charAt(0).toUpperCase() + program.enrollment_status.slice(1)}
+              <span class="${statusClasses}">
+                ${statusDisplay.charAt(0).toUpperCase() + statusDisplay.slice(1)}
               </span>
             `;
           } else if (enrolledCount >= maxStudents) {
@@ -1025,7 +1236,7 @@ function getStatusBadge($status)
                 <input type="hidden" name="program_id" value="${program.id}">
                 <button type="submit" name="enroll_program"
                   class="bg-tplearn-green text-white px-6 py-3 rounded-lg font-medium hover:bg-green-600 transition-colors"
-                  onclick="return confirm('Are you sure you want to enroll in this program?')">
+                  onclick="handleConfirmClick(this, 'Confirm Action', 'Are you sure you want to enroll in this program?')">
                   Enroll Now
                 </button>
               </form>
@@ -1035,7 +1246,7 @@ function getStatusBadge($status)
 
       } catch (error) {
         console.error('Error populating modal:', error);
-        alert('Error displaying program details. Please try again.');
+        TPAlert.error('Error', 'Error displaying program details. Please try again.');
       }
     }
 
@@ -1054,6 +1265,36 @@ function getStatusBadge($status)
         if (!modal.classList.contains('hidden')) {
           closeProgramDetailsModal();
         }
+      }
+    });
+
+    // Auto-hide messages after 5 seconds
+    function hideMessage(messageId) {
+      const messageElement = document.getElementById(messageId);
+      if (messageElement) {
+        messageElement.style.opacity = '0';
+        messageElement.style.transform = 'translateY(-10px)';
+        setTimeout(() => {
+          messageElement.style.display = 'none';
+        }, 500);
+      }
+    }
+
+    // Auto-hide messages when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      const successMessage = document.getElementById('success-message');
+      const errorMessage = document.getElementById('error-message');
+      
+      if (successMessage) {
+        setTimeout(() => {
+          hideMessage('success-message');
+        }, 5000); // Hide after 5 seconds
+      }
+      
+      if (errorMessage) {
+        setTimeout(() => {
+          hideMessage('error-message');
+        }, 7000); // Hide error messages after 7 seconds (give more time to read)
       }
     });
   </script>
@@ -1167,6 +1408,39 @@ function getStatusBadge($status)
       </div>
     </div>
   </div>
+
+  <script>
+    // Handle confirmation clicks for enrollment
+    function handleConfirmClick(button, title, message) {
+      // Prevent default form submission
+      event.preventDefault();
+      
+      // Show confirmation dialog
+      if (confirm(message)) {
+        // If confirmed, submit the form
+        button.closest('form').submit();
+      }
+      // If not confirmed, do nothing (form won't submit)
+    }
+
+    // Notification and message functions are handled by header.php
+    // No need for custom functions here
+
+    // Mobile menu functionality (if exists)
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    if (mobileMenuButton) {
+      mobileMenuButton.addEventListener('click', function() {
+        console.log('Mobile menu clicked');
+      });
+    }
+
+    // Close modal when clicking outside
+    document.addEventListener('click', function(event) {
+      if (event.target.classList.contains('fixed') && event.target.classList.contains('bg-black')) {
+        event.target.remove();
+      }
+    });
+  </script>
 </body>
 
 </html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Submissions Loading - Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-5xl mx-auto">
+        <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-2xl p-8 mb-8">
+            <h1 class="text-4xl font-bold mb-3">🔧 Fix: Submissions Not Loading</h1>
+            <p class="text-xl opacity-90">Comprehensive debugging and solution for attached assessment submissions</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-lg p-6 border-t-4 border-blue-500">
+                <h3 class="text-lg font-bold text-blue-900 mb-2">1. Check Console</h3>
+                <p class="text-sm text-gray-600 mb-3">Open browser developer tools (F12) and check console for errors</p>
+                <a href="#console" class="text-blue-600 hover:text-blue-800 text-sm font-semibold">Learn More →</a>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-lg p-6 border-t-4 border-green-500">
+                <h3 class="text-lg font-bold text-green-900 mb-2">2. Test API</h3>
+                <p class="text-sm text-gray-600 mb-3">Verify API is working correctly with test tool</p>
+                <a href="/TPLearn/test_submissions_api.html" class="text-green-600 hover:text-green-800 text-sm font-semibold">Open Tester →</a>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-lg p-6 border-t-4 border-purple-500">
+                <h3 class="text-lg font-bold text-purple-900 mb-2">3. Create Data</h3>
+                <p class="text-sm text-gray-600 mb-3">Generate test submissions if database is empty</p>
+                <a href="/TPLearn/create_test_submissions.php" class="text-purple-600 hover:text-purple-800 text-sm font-semibold">Generate →</a>
+            </div>
+        </div>
+
+        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-6 mb-8">
+            <div class="flex items-start">
+                <svg class="w-6 h-6 text-yellow-600 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                </svg>
+                <div>
+                    <h3 class="text-lg font-bold text-yellow-900 mb-2">Quick Fix Steps</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-yellow-800">
+                        <li>Open Developer Tools (Press <kbd class="bg-yellow-200 px-2 py-1 rounded">F12</kbd>)</li>
+                        <li>Go to <strong>Console</strong> tab</li>
+                        <li>Click "Submissions" button on attached assessment</li>
+                        <li>Read the console logs to see what's happening</li>
+                        <li>If "No submissions found", create test data below</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div id="console" class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">📋 Console Log Guide</h2>
+            
+            <div class="space-y-4">
+                <div class="bg-green-50 border border-green-200 rounded p-4">
+                    <h3 class="font-bold text-green-900 mb-2">✅ Success Pattern</h3>
+                    <pre class="bg-white p-3 rounded text-xs font-mono overflow-x-auto">🔍 Loading submissions for material: 49 Context: assessment
+📡 Assessment API: http://localhost/TPLearn/api/get-assessment-submissions.php?material_id=49
+✅ Assessment API HTTP Status: 200
+📄 Raw Response: {"success":true,"assessment":{...}}
+📦 Parsed Assessment API Response: {success: true, ...}
+✅ Using assessment data
+🎨 Displaying submissions data: 1 DURAN Elfliiibusterismo</pre>
+                    <p class="text-sm text-green-700 mt-2"><strong>Meaning:</strong> API is working, data loaded successfully</p>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 rounded p-4">
+                    <h3 class="font-bold text-blue-900 mb-2">ℹ️ No Data Pattern</h3>
+                    <pre class="bg-white p-3 rounded text-xs font-mono overflow-x-auto">✅ Assessment API HTTP Status: 200
+📦 Parsed Assessment API Response: {success: true, statistics: {total_submissions: 0}, ...}
+✅ Using assessment data
+🎨 Displaying submissions data: 1 DURAN Elfliiibusterismo</pre>
+                    <p class="text-sm text-blue-700 mt-2"><strong>Meaning:</strong> API works but no submissions in database. <a href="/TPLearn/create_test_submissions.php" class="underline font-semibold">Create test data</a></p>
+                </div>
+
+                <div class="bg-red-50 border border-red-200 rounded p-4">
+                    <h3 class="font-bold text-red-900 mb-2">❌ Error Pattern</h3>
+                    <pre class="bg-white p-3 rounded text-xs font-mono overflow-x-auto">❌ Assessment API HTTP Status: 500
+📄 Raw Response: &lt;br /&gt;&lt;b&gt;Parse error&lt;/b&gt;: syntax error...
+❌ JSON Parse Error: Unexpected token &lt; in JSON
+Failed to parse response: &lt;br /&gt;...</pre>
+                    <p class="text-sm text-red-700 mt-2"><strong>Meaning:</strong> PHP error in API file. Check <code>api/get-assessment-submissions.php</code> for syntax errors</p>
+                </div>
+
+                <div class="bg-orange-50 border border-orange-200 rounded p-4">
+                    <h3 class="font-bold text-orange-900 mb-2">⚠️ Auth Error Pattern</h3>
+                    <pre class="bg-white p-3 rounded text-xs font-mono overflow-x-auto">📦 Parsed Assessment API Response: {success: false, error: "Not logged in"}
+❌ Both APIs failed
+Displaying error: Not logged in. Please log in first.</pre>
+                    <p class="text-sm text-orange-700 mt-2"><strong>Meaning:</strong> Session expired. Log in again as tutor</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">🛠️ Testing Tools</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="border border-gray-200 rounded p-4">
+                    <h3 class="font-bold text-gray-900 mb-2">🧪 API Tester</h3>
+                    <p class="text-sm text-gray-600 mb-3">Visual tool to test the API directly without going through the UI</p>
+                    <a href="/TPLearn/test_submissions_api.html" target="_blank" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-blue-700 inline-block">
+                        Open API Tester
+                    </a>
+                </div>
+
+                <div class="border border-gray-200 rounded p-4">
+                    <h3 class="font-bold text-gray-900 mb-2">🔍 Backend Debug</h3>
+                    <p class="text-sm text-gray-600 mb-3">Check database and API responses from server side</p>
+                    <a href="/TPLearn/debug_submission_api.php" target="_blank" class="bg-green-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-green-700 inline-block">
+                        Open Debugger
+                    </a>
+                </div>
+
+                <div class="border border-gray-200 rounded p-4">
+                    <h3 class="font-bold text-gray-900 mb-2">📝 Create Test Data</h3>
+                    <p class="text-sm text-gray-600 mb-3">Generate sample submissions for testing purposes</p>
+                    <a href="/TPLearn/create_test_submissions.php" target="_blank" class="bg-purple-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-purple-700 inline-block">
+                        Generate Data
+                    </a>
+                </div>
+
+                <div class="border border-gray-200 rounded p-4">
+                    <h3 class="font-bold text-gray-900 mb-2">🎯 Go to Stream</h3>
+                    <p class="text-sm text-gray-600 mb-3">Test the actual submissions button in tutor stream</p>
+                    <a href="/TPLearn/dashboards/tutor/tutor-program-stream.php?program_id=32&program=New+Prog" target="_blank" class="bg-teal-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-teal-700 inline-block">
+                        Open Stream
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 text-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4">📚 Technical Details</h2>
+            <div class="space-y-3 text-sm">
+                <p><strong class="text-blue-400">Enhanced Logging:</strong> Added detailed console.log statements at each step of the API call process</p>
+                <p><strong class="text-green-400">Better Error Handling:</strong> Catches JSON parse errors and network failures with specific messages</p>
+                <p><strong class="text-purple-400">Raw Response Logging:</strong> Shows first 500 characters of response to identify HTML errors</p>
+                <p><strong class="text-yellow-400">Context Tracking:</strong> Knows if request is for assessment or assignment to show correct error message</p>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center text-gray-600">
+            <p class="mb-2">Need more help? Check the <a href="/TPLearn/FIX_ATTACHED_ASSESSMENT_SUBMISSIONS.md" class="text-blue-600 hover:text-blue-800 underline">full documentation</a></p>
+            <p class="text-xs">Last updated: October 8, 2025</p>
+        </div>
+    </div>
+</body>
+</html>

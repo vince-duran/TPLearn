@@ -5,10 +5,20 @@ require_once __DIR__ . '/../includes/db.php';
 // Set content type to JSON
 header('Content-Type: application/json');
 
-// Check if user is authenticated and is admin
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+// Check if user is authenticated and has appropriate role
+if (!isset($_SESSION['user_id'])) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Access denied']);
+    echo json_encode(['success' => false, 'message' => 'Access denied - not authenticated']);
+    exit;
+}
+
+// Allow both admin and tutor roles, but tutors have restricted access
+$user_role = $_SESSION['role'] ?? '';
+$user_id = $_SESSION['user_id'];
+
+if (!in_array($user_role, ['admin', 'tutor'])) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Access denied - insufficient permissions']);
     exit;
 }
 
@@ -20,9 +30,21 @@ switch ($action) {
         getStudentDetails();
         break;
     case 'update_student':
+        // Only admin can update students
+        if ($user_role !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied - admin only']);
+            exit;
+        }
         updateStudent();
         break;
     case 'deactivate_student':
+        // Only admin can deactivate students
+        if ($user_role !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied - admin only']);
+            exit;
+        }
         deactivateStudent();
         break;
     default:
@@ -61,6 +83,25 @@ function getStudentDetails() {
             echo json_encode(['success' => false, 'message' => 'User is not a student (role: ' . $userCheck['role'] . ')']);
             return;
         }
+
+        // If user is a tutor, check if they have access to this student
+        global $user_role, $user_id;
+        if ($user_role === 'tutor') {
+            $tutorAccessStmt = $pdo->prepare("
+                SELECT COUNT(*) as has_access 
+                FROM enrollments e 
+                JOIN programs p ON e.program_id = p.id 
+                WHERE e.student_user_id = ? AND p.tutor_id = ? AND e.status = 'active'
+            ");
+            $tutorAccessStmt->execute([$studentId, $user_id]);
+            $accessCheck = $tutorAccessStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($accessCheck['has_access'] == 0) {
+                error_log("API: Tutor $user_id does not have access to student $studentId");
+                echo json_encode(['success' => false, 'message' => 'Access denied - student not in your programs']);
+                return;
+            }
+        }
         
         // Get detailed student information with all fields
         $stmt = $pdo->prepare("
@@ -74,6 +115,7 @@ function getStudentDetails() {
                 sp.first_name,
                 sp.last_name,
                 sp.middle_name,
+                sp.gender,
                 sp.birthday,
                 sp.age,
                 sp.province,
@@ -88,6 +130,10 @@ function getStudentDetails() {
                 sp.is_pwd,
                 sp.user_id as profile_user_id,
                 sp.student_id,
+                pp.contact_number,
+                pp.full_name as parent_name,
+                pp.facebook_name as parent_facebook,
+                pp.address as parent_address,
                 COUNT(DISTINCT e.id) as enrolled_programs,
                 COUNT(DISTINCT CASE WHEN e.status = 'active' THEN e.id END) as active_programs,
                 MAX(e.created_at) as last_enrollment,
@@ -98,6 +144,7 @@ function getStudentDetails() {
                 END as calculated_status
             FROM users u
             LEFT JOIN student_profiles sp ON u.id = sp.user_id
+            LEFT JOIN parent_profiles pp ON u.id = pp.student_user_id
             LEFT JOIN enrollments e ON u.id = e.student_user_id
             WHERE u.id = ? AND u.role = 'student'
             GROUP BY u.id
@@ -115,7 +162,7 @@ function getStudentDetails() {
         error_log("API: Successfully found student: " . ($student['first_name'] ?? 'No name') . " " . ($student['last_name'] ?? ''));
         
         // Get enrollment details
-        $enrollmentStmt = $pdo->prepare("
+        $enrollmentQuery = "
             SELECT 
                 e.id,
                 e.status,
@@ -139,11 +186,19 @@ function getStudentDetails() {
                 FROM payments 
                 GROUP BY enrollment_id
             ) pay_status ON e.id = pay_status.enrollment_id
-            WHERE e.student_user_id = ?
-            ORDER BY e.created_at DESC
-        ");
+            WHERE e.student_user_id = ?";
         
-        $enrollmentStmt->execute([$studentId]);
+        // If tutor, only show enrollments in their programs
+        $queryParams = [$studentId];
+        if ($user_role === 'tutor') {
+            $enrollmentQuery .= " AND p.tutor_id = ?";
+            $queryParams[] = $user_id;
+        }
+        
+        $enrollmentQuery .= " ORDER BY e.created_at DESC";
+        
+        $enrollmentStmt = $pdo->prepare($enrollmentQuery);
+        $enrollmentStmt->execute($queryParams);
         $enrollments = $enrollmentStmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Get payment history

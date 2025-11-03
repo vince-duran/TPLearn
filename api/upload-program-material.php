@@ -185,6 +185,47 @@ try {
 
         $material_id = $conn->insert_id;
 
+        // Create notification for students enrolled in this program
+        try {
+            require_once '../includes/notification-helpers.php';
+            
+            // Get program name
+            $program_stmt = $conn->prepare("SELECT name FROM programs WHERE id = ?");
+            $program_stmt->bind_param('i', $program_id);
+            $program_stmt->execute();
+            $program_result = $program_stmt->get_result();
+            $program_data = $program_result->fetch_assoc();
+            
+            if ($program_data) {
+                // Get all students enrolled in this program
+                $students_stmt = $conn->prepare("
+                    SELECT DISTINCT e.student_user_id 
+                    FROM enrollments e 
+                    WHERE e.program_id = ? AND e.status = 'active'
+                ");
+                $students_stmt->bind_param('i', $program_id);
+                $students_stmt->execute();
+                $students_result = $students_stmt->get_result();
+                
+                // Create notification for each enrolled student
+                while ($student_row = $students_result->fetch_assoc()) {
+                    $notification_result = createMaterialNotification(
+                        $student_row['student_user_id'],
+                        $title,
+                        $program_data['name']
+                    );
+                    
+                    if (!$notification_result['success']) {
+                        error_log("Failed to create material notification for student {$student_row['student_user_id']}: " . $notification_result['error']);
+                    }
+                }
+                
+                error_log("Material notifications sent to enrolled students");
+            }
+        } catch (Exception $e) {
+            error_log("Error sending material notifications: " . $e->getMessage());
+        }
+
 
 
         // Handle assessment attachment if provided (for additional assessment files)

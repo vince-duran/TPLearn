@@ -1,9 +1,19 @@
 <?php
+// Suppress any potential debug output
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// Start output buffering to prevent any accidental output
+ob_start();
+
 require_once __DIR__ . '/../../assets/icons.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/data-helpers.php';
 require_once '../../includes/ui-components.php';
 requireRole('admin');
+
+// Clean any accidental output
+ob_end_clean();
 
 // Get search and filter parameters
 $search_filter = $_GET['search'] ?? '';
@@ -38,6 +48,20 @@ if (!empty($search_filter) || !empty($status_filter)) {
 }
 
 $tutorsCount = count($tutors);
+
+// Pagination settings
+$itemsPerPage = 10;
+$page = max(1, (int)($_GET['page'] ?? 1));
+$offset = ($page - 1) * $itemsPerPage;
+$total_items = $tutorsCount;
+$total_pages = ceil($total_items / $itemsPerPage);
+
+// Get paginated tutors
+$paginatedTutors = array_slice($tutors, $offset, $itemsPerPage);
+
+// Calculate showing range
+$showingFrom = $total_items > 0 ? $offset + 1 : 0;
+$showingTo = min($offset + $itemsPerPage, $total_items);
 
 // Calculate additional stats
 $tutorsWithPrograms = 0;
@@ -110,39 +134,29 @@ foreach ($tutors as $tutor) {
     }
 
     .status-inactive {
-      background-color: #fee2e2;
-      color: #991b1b;
+      background-color: #f3f4f6;
+      color: #6b7280;
     }
 
     .status-pending {
-      background-color: #fef3c7;
-      color: #92400e;
-    }
-
-    .status-on-leave {
-      background-color: #e0e7ff;
-      color: #3730a3;
-    }
-
-    /* Program badge styles */
-    .program-math {
       background-color: #dbeafe;
       color: #1e40af;
     }
 
-    .program-science {
+    .status-on-leave {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+
+    /* Program badge styles */
+    .program-active {
       background-color: #d1fae5;
       color: #065f46;
     }
 
-    .program-english {
-      background-color: #fce7f3;
-      color: #be185d;
-    }
-
-    .program-advanced {
-      background-color: #f3e8ff;
-      color: #7c2d12;
+    .program-none {
+      background-color: #f3f4f6;
+      color: #6b7280;
     }
   </style>
 </head>
@@ -157,13 +171,16 @@ foreach ($tutors as $tutor) {
     <div class="lg:ml-64 flex-1">
       <?php 
       require_once '../../includes/header.php';
+      
+      // Get admin notifications
+      $admin_notifications = getAdminNotifications(15);
+      
       renderHeader(
         'Tutors',
         '',
         'admin',
-        $_SESSION['name'] ?? 'Admin',
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
+        $_SESSION['username'] ?? 'Admin',
+        $admin_notifications
       );
       ?>
 
@@ -173,24 +190,18 @@ foreach ($tutors as $tutor) {
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
           <div class="p-4">
             <form method="GET" action="" class="flex items-center justify-between">
-              <div class="flex items-center space-x-4">
+              <div class="flex items-center gap-6 flex-wrap min-w-0">
                 <!-- Search Input -->
-                <div class="relative">
+                <div class="relative flex-shrink-0">
                   <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
                   </svg>
-                  <input type="text" 
-                    name="search" 
-                    value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>" 
-                    placeholder="Search tutors..." 
-                    class="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent w-64 h-10 text-sm">
+                  <input type="text" name="search" value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>" placeholder="Search tutors..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent" style="width: 280px;">
                 </div>
 
                 <!-- Status Filter -->
-                <div class="relative">
-                  <select name="status" 
-                    class="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent" 
-                    onchange="this.form.submit()">
+                <div class="relative flex-shrink-0" style="min-width: 140px;">
+                  <select name="status" class="bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-tplearn-green focus:border-transparent w-full" onchange="this.form.submit()">
                     <option value="" <?php echo empty($_GET['status']) ? 'selected' : ''; ?>>All Status</option>
                     <option value="active" <?php echo ($_GET['status'] ?? '') === 'active' ? 'selected' : ''; ?>>Active</option>
                     <option value="inactive" <?php echo ($_GET['status'] ?? '') === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
@@ -209,174 +220,252 @@ foreach ($tutors as $tutor) {
           </div>
         </div>
 
-        <!-- Tutors table -->
+        <!-- Results Summary -->
+        <div class="mb-4 flex justify-between items-center">
+          <div class="text-sm text-gray-600">
+            Showing <?php echo count($tutors); ?> of <?php echo $tutorsCount; ?> tutors
+          </div>
+        </div>
+
+        <!-- Tutors Table -->
         <div class="tplearn-table-container">
-          <!-- Table -->
           <div class="overflow-x-auto -mx-4 sm:mx-0">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tutor
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Contact
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Specialization
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Programs
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                <?php if (empty($tutors)): ?>
+            <div class="inline-block min-w-full align-middle">
+              <table class="min-w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <td colspan="6" class="px-6 py-12 text-center">
-                      <?= TPLearnUI::renderEmptyState([
-                        'title' => 'No tutors found',
-                        'description' => 'There are no tutors available at the moment.',
-                        'icon' => '<svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path></svg>'
-                      ]) ?>
-                    </td>
+                    <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tutor Information</th>
+                    <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Contact</th>
+                    <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Specialization</th>
+                    <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Programs</th>
+                    <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
-                <?php else: ?>
-                  <?php foreach ($tutors as $index => $tutor):
-                    // Generate avatar colors and initials
-                    $avatarColors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-pink-500', 'bg-orange-500', 'bg-indigo-500', 'bg-red-500'];
-                    $avatarColor = $avatarColors[$index % count($avatarColors)];
-
-                    // Get initials from name
-                    $nameParts = explode(' ', $tutor['name']);
-                    $initials = strtoupper(substr($nameParts[0], 0, 1) . (isset($nameParts[1]) ? substr($nameParts[1], 0, 1) : ''));
-
-                    // Determine status styles
-                    $statusStyles = [
-                      'active' => 'status-active',
-                      'inactive' => 'status-inactive',
-                      'on_leave' => 'status-on-leave',
-                      'pending' => 'status-pending'
-                    ];
-                    $statusClass = $statusStyles[$tutor['status']] ?? 'status-active';
-                  ?>
-
-                    <tr class="tutor-row">
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center">
-                          <div class="flex-shrink-0 h-10 w-10">
-                            <div class="h-10 w-10 rounded-full <?= $avatarColor ?> flex items-center justify-center">
-                              <span class="text-sm font-medium text-white"><?= $initials ?></span>
-                            </div>
-                          </div>
-                          <div class="ml-4">
-                            <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($tutor['name']) ?></div>
-                          </div>
-                        </div>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-gray-900"><?= htmlspecialchars($tutor['email']) ?></div>
-                        <div class="text-sm text-gray-500"><?= htmlspecialchars($tutor['phone'] ?? 'No phone') ?></div>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-gray-900"><?= htmlspecialchars($tutor['specialization'] ?? 'General') ?></div>
-                        <div class="text-sm text-gray-500"><?= htmlspecialchars($tutor['experience'] ?? 'New tutor') ?></div>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex flex-wrap gap-1">
-                          <?php if (!empty($tutor['programs'])): ?>
-                            <?php
-                            $programs = is_array($tutor['programs']) ? $tutor['programs'] : explode(',', $tutor['programs']);
-                            $programs = array_map('trim', $programs); // Remove whitespace
-                            $programColors = ['program-math', 'program-science', 'program-english', 'program-advanced'];
-                            ?>
-                            <?php foreach (array_slice($programs, 0, 2) as $idx => $program): ?>
-                              <?= TPLearnUI::renderBadge([
-                                'text' => strlen($program) > 12 ? substr($program, 0, 12) . '...' : $program,
-                                'variant' => 'info',
-                                'additional_classes' => 'mr-1'
-                              ]) ?>
-                            <?php endforeach; ?>
-                            <?php if (count($programs) > 2): ?>
-                              <span class="inline-flex px-2 py-1 text-xs text-gray-500 cursor-help" 
-                                    title="<?= htmlspecialchars(implode(', ', array_slice($programs, 2))) ?>">
-                                +<?= count($programs) - 2 ?> more
-                              </span>
-                            <?php endif; ?>
-                            <div class="text-xs text-gray-400 mt-1">
-                              Total: <?= $tutor['program_count'] ?? count($programs) ?> program<?= (($tutor['program_count'] ?? count($programs)) != 1) ? 's' : '' ?>
-                            </div>
-                          <?php else: ?>
-                            <span class="text-xs text-gray-500">No programs assigned</span>
-                            <div class="text-xs text-gray-400 mt-1">0 programs</div>
-                          <?php endif; ?>
-                        </div>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <?= TPLearnUI::renderBadge([
-                          'text' => ucfirst(str_replace('_', ' ', $tutor['status'] ?? 'unknown')),
-                          'variant' => $tutor['status'] ?? 'neutral'
-                        ]) ?>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div class="flex space-x-2">
-                          <?php if ($tutor['status'] === 'pending'): ?>
-                            <!-- Review button for pending tutors -->
-                            <?= TPLearnUI::renderButton([
-                              'text' => 'Review',
-                              'variant' => 'primary',
-                              'size' => 'sm',
-                              'additional_classes' => 'review-tutor',
-                              'data-tutor-id' => $tutor['id'],
-                              'data-tutor-name' => htmlspecialchars($tutor['name']),
-                              'title' => 'Review Tutor Application'
-                            ]) ?>
-                          <?php endif; ?>
-                          
-                          <!-- Standard action buttons for all tutors -->
-                          <?= TPLearnUI::renderButton([
-                            'type' => 'icon',
-                            'variant' => 'ghost',
-                            'size' => 'sm',
-                            'additional_classes' => 'view-tutor',
-                            'data-tutor-id' => $tutor['id'],
-                            'data-tutor-name' => htmlspecialchars($tutor['name']),
-                            'title' => 'View Tutor Details',
-                            'icon' => '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>'
-                          ]) ?>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <?php if (empty($tutors)): ?>
+                    <tr>
+                      <td colspan="6" class="px-6 py-12 text-center">
+                        <div class="mx-auto max-w-sm">
+                          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                          </svg>
+                          <h3 class="mt-2 text-sm font-medium text-gray-900">No tutors found</h3>
+                          <p class="mt-1 text-sm text-gray-500">There are no tutors matching your current filters.</p>
                         </div>
                       </td>
                     </tr>
-                  <?php endforeach; ?>
-                <?php endif; ?>
-              </tbody>
-            </table>
+                  <?php else: ?>
+                    <?php foreach ($paginatedTutors as $index => $tutor):
+                      // Generate avatar colors - All avators are now green
+                      $avatarColors = ['bg-green-500'];
+                      $avatarColor = $avatarColors[0];
+
+                      // Get two letters for avatar (first and last name initials)
+                      $fullName = isset($tutor['first_name']) && isset($tutor['last_name']) 
+                        ? $tutor['first_name'] . ' ' . $tutor['last_name']
+                        : ($tutor['name'] ?? $tutor['username'] ?? 'Unknown');
+                      
+                      // Generate two-letter initials
+                      if (isset($tutor['first_name']) && isset($tutor['last_name'])) {
+                        $initial = strtoupper(substr($tutor['first_name'], 0, 1) . substr($tutor['last_name'], 0, 1));
+                      } else if (isset($tutor['name']) && strpos($tutor['name'], ' ') !== false) {
+                        // If name field contains space, split on space
+                        $nameParts = explode(' ', $tutor['name'], 2);
+                        $initial = strtoupper(substr($nameParts[0], 0, 1) . substr($nameParts[1], 0, 1));
+                      } else {
+                        // Fallback: first two letters of available name/username
+                        $fallbackName = $tutor['name'] ?? $tutor['username'] ?? 'UN';
+                        $initial = strtoupper(substr($fallbackName, 0, 2));
+                      }
+
+                      // Display name
+                      $displayName = $fullName;
+                      
+                      // Determine status styles
+                      $statusVariants = [
+                        'active' => 'bg-green-100 text-green-800',
+                        'inactive' => 'bg-gray-100 text-gray-800',
+                        'on_leave' => 'bg-yellow-100 text-yellow-800',
+                        'pending' => 'bg-blue-100 text-blue-800'
+                      ];
+                      $statusClass = $statusVariants[$tutor['status'] ?? 'active'] ?? 'bg-gray-100 text-gray-800';
+                      $statusText = ucfirst(str_replace('_', ' ', $tutor['status'] ?? 'Active'));
+
+                      // Program information
+                      $programCount = $tutor['program_count'] ?? 0;
+                      $programText = $programCount === 0 ? 'No programs assigned' : $programCount . ' program' . ($programCount !== 1 ? 's' : '');
+                      
+                      // Contact information
+                      $phoneNumber = !empty($tutor['phone']) ? $tutor['phone'] : 'No phone';
+                      $specialization = !empty($tutor['specialization']) ? $tutor['specialization'] : 'New tutor';
+                    ?>
+
+                      <tr class="tutor-row">
+                        <td class="px-4 sm:px-6 py-4">
+                          <div class="flex items-center">
+                            <div class="w-10 h-10 <?= $avatarColor ?> rounded-full flex items-center justify-center mr-3 sm:mr-4">
+                              <span class="text-white font-medium text-sm"><?= $initial ?></span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                              <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($displayName) ?></div>
+                              <div class="text-sm text-gray-500"><?= htmlspecialchars($tutor['username'] ?? $tutor['user_id'] ?? 'N/A') ?></div>
+                              <div class="lg:hidden mt-1">
+                                <div class="text-xs text-gray-500 flex items-center">
+                                  <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
+                                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+                                  </svg>
+                                  <?= htmlspecialchars($tutor['email']) ?>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                  <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
+                                  </svg>
+                                  <?= htmlspecialchars($phoneNumber) ?>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1"><?= htmlspecialchars($specialization) ?></div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="px-4 sm:px-6 py-4 hidden lg:table-cell">
+                          <div class="text-sm text-gray-500 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
+                              <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+                            </svg>
+                            <?= htmlspecialchars($tutor['email']) ?>
+                          </div>
+                          <div class="text-sm text-gray-500 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
+                            </svg>
+                            <?= htmlspecialchars($phoneNumber) ?>
+                          </div>
+                        </td>
+                        <td class="px-4 sm:px-6 py-4 hidden md:table-cell">
+                          <div class="text-sm text-gray-900"><?= htmlspecialchars($specialization) ?></div>
+                          <div class="text-sm text-gray-500"><?= htmlspecialchars($tutor['experience'] ?? 'New tutor') ?></div>
+                        </td>
+                        <td class="px-4 sm:px-6 py-4 whitespace-nowrap">
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $programCount > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' ?>">
+                            <?= $programText ?>
+                          </span>
+                        </td>
+                        <td class="px-4 sm:px-6 py-4 whitespace-nowrap">
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $statusClass ?>">
+                            <?= $statusText ?>
+                          </span>
+                        </td>
+                        <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div class="flex space-x-4">
+                            <button onclick="viewTutorDetails(<?= $tutor['id'] ?>, '<?= htmlspecialchars($displayName, ENT_QUOTES) ?>')" 
+                                    class="text-blue-600 hover:text-blue-900 font-medium">
+                              View
+                            </button>
+                            <div class="relative">
+                              <button onclick="toggleMoreOptions(<?= $tutor['id'] ?>)" 
+                                      id="more-btn-<?= $tutor['id'] ?>"
+                                      class="text-gray-600 hover:underline font-medium">
+                                More
+                              </button>
+                              <!-- Dropdown Menu -->
+                              <div id="more-menu-<?= $tutor['id'] ?>" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                                <div class="py-1">
+                                  <button onclick="viewPrograms(<?= $tutor['id'] ?>)" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 block">
+                                    View Programs
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    <?php endforeach; ?>
+                  <?php endif; ?>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <!-- Pagination -->
+          <?php if ($total_pages > 1): ?>
           <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
             <div class="flex-1 flex justify-between sm:hidden">
-              <a href="#" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                Previous
-              </a>
-              <a href="#" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                Next
-              </a>
+              <?php if ($page > 1): ?>
+                <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+              <?php else: ?>
+                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-50 cursor-not-allowed">Previous</span>
+              <?php endif; ?>
+              <?php if ($page < $total_pages): ?>
+                <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+              <?php else: ?>
+                <span class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-50 cursor-not-allowed">Next</span>
+              <?php endif; ?>
             </div>
             <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p class="text-sm text-gray-700">
-                  Showing <span class="font-medium">1</span> to <span class="font-medium"><?= $tutorsCount ?></span> of <span class="font-medium"><?= $tutorsCount ?></span> results
+                  Showing <span class="font-medium"><?php echo $showingFrom; ?></span> to <span class="font-medium"><?php echo $showingTo; ?></span> of <span class="font-medium"><?php echo $tutorsCount; ?></span> results
                 </p>
+              </div>
+              <div>
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <?php if ($page > 1): ?>
+                    <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                      <span class="sr-only">Previous</span>
+                      <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </a>
+                  <?php else: ?>
+                    <span class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-50 text-sm font-medium text-gray-300 cursor-not-allowed">
+                      <span class="sr-only">Previous</span>
+                      <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </span>
+                  <?php endif; ?>
+                  
+                  <?php 
+                  // Show page numbers
+                  $startPage = max(1, $page - 2);
+                  $endPage = min($total_pages, $page + 2);
+                  
+                  for ($i = $startPage; $i <= $endPage; $i++): 
+                  ?>
+                    <?php if ($i == $page): ?>
+                      <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-tplearn-green text-sm font-medium text-white">
+                        <?php echo $i; ?>
+                      </span>
+                    <?php else: ?>
+                      <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        <?php echo $i; ?>
+                      </a>
+                    <?php endif; ?>
+                  <?php endfor; ?>
+                  
+                  <?php if ($page < $total_pages): ?>
+                    <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                      <span class="sr-only">Next</span>
+                      <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </a>
+                  <?php else: ?>
+                    <span class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-50 text-sm font-medium text-gray-300 cursor-not-allowed">
+                      <span class="sr-only">Next</span>
+                      <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </span>
+                  <?php endif; ?>
+                </nav>
               </div>
             </div>
           </div>
+          <?php endif; ?>
         </div>
       </main>
     </div>
@@ -528,6 +617,41 @@ foreach ($tutors as $tutor) {
     </div>
   </div>
 
+  <!-- View Programs Modal -->
+  <div id="programsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-10 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white">
+      <div class="mt-3">
+        <!-- Modal Header -->
+        <div class="flex justify-between items-center pb-4 border-b">
+          <h3 class="text-lg font-semibold text-gray-900" id="programsModalTitle">Tutor Programs</h3>
+          <button class="close-modal text-gray-400 hover:text-gray-600" onclick="closeProgramsModal()">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="mt-4 max-h-96 overflow-y-auto">
+          <div id="programsModalContent" class="space-y-4">
+            <!-- Loading state -->
+            <div class="flex justify-center items-center py-8">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-tplearn-green"></div>
+              <span class="ml-2">Loading programs...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
+          <button onclick="closeProgramsModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Include mobile menu JavaScript -->
   <script src="../../assets/admin-sidebar.js"></script>
   
@@ -566,9 +690,11 @@ foreach ($tutors as $tutor) {
           const tutorId = this.getAttribute('data-tutor-id');
           const tutorName = this.getAttribute('data-tutor-name');
           
-          if (confirm(`Are you sure you want to approve ${tutorName} as a tutor?`)) {
-            updateTutorStatus(tutorId, 'active', 'approved');
-          }
+          TPAlert.confirm('Confirm Action', `Are you sure you want to approve ${tutorName} as a tutor?`).then(result => {
+            if (result.isConfirmed) {
+              updateTutorStatus(tutorId, 'active', 'approved');
+            }
+          });
         });
       });
       
@@ -578,28 +704,34 @@ foreach ($tutors as $tutor) {
           const tutorId = this.getAttribute('data-tutor-id');
           const tutorName = this.getAttribute('data-tutor-name');
           
-          if (confirm(`Are you sure you want to reject ${tutorName}'s tutor application?`)) {
-            updateTutorStatus(tutorId, 'inactive', 'rejected');
-          }
+          TPAlert.confirm('Confirm Action', `Are you sure you want to reject ${tutorName}'s tutor application?`).then(result => {
+            if (result.isConfirmed) {
+              updateTutorStatus(tutorId, 'inactive', 'rejected');
+            }
+          });
         });
       });
 
       // Handle modal approve/reject buttons
       document.getElementById('approveFromModal').addEventListener('click', function() {
         if (currentTutorId && currentTutorName) {
-          if (confirm(`Are you sure you want to approve ${currentTutorName} as a tutor?`)) {
-            updateTutorStatus(currentTutorId, 'active', 'approved');
-            closeReviewModal();
-          }
+          TPAlert.confirm('Confirm Action', `Are you sure you want to approve ${currentTutorName} as a tutor?`).then(result => {
+            if (result.isConfirmed) {
+              updateTutorStatus(currentTutorId, 'active', 'approved');
+              closeReviewModal();
+            }
+          });
         }
       });
 
       document.getElementById('rejectFromModal').addEventListener('click', function() {
         if (currentTutorId && currentTutorName) {
-          if (confirm(`Are you sure you want to reject ${currentTutorName}'s tutor application?`)) {
-            updateTutorStatus(currentTutorId, 'inactive', 'rejected');
-            closeReviewModal();
-          }
+          TPAlert.confirm('Confirm Action', `Are you sure you want to reject ${currentTutorName}'s tutor application?`).then(result => {
+            if (result.isConfirmed) {
+              updateTutorStatus(currentTutorId, 'inactive', 'rejected');
+              closeReviewModal();
+            }
+          });
         }
       });
       
@@ -618,18 +750,37 @@ foreach ($tutors as $tutor) {
         .then(data => {
           if (data.success) {
             // Show success message and reload page
-            alert(`Tutor ${action} successfully!`);
+            TPAlert.info('Information', `Tutor ${action} successfully!`);
             window.location.reload();
           } else {
-            alert(`Error: ${data.message || 'Failed to update tutor status'}`);
+            TPAlert.info('Information', `Error: ${data.message || 'Failed to update tutor status'}`);
           }
         })
         .catch(error => {
           console.error('Error:', error);
-          alert('An error occurred while updating tutor status');
+          TPAlert.error('Error', 'An error occurred while updating tutor status');
         });
       }
     });
+
+    // Global functions for onclick handlers
+    function viewTutorDetails(tutorId, tutorName) {
+      // Handle view tutor details using the existing modal
+      openViewModal(tutorId, tutorName);
+    }
+
+    function toggleMoreOptions(tutorId) {
+      // Close all other open menus
+      document.querySelectorAll('[id^="more-menu-"]').forEach(menu => {
+        if (menu.id !== `more-menu-${tutorId}`) {
+          menu.classList.add('hidden');
+        }
+      });
+      
+      // Toggle the current menu
+      const menu = document.getElementById(`more-menu-${tutorId}`);
+      menu.classList.toggle('hidden');
+    }
 
     // Modal functions
     function openReviewModal(tutorId, tutorName) {
@@ -770,81 +921,6 @@ foreach ($tutors as $tutor) {
               </div>
             </div>
           </div>
-
-          <!-- Documents -->
-          <div class="bg-gray-50 p-4 rounded-lg lg:col-span-2">
-            <h4 class="text-lg font-semibold text-gray-900 mb-4">Submitted Documents</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              ${tutor.cv_document_path ? `
-                <div class="text-center">
-                  <div class="bg-blue-100 p-3 rounded-lg mb-2">
-                    <svg class="w-8 h-8 mx-auto text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                  </div>
-                  <p class="text-sm font-medium text-gray-900">Curriculum Vitae</p>
-                  <a href="../../${tutor.cv_document_path}" target="_blank" 
-                     class="text-xs text-blue-600 hover:text-blue-800 underline">View Document</a>
-                </div>
-              ` : '<div class="text-center text-gray-500 text-sm">CV: Not provided</div>'}
-
-              ${tutor.diploma_document_path ? `
-                <div class="text-center">
-                  <div class="bg-green-100 p-3 rounded-lg mb-2">
-                    <svg class="w-8 h-8 mx-auto text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"></path>
-                    </svg>
-                  </div>
-                  <p class="text-sm font-medium text-gray-900">Diploma</p>
-                  <a href="../../${tutor.diploma_document_path}" target="_blank" 
-                     class="text-xs text-blue-600 hover:text-blue-800 underline">View Document</a>
-                </div>
-              ` : '<div class="text-center text-gray-500 text-sm">Diploma: Not provided</div>'}
-
-              ${tutor.tor_document_path ? `
-                <div class="text-center">
-                  <div class="bg-purple-100 p-3 rounded-lg mb-2">
-                    <svg class="w-8 h-8 mx-auto text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                    </svg>
-                  </div>
-                  <p class="text-sm font-medium text-gray-900">Transcript of Records</p>
-                  <a href="../../${tutor.tor_document_path}" target="_blank" 
-                     class="text-xs text-blue-600 hover:text-blue-800 underline">View Document</a>
-                </div>
-              ` : '<div class="text-center text-gray-500 text-sm">TOR: Not provided</div>'}
-
-              ${tutor.lpt_csc_document_path ? `
-                <div class="text-center">
-                  <div class="bg-orange-100 p-3 rounded-lg mb-2">
-                    <svg class="w-8 h-8 mx-auto text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                    </svg>
-                  </div>
-                  <p class="text-sm font-medium text-gray-900">LPT/CSC Results</p>
-                  <a href="../../${tutor.lpt_csc_document_path}" target="_blank" 
-                     class="text-xs text-blue-600 hover:text-blue-800 underline">View Document</a>
-                </div>
-              ` : '<div class="text-center text-gray-500 text-sm">LPT/CSC: Not provided</div>'}
-            </div>
-
-            ${tutor.other_documents_paths ? `
-              <div class="mt-4">
-                <h5 class="text-sm font-medium text-gray-900 mb-2">Other Documents</h5>
-                <div class="space-y-2">
-                  ${JSON.parse(tutor.other_documents_paths).map(doc => `
-                    <div class="flex items-center space-x-2">
-                      <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                      </svg>
-                      <a href="../../${doc}" target="_blank" 
-                         class="text-sm text-blue-600 hover:text-blue-800 underline">Additional Document</a>
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-            ` : ''}
-          </div>
         </div>
       `;
     }
@@ -868,7 +944,7 @@ foreach ($tutors as $tutor) {
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Error loading tutor details. Please try again.');
+        TPAlert.error('Error', 'Error loading tutor details. Please try again.');
       });
     }
 
@@ -897,6 +973,151 @@ foreach ($tutors as $tutor) {
     document.getElementById('editModal').addEventListener('click', function(e) {
       if (e.target === this) {
         closeEditModal();
+      }
+    });
+
+    // Close programs modal when clicking outside
+    document.getElementById('programsModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeProgramsModal();
+      }
+    });
+
+    function viewPrograms(tutorId) {
+      // Get tutor name from the DOM
+      const tutorRow = document.querySelector(`#more-btn-${tutorId}`).closest('tr');
+      const tutorName = tutorRow.querySelector('.text-sm.font-medium.text-gray-900').textContent;
+      
+      // Open programs modal
+      openProgramsModal(tutorId, tutorName);
+      
+      // Close the dropdown
+      document.getElementById(`more-menu-${tutorId}`).classList.add('hidden');
+    }
+
+    // Programs Modal Functions
+    function openProgramsModal(tutorId, tutorName) {
+      const modal = document.getElementById('programsModal');
+      const modalTitle = document.getElementById('programsModalTitle');
+      const modalContent = document.getElementById('programsModalContent');
+      
+      modalTitle.textContent = `Programs: ${tutorName}`;
+      
+      // Show loading state
+      modalContent.innerHTML = `
+        <div class="flex justify-center items-center py-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-tplearn-green"></div>
+          <span class="ml-2">Loading programs...</span>
+        </div>
+      `;
+      
+      modal.classList.remove('hidden');
+      
+      // Fetch tutor programs
+      fetchTutorPrograms(tutorId);
+    }
+
+    function closeProgramsModal() {
+      const modal = document.getElementById('programsModal');
+      modal.classList.add('hidden');
+    }
+
+    function fetchTutorPrograms(tutorId) {
+      const formData = new FormData();
+      formData.append('action', 'get_tutor_programs');
+      formData.append('tutor_id', tutorId);
+      
+      fetch('../../api/users.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          displayTutorPrograms(data.programs);
+        } else {
+          document.getElementById('programsModalContent').innerHTML = `
+            <div class="text-center py-8 text-red-600">
+              <p>Error loading programs: ${data.message || 'Unknown error'}</p>
+            </div>
+          `;
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('programsModalContent').innerHTML = `
+          <div class="text-center py-8 text-red-600">
+            <p>Error loading programs. Please try again.</p>
+          </div>
+        `;
+      });
+    }
+
+    function displayTutorPrograms(programs) {
+      const modalContent = document.getElementById('programsModalContent');
+      
+      if (!programs || programs.length === 0) {
+        modalContent.innerHTML = `
+          <div class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No Programs</h3>
+            <p class="mt-1 text-sm text-gray-500">This tutor has no assigned programs.</p>
+          </div>
+        `;
+        return;
+      }
+
+      modalContent.innerHTML = programs.map(program => `
+        <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+          <div class="flex justify-between items-start mb-3">
+            <div>
+              <h4 class="text-lg font-semibold text-gray-900">${program.name}</h4>
+              <p class="text-sm text-gray-600">${program.description || 'No description'}</p>
+            </div>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              program.program_status === 'ongoing' ? 'bg-green-100 text-green-800' :
+              program.program_status === 'upcoming' ? 'bg-blue-100 text-blue-800' :
+              'bg-gray-100 text-gray-800'
+            }">
+              ${(program.program_status || 'unknown').charAt(0).toUpperCase() + (program.program_status || 'unknown').slice(1)}
+            </span>
+          </div>
+          
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+            <div>
+              <span class="text-xs font-medium text-gray-500">Duration</span>
+              <p class="text-sm text-gray-900">${program.duration_weeks} weeks</p>
+            </div>
+            <div>
+              <span class="text-xs font-medium text-gray-500">Students</span>
+              <p class="text-sm text-gray-900">${program.enrolled_students}/${program.max_students}</p>
+            </div>
+            <div>
+              <span class="text-xs font-medium text-gray-500">Fee</span>
+              <p class="text-sm text-gray-900">₱${parseFloat(program.fee).toLocaleString()}</p>
+            </div>
+            <div>
+              <span class="text-xs font-medium text-gray-500">Progress</span>
+              <p class="text-sm text-gray-900">${program.progress_percentage}%</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center justify-between text-sm text-gray-600">
+            <span>${program.session_time || 'Time TBD'}</span>
+            <span>${program.start_date} - ${program.end_date}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('[id^="more-btn-"]') && !e.target.closest('[id^="more-menu-"]')) {
+        document.querySelectorAll('[id^="more-menu-"]').forEach(menu => {
+          menu.classList.add('hidden');
+        });
       }
     });
   </script>

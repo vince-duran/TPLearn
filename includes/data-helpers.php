@@ -671,12 +671,12 @@ function createProgram($data)
   global $conn;
 
   try {
-    // Updated to match actual database schema with all form fields (removed session_id)
+    // Updated to match actual database schema with all form fields including cover_image
     $sql = "INSERT INTO programs (name, description, age_group, duration_weeks, fee, category, 
                                 difficulty_level, max_students, session_type, location, 
                                 start_date, end_date, start_time, end_time, days,
-                                tutor_id, status, created_at, updated_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())";
+                                tutor_id, cover_image, status, created_at, updated_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())";
 
     $stmt = $conn->prepare($sql);
 
@@ -697,9 +697,10 @@ function createProgram($data)
     $end_time = $data['end_time'] ?? '10:00:00';
     $days = $data['days'] ?? 'Mon, Wed, Fri';
     $tutor_id = $data['tutor_id'] ?? null;
+    $cover_image = $data['cover_image'] ?? null;
 
     $stmt->bind_param(
-      'sssidssisssssssi',
+      'sssidssisssssssis',
       $name,
       $description,
       $age_group,
@@ -715,7 +716,8 @@ function createProgram($data)
       $start_time,
       $end_time,
       $days,
-      $tutor_id
+      $tutor_id,
+      $cover_image
     );
 
     if ($stmt->execute()) {
@@ -740,12 +742,12 @@ function updateProgram($id, $data)
   global $conn;
 
   try {
-    // Updated to match actual database schema with all fields
+    // Updated to match actual database schema with all fields including cover_image
     $sql = "UPDATE programs SET name = ?, description = ?, age_group = ?, duration_weeks = ?, 
                                fee = ?, category = ?, difficulty_level = ?, max_students = ?,
                                session_type = ?, location = ?, start_date = ?, end_date = ?,
                                start_time = ?, end_time = ?, days = ?,
-                               tutor_id = ?, status = ?, updated_at = NOW() 
+                               tutor_id = ?, cover_image = ?, status = ?, updated_at = NOW() 
             WHERE id = ?";
 
     $stmt = $conn->prepare($sql);
@@ -767,10 +769,11 @@ function updateProgram($id, $data)
     $end_time = $data['end_time'] ?? '10:00:00';
     $days = $data['days'] ?? 'Mon, Wed, Fri';
     $tutor_id = $data['tutor_id'] ?? null;
+    $cover_image = $data['cover_image'] ?? null;
     $status = $data['status'] ?? 'active';
 
     $stmt->bind_param(
-      'sssidssisssssssisi',
+      'sssidssisssssssissi',
       $name,
       $description,
       $age_group,
@@ -787,6 +790,7 @@ function updateProgram($id, $data)
       $end_time,
       $days,
       $tutor_id,
+      $cover_image,
       $status,
       $id
     );
@@ -812,8 +816,34 @@ function deleteProgram($id)
   global $conn;
 
   try {
+    // Check if there are any payments for enrollments in this program
+    $paymentCheckSql = "SELECT COUNT(p.id) as payment_count, 
+                              SUM(CASE WHEN p.status = 'validated' THEN 1 ELSE 0 END) as validated_payments
+                       FROM payments p 
+                       JOIN enrollments e ON p.enrollment_id = e.id 
+                       WHERE e.program_id = ?";
+    $paymentStmt = $conn->prepare($paymentCheckSql);
+    $paymentStmt->bind_param('i', $id);
+    $paymentStmt->execute();
+    $paymentResult = $paymentStmt->get_result();
+    $paymentData = $paymentResult->fetch_assoc();
+
+    if ($paymentData['payment_count'] > 0) {
+      $validatedCount = $paymentData['validated_payments'];
+      $totalCount = $paymentData['payment_count'];
+      
+      $message = "Cannot delete program - it has $totalCount payment record(s)";
+      if ($validatedCount > 0) {
+        $message .= " ($validatedCount validated)";
+      }
+      $message .= ". Programs with payment history cannot be deleted to maintain financial records and audit compliance.";
+      
+      error_log("Cannot delete program $id - has $totalCount payments ($validatedCount validated)");
+      throw new Exception($message);
+    }
+
     // Check if there are any active enrollments
-    $checkSql = "SELECT COUNT(*) as count FROM enrollments WHERE program_id = ? AND status = 'active'";
+    $checkSql = "SELECT COUNT(*) as count FROM enrollments WHERE program_id = ? AND status IN ('active', 'pending')";
     $checkStmt = $conn->prepare($checkSql);
     $checkStmt->bind_param('i', $id);
     $checkStmt->execute();
@@ -821,23 +851,42 @@ function deleteProgram($id)
     $row = $result->fetch_assoc();
 
     if ($row['count'] > 0) {
-      error_log("Cannot delete program $id - has active enrollments");
-      return false;
+      $message = "Cannot delete program - it has {$row['count']} active/pending enrollment(s). Please remove or complete all enrollments first.";
+      error_log("Cannot delete program $id - has {$row['count']} active/pending enrollments");
+      throw new Exception($message);
     }
 
-    // Hard delete from database (since schema doesn't have deleted status)
+    // Check if program exists
+    $existsSql = "SELECT id, name FROM programs WHERE id = ?";
+    $existsStmt = $conn->prepare($existsSql);
+    $existsStmt->bind_param('i', $id);
+    $existsStmt->execute();
+    $existsResult = $existsStmt->get_result();
+    
+    if ($existsResult->num_rows === 0) {
+      throw new Exception("Program with ID $id not found");
+    }
+
+    $program = $existsResult->fetch_assoc();
+
+    // Delete from database
     $sql = "DELETE FROM programs WHERE id = ?";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param('i', $id);
 
     if ($stmt->execute()) {
-      return true;
+      if ($stmt->affected_rows > 0) {
+        error_log("Successfully deleted program: {$program['name']} (ID: $id)");
+        return true;
+      } else {
+        throw new Exception("No program was deleted - it may have been already removed");
+      }
     } else {
-      throw new Exception('Failed to delete program: ' . $stmt->error);
+      throw new Exception('Database error: ' . $stmt->error);
     }
   } catch (Exception $e) {
     error_log("Error deleting program: " . $e->getMessage());
-    return false;
+    throw $e; // Re-throw to preserve the specific error message
   }
 }
 
@@ -1370,7 +1419,9 @@ function getPayments($status = null, $limit = null, $search = null)
                    validator.username as validator_name,
                    CONCAT('PAY-', DATE_FORMAT(p.created_at, '%Y%m%d'), '-', LPAD(p.id, 3, '0')) as payment_id,
                    CASE 
+                     WHEN p.status = 'pending' AND p.reference_number IS NOT NULL AND p.due_date < CURDATE() THEN 'overdue_pending_validation'
                      WHEN p.status = 'pending' AND p.reference_number IS NOT NULL THEN 'pending_validation'
+                     WHEN p.status = 'rejected' AND p.due_date < CURDATE() THEN 'overdue_rejected'
                      WHEN p.status = 'pending' AND p.reference_number IS NULL AND p.due_date < CURDATE() THEN 'overdue'
                      WHEN p.status = 'pending' AND p.reference_number IS NULL AND p.due_date = CURDATE() THEN 'due_today'
                      WHEN p.status = 'pending' AND p.reference_number IS NULL AND p.due_date > CURDATE() THEN 'pending_payment'
@@ -1401,10 +1452,10 @@ function getPayments($status = null, $limit = null, $search = null)
     if ($status) {
       switch($status) {
         case 'pending_validation':
-          $conditions[] = "p.status = 'pending' AND p.reference_number IS NOT NULL";
+          $conditions[] = "(p.status = 'pending' AND p.reference_number IS NOT NULL)";
           break;
         case 'overdue':
-          $conditions[] = "p.status = 'pending' AND p.reference_number IS NULL AND p.due_date < CURDATE()";
+          $conditions[] = "((p.status = 'pending' AND p.reference_number IS NULL AND p.due_date < CURDATE()) OR (p.status = 'pending' AND p.reference_number IS NOT NULL AND p.due_date < CURDATE()) OR (p.status = 'rejected' AND p.due_date < CURDATE()))";
           break;
         case 'pending':
           $conditions[] = "(p.status = 'pending' AND p.reference_number IS NULL AND p.due_date >= CURDATE())";
@@ -1491,6 +1542,244 @@ function getPaidAmount($enrollment_id)
     return $row['total_paid'] ?? 0;
   } catch (Exception $e) {
     error_log("Error calculating paid amount: " . $e->getMessage());
+    return 0;
+  }
+}
+
+/**
+ * Get payments with pagination support
+ * @param string|null $status Filter by payment status
+ * @param string|null $search Search student name or program name
+ * @param int $limit Number of results per page
+ * @param int $offset Starting offset for results
+ * @param array $date_filters Date filter options (month, year, date)
+ * @return array List of payments with student and program information
+ */
+function getPaymentsPaginated($status = null, $search = null, $limit = 10, $offset = 0, $date_filters = [])
+{
+  global $conn;
+
+  try {
+    $sql = "SELECT p.*, 
+                   e.total_fee as enrollment_total_fee,
+                   COALESCE(CONCAT(sp.first_name, ' ', sp.last_name), u.username) as student_name,
+                   COALESCE(sp.student_id, u.username) as student_user_id,
+                   u.username as student_username,
+                   u.email as student_email,
+                   pr.name as program_name,
+                   pr.id as program_id,
+                   validator.username as validator_name,
+                   CONCAT('PAY-', DATE_FORMAT(p.created_at, '%Y%m%d'), '-', LPAD(p.id, 3, '0')) as payment_id,
+                   CASE 
+                     WHEN p.status = 'locked' THEN 'locked'
+                     WHEN p.status = 'overdue' THEN 'overdue'
+                     WHEN p.status = 'pending' AND p.reference_number IS NOT NULL AND p.due_date < CURDATE() THEN 'overdue_pending_validation'
+                     WHEN p.status = 'pending' AND p.reference_number IS NOT NULL THEN 'pending_validation'
+                     WHEN p.status = 'rejected' AND p.due_date < CURDATE() THEN 'overdue_rejected'
+                     WHEN p.status = 'pending' AND p.reference_number IS NULL AND p.due_date < DATE_SUB(CURDATE(), INTERVAL 3 DAY) THEN 'locked'
+                     WHEN p.status = 'pending' AND p.reference_number IS NULL AND p.due_date < CURDATE() THEN 'overdue'
+                     WHEN p.status = 'pending' AND p.reference_number IS NULL AND p.due_date = CURDATE() THEN 'due_today'
+                     WHEN p.status = 'pending' AND p.reference_number IS NULL AND p.due_date > CURDATE() THEN 'pending_payment'
+                     ELSE p.status
+                   END as payment_status,
+                   DATEDIFF(CURDATE(), p.due_date) as days_overdue,
+                   COALESCE(
+                     (SELECT COUNT(*) + 1 
+                      FROM payments p2 
+                      WHERE p2.enrollment_id = p.enrollment_id 
+                      AND p2.created_at < p.created_at)
+                   , 1) as installment_number,
+                   (SELECT COUNT(*) 
+                    FROM payments p3 
+                    WHERE p3.enrollment_id = p.enrollment_id) as total_installments
+            FROM payments p
+            INNER JOIN enrollments e ON p.enrollment_id = e.id
+            INNER JOIN users u ON e.student_user_id = u.id
+            LEFT JOIN student_profiles sp ON e.student_user_id = sp.user_id
+            INNER JOIN programs pr ON e.program_id = pr.id
+            LEFT JOIN users validator ON p.validated_by = validator.id";
+
+    $conditions = [];
+    $params = [];
+    $types = '';
+
+    // Handle status filtering
+    if ($status) {
+      switch($status) {
+        case 'pending_validation':
+          $conditions[] = "(p.status = 'pending' AND p.reference_number IS NOT NULL)";
+          break;
+        case 'overdue':
+          $conditions[] = "((p.status = 'pending' AND p.reference_number IS NULL AND p.due_date < CURDATE()) OR (p.status = 'pending' AND p.reference_number IS NOT NULL AND p.due_date < CURDATE()) OR (p.status = 'rejected' AND p.due_date < CURDATE()))";
+          break;
+        case 'due_today':
+          $conditions[] = "p.status = 'pending' AND p.reference_number IS NULL AND p.due_date = CURDATE()";
+          break;
+        case 'pending_payment':
+          $conditions[] = "p.status = 'pending' AND p.reference_number IS NULL AND p.due_date > CURDATE()";
+          break;
+        default:
+          $conditions[] = "p.status = ?";
+          $params[] = $status;
+          $types .= 's';
+          break;
+      }
+    }
+
+    // Handle search filtering
+    if ($search && trim($search) !== '') {
+      $conditions[] = "(COALESCE(CONCAT(sp.first_name, ' ', sp.last_name), u.username) LIKE ? OR pr.name LIKE ? OR u.email LIKE ?)";
+      $searchTerm = '%' . trim($search) . '%';
+      $params[] = $searchTerm;
+      $params[] = $searchTerm;
+      $params[] = $searchTerm;
+      $types .= 'sss';
+    }
+
+    // Handle date filtering (month and year)
+    if (!empty($date_filters)) {
+      // Month filter
+      if (!empty($date_filters['month']) && $date_filters['month'] !== '') {
+        $conditions[] = "MONTH(p.created_at) = ?";
+        $params[] = intval($date_filters['month']);
+        $types .= 'i';
+      }
+      // Year filter
+      if (!empty($date_filters['year']) && $date_filters['year'] !== '') {
+        $conditions[] = "YEAR(p.created_at) = ?";
+        $params[] = intval($date_filters['year']);
+        $types .= 'i';
+      }
+    }
+
+    if (!empty($conditions)) {
+      $sql .= " WHERE " . implode(" AND ", $conditions);
+    }
+
+    $sql .= " ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
+    $params[] = $limit;
+    $params[] = $offset;
+    $types .= 'ii';
+
+    $stmt = $conn->prepare($sql);
+    if (!empty($params)) {
+      $stmt->bind_param($types, ...$params);
+    }
+
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $payments = [];
+
+    while ($row = $result->fetch_assoc()) {
+      // Format payment method for display
+      $row['payment_method_display'] = ucfirst(str_replace('_', ' ', $row['payment_method']));
+
+      // Calculate remaining balance if applicable
+      if ($row['enrollment_total_fee']) {
+        $paid_amount = getPaidAmount($row['enrollment_id']);
+        $row['remaining_balance'] = max(0, $row['enrollment_total_fee'] - $paid_amount);
+      } else {
+        $row['remaining_balance'] = 0;
+      }
+
+      $payments[] = $row;
+    }
+
+    return $payments;
+  } catch (Exception $e) {
+    error_log("Error fetching paginated payments: " . $e->getMessage());
+    return [];
+  }
+}
+
+/**
+ * Get total count of payments for pagination
+ * @param string|null $status Filter by payment status
+ * @param string|null $search Search student name or program name
+ * @param array $date_filters Date filter options (month, year, date)
+ * @return int Total number of payments
+ */
+function getTotalPaymentsCount($status = null, $search = null, $date_filters = [])
+{
+  global $conn;
+
+  try {
+    $sql = "SELECT COUNT(*) as total
+            FROM payments p
+            INNER JOIN enrollments e ON p.enrollment_id = e.id
+            INNER JOIN users u ON e.student_user_id = u.id
+            LEFT JOIN student_profiles sp ON e.student_user_id = sp.user_id
+            INNER JOIN programs pr ON e.program_id = pr.id";
+
+    $conditions = [];
+    $params = [];
+    $types = '';
+
+    // Handle status filtering
+    if ($status) {
+      switch($status) {
+        case 'pending_validation':
+          $conditions[] = "p.status = 'pending' AND p.reference_number IS NOT NULL";
+          break;
+        case 'overdue':
+          $conditions[] = "p.status = 'pending' AND p.reference_number IS NULL AND p.due_date < CURDATE()";
+          break;
+        case 'due_today':
+          $conditions[] = "p.status = 'pending' AND p.reference_number IS NULL AND p.due_date = CURDATE()";
+          break;
+        case 'pending_payment':
+          $conditions[] = "p.status = 'pending' AND p.reference_number IS NULL AND p.due_date > CURDATE()";
+          break;
+        default:
+          $conditions[] = "p.status = ?";
+          $params[] = $status;
+          $types .= 's';
+          break;
+      }
+    }
+
+    // Handle search filtering
+    if ($search && trim($search) !== '') {
+      $conditions[] = "(COALESCE(CONCAT(sp.first_name, ' ', sp.last_name), u.username) LIKE ? OR pr.name LIKE ? OR u.email LIKE ?)";
+      $searchTerm = '%' . trim($search) . '%';
+      $params[] = $searchTerm;
+      $params[] = $searchTerm;
+      $params[] = $searchTerm;
+      $types .= 'sss';
+    }
+
+    // Handle date filtering (month and year)
+    if (!empty($date_filters)) {
+      // Month filter
+      if (!empty($date_filters['month']) && $date_filters['month'] !== '') {
+        $conditions[] = "MONTH(p.created_at) = ?";
+        $params[] = intval($date_filters['month']);
+        $types .= 'i';
+      }
+      // Year filter
+      if (!empty($date_filters['year']) && $date_filters['year'] !== '') {
+        $conditions[] = "YEAR(p.created_at) = ?";
+        $params[] = intval($date_filters['year']);
+        $types .= 'i';
+      }
+    }
+
+    if (!empty($conditions)) {
+      $sql .= " WHERE " . implode(" AND ", $conditions);
+    }
+
+    $stmt = $conn->prepare($sql);
+    if (!empty($params)) {
+      $stmt->bind_param($types, ...$params);
+    }
+
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+
+    return $row['total'] ?? 0;
+  } catch (Exception $e) {
+    error_log("Error counting payments: " . $e->getMessage());
     return 0;
   }
 }
@@ -1601,6 +1890,8 @@ function getStudentDashboardData($student_id)
     $data = [
       'enrolled_programs' => 0,
       'sessions_today' => 0,
+      'pending_payments' => 0,
+      'overdue_payments' => 0,
       'unread_messages' => 0,
       'next_payment_due' => null,
       'recent_sessions' => [],
@@ -1637,18 +1928,30 @@ function getStudentDashboardData($student_id)
       $data['sessions_today'] = (int)$row['count'];
     }
 
+    // Get payment data for the student
+    $result = $conn->query("SELECT 
+                               COUNT(CASE WHEN p.status IN ('pending', 'pending_validation') THEN 1 END) as pending_payments,
+                               COUNT(CASE WHEN p.status IN ('overdue', 'locked') OR (p.status = 'pending' AND p.due_date < CURDATE()) THEN 1 END) as overdue_payments
+                           FROM payments p
+                           JOIN enrollments e ON p.enrollment_id = e.id
+                           WHERE e.student_user_id = " . (int)$student_id);
+    if ($result && $row = $result->fetch_assoc()) {
+      $data['pending_payments'] = (int)$row['pending_payments'];
+      $data['overdue_payments'] = (int)$row['overdue_payments'];
+    }
+
     // Get unread messages - check if messages table exists, otherwise default to 0
     $result = $conn->query("SHOW TABLES LIKE 'messages'");
     if ($result && $result->num_rows > 0) {
       // Messages table exists, get real unread count
       $result = $conn->query("SELECT COUNT(*) as count FROM messages 
                                  WHERE recipient_id = " . (int)$student_id . " 
-                                 AND status = 'unread'");
+                                 AND is_read = FALSE");
       if ($result && $row = $result->fetch_assoc()) {
         $data['unread_messages'] = (int)$row['count'];
       }
     } else {
-      // No messaging system yet, set to 0
+      // No messaging system, set to 0
       $data['unread_messages'] = 0;
     }
 
@@ -1710,6 +2013,9 @@ function getTutorDashboardData($tutor_id)
       'assigned_programs' => 0,
       'total_students' => 0,
       'sessions_today' => 0,
+      'unread_messages' => 0,
+      'total_payments' => 0,
+      'total_assessments' => 0,
       'programs' => [],
       'students' => []
     ];
@@ -1739,6 +2045,40 @@ function getTutorDashboardData($tutor_id)
                                AND s.status = 'scheduled'");
     if ($result && $row = $result->fetch_assoc()) {
       $data['sessions_today'] = (int)$row['count'];
+    }
+
+    // Get unread messages - check if messages table exists, otherwise default to 0
+    $result = $conn->query("SHOW TABLES LIKE 'messages'");
+    if ($result && $result->num_rows > 0) {
+      // Messages table exists, get real unread count
+      $result = $conn->query("SELECT COUNT(*) as count FROM messages 
+                                 WHERE recipient_id = " . (int)$tutor_id . " 
+                                 AND is_read = FALSE");
+      if ($result && $row = $result->fetch_assoc()) {
+        $data['unread_messages'] = (int)$row['count'];
+      }
+    } else {
+      // No messaging system, set to 0
+      $data['unread_messages'] = 0;
+    }
+
+    // Get total payments from enrollments in tutor's programs
+    $result = $conn->query("SELECT COUNT(*) as count FROM payments pay
+                               JOIN enrollments e ON pay.enrollment_id = e.id
+                               JOIN programs p ON e.program_id = p.id
+                               WHERE p.tutor_id = " . (int)$tutor_id . " 
+                               AND pay.status = 'validated'");
+    if ($result && $row = $result->fetch_assoc()) {
+      $data['total_payments'] = (int)$row['count'];
+    }
+
+    // Get total assessments linked to tutor's programs through program_materials
+    $result = $conn->query("SELECT COUNT(*) as count FROM assessments a
+                               JOIN program_materials pm ON a.material_id = pm.id
+                               WHERE pm.program_id IN (SELECT id FROM programs WHERE tutor_id = " . (int)$tutor_id . ")
+                               AND a.status = 'active'");
+    if ($result && $row = $result->fetch_assoc()) {
+      $data['total_assessments'] = (int)$row['count'];
     }
 
     // Get programs with enrollment counts
@@ -1849,6 +2189,446 @@ function getTutorRecentActivities($tutor_id, $limit = 10)
 }
 
 /**
+ * Get recent notifications for a user
+ * @param int $user_id User's ID
+ * @param int $limit Number of notifications to return (default: 10)
+ * @return array Recent notifications
+ */
+function getUserNotifications($user_id, $limit = 10)
+{
+  global $conn;
+
+  try {
+    $notifications = [];
+
+    // Get recent notifications for user (assignments, payments, etc.)
+    $sql = "SELECT 'assignment' as notification_type,
+                   CONCAT('New assignment: ', a.title, ' in ', p.name) as message,
+                   a.created_at as notification_time,
+                   'academic-cap' as icon,
+                   'blue' as color,
+                   CONCAT('program-stream.php?program_id=', p.id, '&program=', REPLACE(p.name, ' ', '%20')) as url
+            FROM assignments a
+            JOIN programs p ON a.program_id = p.id
+            JOIN enrollments e ON p.id = e.program_id
+            WHERE e.student_user_id = ? 
+            AND a.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            
+            UNION ALL
+            
+            SELECT 'payment' as notification_type,
+                   CASE 
+                     WHEN pay.status = 'overdue' THEN CONCAT('Overdue Payment: ', p.name, ' - ₱', ROUND(pay.amount,2), ' (Due: ', DATE_FORMAT(pay.due_date, '%b %d'), ')')
+                     WHEN pay.status = 'locked' THEN CONCAT('Payment Locked: ', p.name, ' - ₱', ROUND(pay.amount,2), ' (Past due)')
+                     WHEN pay.due_date = CURDATE() AND pay.status = 'pending' THEN CONCAT('Payment Due Today: ', p.name, ' - ₱', ROUND(pay.amount,2))
+                     WHEN pay.due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY) AND pay.status = 'pending' THEN CONCAT('Payment Due Soon: ', p.name, ' - ₱', ROUND(pay.amount,2), ' (Due: ', DATE_FORMAT(pay.due_date, '%b %d'), ')')
+                   END as message,
+                   COALESCE(pay.updated_at, pay.created_at) as notification_time,
+                   'exclamation-triangle' as icon,
+                   CASE 
+                     WHEN pay.status = 'overdue' THEN 'red'
+                     WHEN pay.status = 'locked' THEN 'red'
+                     WHEN pay.due_date = CURDATE() THEN 'orange'
+                     ELSE 'yellow'
+                   END as color,
+                   'student-payments.php' as url
+            FROM payments pay
+            JOIN enrollments e ON pay.enrollment_id = e.id
+            JOIN programs p ON e.program_id = p.id
+            WHERE e.student_user_id = ? AND pay.status IN ('overdue', 'locked', 'pending')
+            AND (pay.reference_number IS NULL OR pay.reference_number = '')  -- Exclude payments with reference numbers (awaiting validation)
+            AND (
+                (pay.due_date <= DATE_ADD(CURDATE(), INTERVAL 3 DAY) AND pay.status = 'pending') 
+                OR pay.status IN ('overdue', 'locked')
+            )
+            
+            UNION ALL
+            
+            SELECT 'payment_rejected' as notification_type,
+                   CONCAT('Payment Rejected - Resubmit Required: ', p.name, ' - ₱', ROUND(pay.amount,2), 
+                         CASE 
+                           WHEN pay.installment_number IS NOT NULL THEN CONCAT(' (', pay.installment_number, ' of ', pay.total_installments, ')')
+                           ELSE '' 
+                         END) as message,
+                   pay.updated_at as notification_time,
+                   'x-circle' as icon,
+                   'red' as color,
+                   'student-payments.php' as url
+            FROM payments pay
+            JOIN enrollments e ON pay.enrollment_id = e.id
+            JOIN programs p ON e.program_id = p.id
+            WHERE e.student_user_id = ? AND pay.status = 'rejected'
+            AND pay.updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)  -- Show rejected payments from last 30 days
+            
+            UNION ALL
+            
+            SELECT 'payment_awaiting' as notification_type,
+                   CONCAT('Payment Under Review: ', p.name, ' - ₱', ROUND(pay.amount,2), 
+                         CASE 
+                           WHEN pay.installment_number IS NOT NULL THEN CONCAT(' (', pay.installment_number, ' of ', pay.total_installments, ')')
+                           ELSE '' 
+                         END) as message,
+                   pay.updated_at as notification_time,
+                   'clock' as icon,
+                   'blue' as color,
+                   'student-payments.php' as url
+            FROM payments pay
+            JOIN enrollments e ON pay.enrollment_id = e.id
+            JOIN programs p ON e.program_id = p.id
+            WHERE e.student_user_id = ? AND pay.status = 'awaiting'
+            AND pay.reference_number IS NOT NULL AND pay.reference_number != ''  -- Has submitted payment receipt
+            AND pay.updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)  -- Show recent submissions
+            
+            UNION ALL
+            
+            SELECT 'payment_validated' as notification_type,
+                   CONCAT('Payment Approved: ', p.name, ' - ₱', ROUND(pay.amount,2), 
+                         CASE 
+                           WHEN pay.installment_number IS NOT NULL THEN CONCAT(' (', pay.installment_number, ' of ', pay.total_installments, ')')
+                           ELSE '' 
+                         END) as message,
+                   pay.updated_at as notification_time,
+                   'check-circle' as icon,
+                   'green' as color,
+                   'student-payments.php' as url
+            FROM payments pay
+            JOIN enrollments e ON pay.enrollment_id = e.id
+            JOIN programs p ON e.program_id = p.id
+            WHERE e.student_user_id = ? AND pay.status = 'validated'
+            AND pay.updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)  -- Show recent validations
+            
+            UNION ALL
+            
+            SELECT 'material' as notification_type,
+                   CONCAT('New material: ', pm.title, ' in ', p.name) as message,
+                   pm.created_at as notification_time,
+                   'book-open' as icon,
+                   'green' as color,
+                   CONCAT('program-stream.php?program_id=', p.id, '&program=', REPLACE(p.name, ' ', '%20')) as url
+            FROM program_materials pm
+            JOIN programs p ON pm.program_id = p.id
+            JOIN enrollments e ON p.id = e.program_id
+            WHERE e.student_user_id = ? 
+            AND pm.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            
+            UNION ALL
+            
+            SELECT 'session' as notification_type,
+                   CONCAT('New live session: ', jm.title, ' in ', p.name) as message,
+                   jm.created_at as notification_time,
+                   'video-camera' as icon,
+                   'purple' as color,
+                   CONCAT('program-stream.php?program_id=', p.id, '&program=', REPLACE(p.name, ' ', '%20')) as url
+            FROM jitsi_meetings jm
+            JOIN programs p ON jm.program_id = p.id
+            JOIN enrollments e ON p.id = e.program_id
+            WHERE e.student_user_id = ? 
+            AND jm.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            AND jm.status = 'scheduled'
+            
+            UNION ALL
+            
+            SELECT 'graded' as notification_type,
+                   CONCAT('Assignment graded: ', a.title, ' - Score: ', COALESCE(asub.score, 'N/A'), '/100') as message,
+                   asub.updated_at as notification_time,
+                   'check-circle' as icon,
+                   'indigo' as color,
+                   CONCAT('program-stream.php?program_id=', p.id, '&program=', REPLACE(p.name, ' ', '%20')) as url
+            FROM assignment_submissions asub
+            JOIN assignments a ON asub.assignment_id = a.id
+            JOIN enrollments e ON asub.enrollment_id = e.id
+            JOIN programs p ON e.program_id = p.id
+            WHERE e.student_user_id = ? 
+            AND asub.status = 'graded'
+            AND asub.updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            
+            ORDER BY notification_time DESC
+            LIMIT ?";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('iiiiiiiii', $user_id, $user_id, $user_id, $user_id, $user_id, $user_id, $user_id, $user_id, $limit);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+      // Format the time
+      $time_diff = time() - strtotime($row['notification_time']);
+      
+      if ($time_diff < 0) {
+        $time_display = 'Just now';
+      } elseif ($time_diff < 60) {
+        $time_display = 'Just now';
+      } elseif ($time_diff < 3600) {
+        $time_display = floor($time_diff / 60) . ' minute' . (floor($time_diff / 60) == 1 ? '' : 's') . ' ago';
+      } elseif ($time_diff < 86400) {
+        $time_display = floor($time_diff / 3600) . ' hour' . (floor($time_diff / 3600) == 1 ? '' : 's') . ' ago';
+      } else {
+        $days = floor($time_diff / 86400);
+        $time_display = $days . ' day' . ($days == 1 ? '' : 's') . ' ago';
+      }
+
+      $notifications[] = [
+        'type' => $row['notification_type'],
+        'message' => $row['message'],
+        'time' => $time_display,
+        'icon' => $row['icon'],
+        'color' => $row['color'],
+        'url' => $row['url']
+      ];
+    }
+
+    return $notifications;
+  } catch (Exception $e) {
+    error_log("Error fetching user notifications: " . $e->getMessage());
+    return [];
+  }
+}
+
+/**
+ * Get notifications for tutor users
+ * @param int $user_id Tutor's user ID
+ * @param int $limit Number of notifications to return (default: 10)
+ * @return array Notifications array
+ */
+function getTutorNotifications($user_id, $limit = 10)
+{
+  global $conn;
+
+  try {
+    $notifications = [];
+
+    // Get tutor-specific notifications (new enrollments, upcoming sessions, assignment submissions, etc.)
+    $sql = "SELECT 'enrollment' as notification_type,
+                   CONCAT('New enrollment: ', COALESCE(CONCAT(s.first_name, ' ', s.last_name), u.username, u.email), ' enrolled in ', p.name) as message,
+                   e.enrollment_date as notification_time,
+                   'user-plus' as icon,
+                   'green' as color,
+                   CONCAT('tutor-students.php') as url
+            FROM enrollments e
+            JOIN programs p ON e.program_id = p.id
+            JOIN users u ON e.student_user_id = u.id
+            LEFT JOIN student_profiles s ON u.id = s.user_id
+            WHERE p.tutor_id = ? 
+            AND e.enrollment_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            AND e.status = 'active'
+            
+            UNION ALL
+            
+            SELECT 'submission' as notification_type,
+                   CONCAT('Assignment submission: ', a.title, ' by ', COALESCE(CONCAT(s.first_name, ' ', s.last_name), u.username, u.email)) as message,
+                   asub.submission_date as notification_time,
+                   'document-text' as icon,
+                   'blue' as color,
+                   CONCAT('tutor-program-stream.php?program_id=', p.id) as url
+            FROM assignment_submissions asub
+            JOIN assignments a ON asub.assignment_id = a.id
+            JOIN programs p ON a.program_id = p.id
+            JOIN users u ON asub.student_user_id = u.id
+            LEFT JOIN student_profiles s ON u.id = s.user_id
+            WHERE p.tutor_id = ? 
+            AND asub.submission_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            
+            UNION ALL
+            
+            SELECT 'session' as notification_type,
+                   CONCAT('Upcoming session: ', jm.title, ' in ', p.name, ' (', DATE_FORMAT(CONCAT(jm.scheduled_date, ' ', jm.scheduled_time), '%b %d at %h:%i %p'), ')') as message,
+                   jm.created_at as notification_time,
+                   'video-camera' as icon,
+                   'purple' as color,
+                   CONCAT('tutor-program-stream.php?program_id=', p.id) as url
+            FROM jitsi_meetings jm
+            JOIN programs p ON jm.program_id = p.id
+            WHERE p.tutor_id = ? 
+            AND CONCAT(jm.scheduled_date, ' ', jm.scheduled_time) BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 24 HOUR)
+            AND jm.status = 'scheduled'
+            
+            UNION ALL
+            
+            SELECT 'assessment' as notification_type,
+                   CONCAT('Assessment submission: ', COALESCE(CONCAT(s.first_name, ' ', s.last_name), u.username, u.email), ' submitted an assessment in ', p.name) as message,
+                   asub.submitted_at as notification_time,
+                   'academic-cap' as icon,
+                   'orange' as color,
+                   CONCAT('tutor-program-stream.php?program_id=', p.id) as url
+            FROM assessment_submissions asub
+            JOIN enrollments e ON asub.enrollment_id = e.id
+            JOIN programs p ON e.program_id = p.id
+            JOIN users u ON asub.student_user_id = u.id
+            LEFT JOIN student_profiles s ON u.id = s.user_id
+            WHERE p.tutor_id = ? 
+            AND asub.status = 'pending'
+            AND asub.submitted_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            
+            ORDER BY notification_time DESC
+            LIMIT ?";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('iiiii', $user_id, $user_id, $user_id, $user_id, $limit);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+      // Format the time
+      $time_diff = time() - strtotime($row['notification_time']);
+      
+      if ($time_diff < 0) {
+        $time_display = 'Just now';
+      } elseif ($time_diff < 60) {
+        $time_display = 'Just now';
+      } elseif ($time_diff < 3600) {
+        $time_display = floor($time_diff / 60) . ' minute' . (floor($time_diff / 60) == 1 ? '' : 's') . ' ago';
+      } elseif ($time_diff < 86400) {
+        $time_display = floor($time_diff / 3600) . ' hour' . (floor($time_diff / 3600) == 1 ? '' : 's') . ' ago';
+      } else {
+        $days = floor($time_diff / 86400);
+        $time_display = $days . ' day' . ($days == 1 ? '' : 's') . ' ago';
+      }
+
+      $notifications[] = [
+        'type' => $row['notification_type'],
+        'message' => $row['message'],
+        'time' => $time_display,
+        'icon' => $row['icon'],
+        'color' => $row['color'],
+        'url' => $row['url']
+      ];
+    }
+
+    return $notifications;
+  } catch (Exception $e) {
+    error_log("Error fetching tutor notifications: " . $e->getMessage());
+    return [];
+  }
+}
+
+/**
+ * Get admin notifications focusing on payments and enrollments
+ * @param int $limit Number of notifications to return (default: 10)
+ * @return array Notifications array
+ */
+function getAdminNotifications($limit = 15)
+{
+  global $conn;
+
+  try {
+    $notifications = [];
+
+    // Get admin-specific notifications (payments, enrollments, system activities)
+    $sql = "SELECT 'payment_pending' as notification_type,
+                   CONCAT('Payment validation needed: ', COALESCE(CONCAT(s.first_name, ' ', s.last_name), u.username, u.email), ' - ₱', ROUND(pay.amount,2), ' for ', p.name) as message,
+                   pay.updated_at as notification_time,
+                   'credit-card' as icon,
+                   'orange' as color,
+                   'payments.php' as url
+            FROM payments pay
+            JOIN enrollments e ON pay.enrollment_id = e.id
+            JOIN programs p ON e.program_id = p.id
+            JOIN users u ON e.student_user_id = u.id
+            LEFT JOIN student_profiles s ON u.id = s.user_id
+            WHERE pay.status = 'pending' 
+            AND pay.reference_number IS NOT NULL 
+            AND pay.reference_number != ''
+            AND pay.updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            
+            UNION ALL
+            
+            SELECT 'payment_overdue' as notification_type,
+                   CONCAT('Overdue payment: ', COALESCE(CONCAT(s.first_name, ' ', s.last_name), u.username, u.email), ' - ₱', ROUND(pay.amount,2), ' for ', p.name, ' (', DATEDIFF(CURDATE(), pay.due_date), ' days overdue)') as message,
+                   pay.updated_at as notification_time,
+                   'exclamation-triangle' as icon,
+                   'red' as color,
+                   'payments.php' as url
+            FROM payments pay
+            JOIN enrollments e ON pay.enrollment_id = e.id
+            JOIN programs p ON e.program_id = p.id
+            JOIN users u ON e.student_user_id = u.id
+            LEFT JOIN student_profiles s ON u.id = s.user_id
+            WHERE pay.status = 'overdue'
+            AND pay.updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            
+            UNION ALL
+            
+            SELECT 'enrollment' as notification_type,
+                   CONCAT('New enrollment: ', COALESCE(CONCAT(s.first_name, ' ', s.last_name), u.username, u.email), ' enrolled in ', p.name, ' (Tutor: ', COALESCE(tp.first_name, tu.username), ')') as message,
+                   e.enrollment_date as notification_time,
+                   'user-plus' as icon,
+                   'green' as color,
+                   'students.php' as url
+            FROM enrollments e
+            JOIN programs p ON e.program_id = p.id
+            JOIN users u ON e.student_user_id = u.id
+            LEFT JOIN student_profiles s ON u.id = s.user_id
+            LEFT JOIN users tu ON p.tutor_id = tu.id
+            LEFT JOIN tutor_profiles tp ON tu.id = tp.user_id
+            WHERE e.enrollment_date >= DATE_SUB(NOW(), INTERVAL 10 DAY)
+            AND e.status = 'active'
+            
+            UNION ALL
+            
+            SELECT 'payment_validated' as notification_type,
+                   CONCAT('Payment validated: ', COALESCE(CONCAT(s.first_name, ' ', s.last_name), u.username, u.email), ' - ₱', ROUND(pay.amount,2), ' for ', p.name) as message,
+                   pay.updated_at as notification_time,
+                   'check-circle' as icon,
+                   'green' as color,
+                   'payments.php' as url
+            FROM payments pay
+            JOIN enrollments e ON pay.enrollment_id = e.id
+            JOIN programs p ON e.program_id = p.id
+            JOIN users u ON e.student_user_id = u.id
+            LEFT JOIN student_profiles s ON u.id = s.user_id
+            WHERE pay.status = 'validated'
+            AND pay.updated_at >= DATE_SUB(NOW(), INTERVAL 2 DAY)
+            
+            ORDER BY 
+              CASE 
+                WHEN notification_type = 'payment_pending' THEN 1
+                WHEN notification_type = 'payment_overdue' THEN 2
+                WHEN notification_type = 'enrollment' THEN 3
+                ELSE 4
+              END,
+              notification_time DESC
+            LIMIT ?";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('i', $limit);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+      // Format the time
+      $time_diff = time() - strtotime($row['notification_time']);
+      
+      if ($time_diff < 0) {
+        $time_display = 'Just now';
+      } elseif ($time_diff < 60) {
+        $time_display = 'Just now';
+      } elseif ($time_diff < 3600) {
+        $time_display = floor($time_diff / 60) . ' minute' . (floor($time_diff / 60) == 1 ? '' : 's') . ' ago';
+      } elseif ($time_diff < 86400) {
+        $time_display = floor($time_diff / 3600) . ' hour' . (floor($time_diff / 3600) == 1 ? '' : 's') . ' ago';
+      } else {
+        $days = floor($time_diff / 86400);
+        $time_display = $days . ' day' . ($days == 1 ? '' : 's') . ' ago';
+      }
+
+      $notifications[] = [
+        'type' => $row['notification_type'],
+        'message' => $row['message'],
+        'time' => $time_display,
+        'icon' => $row['icon'],
+        'color' => $row['color'],
+        'url' => $row['url']
+      ];
+    }
+
+    return $notifications;
+  } catch (Exception $e) {
+    error_log("Error fetching admin notifications: " . $e->getMessage());
+    return [];
+  }
+}
+
+/**
  * Get recent activities for a student
  * @param int $student_id Student's user ID
  * @param int $limit Number of activities to return (default: 10)
@@ -1927,6 +2707,151 @@ function getStudentRecentActivities($student_id, $limit = 10)
     return $activities;
   } catch (Exception $e) {
     error_log("Error fetching student activities: " . $e->getMessage());
+    return [];
+  }
+}
+
+/**
+ * Get upcoming assessments and assignments for a student
+ * @param int $student_id Student user ID
+ * @param int $limit Maximum number of items to return
+ * @return array List of upcoming assessments/assignments
+ */
+function getStudentUpcomingAssessments($student_id, $limit = 10)
+{
+  global $conn;
+
+  try {
+    $upcoming = [];
+
+    // Get upcoming items from multiple sources with submission status
+    $sql = "SELECT 'assessment' as type,
+                   a.title as title,
+                   a.due_date as due_date,
+                   p.name as program_name,
+                   'clipboard-document-check' as icon,
+                   CONCAT('assessment_', a.id) as unique_id,
+                   a.id as item_id,
+                   CASE 
+                     WHEN aa.status IN ('submitted', 'graded') THEN 'submitted'
+                     WHEN aa.status = 'in_progress' THEN 'in_progress'
+                     ELSE 'not_submitted'
+                   END as submission_status
+            FROM assessments a
+            JOIN program_materials pm ON a.material_id = pm.id
+            JOIN programs p ON pm.program_id = p.id
+            JOIN enrollments e ON p.id = e.program_id
+            LEFT JOIN assessment_attempts aa ON a.id = aa.assessment_id AND aa.student_user_id = ?
+            WHERE e.student_user_id = ? 
+              AND e.status = 'active'
+              AND a.due_date > NOW()
+              AND a.status = 'active'
+            
+            UNION ALL
+            
+            -- Get assignments from assignments table with submission status
+            SELECT 'assignment' as type,
+                   ass.title as title,
+                   CAST(ass.due_date AS DATETIME) as due_date,
+                   p.name as program_name,
+                   'document-text' as icon,
+                   CONCAT('assignment_', ass.id) as unique_id,
+                   ass.id as item_id,
+                   CASE 
+                     WHEN asub.status IN ('submitted', 'graded', 'returned') THEN 'submitted'
+                     WHEN asub.status = 'draft' THEN 'draft'
+                     ELSE 'not_submitted'
+                   END as submission_status
+            FROM assignments ass
+            JOIN programs p ON ass.program_id = p.id
+            JOIN enrollments e ON p.id = e.program_id
+            LEFT JOIN assignment_submissions asub ON ass.id = asub.assignment_id AND asub.student_user_id = ?
+            WHERE e.student_user_id = ? 
+              AND e.status = 'active'
+              AND ass.due_date > CURDATE()
+            
+            UNION ALL
+            
+            -- Get program materials ONLY if no matching assignment exists in assignments table
+            SELECT CASE 
+                     WHEN pm.material_type = 'quiz' THEN 'quiz'
+                     WHEN pm.material_type = 'assignment' THEN 'assignment'
+                     ELSE pm.material_type
+                   END as type,
+                   pm.title as title,
+                   pm.due_date as due_date,
+                   p.name as program_name,
+                   CASE 
+                     WHEN pm.material_type = 'quiz' THEN 'clipboard-document-check'
+                     WHEN pm.material_type = 'assignment' THEN 'document-text'
+                     ELSE 'document'
+                   END as icon,
+                   CONCAT('material_', pm.id) as unique_id,
+                   pm.id as item_id,
+                   CASE 
+                     WHEN asub2.status IN ('pending', 'approved', 'rejected') THEN 'submitted'
+                     ELSE 'not_submitted'
+                   END as submission_status
+            FROM program_materials pm
+            JOIN programs p ON pm.program_id = p.id
+            JOIN enrollments e ON p.id = e.program_id
+            LEFT JOIN assessment_submissions asub2 ON pm.id = asub2.material_id AND asub2.student_user_id = ?
+            LEFT JOIN assignments ass ON pm.title = ass.title AND pm.program_id = ass.program_id AND ass.due_date > CURDATE()
+            WHERE e.student_user_id = ? 
+              AND e.status = 'active'
+              AND pm.due_date > NOW()
+              AND pm.material_type IN ('assignment', 'quiz')
+              AND ass.id IS NULL  -- Only include if no matching assignment exists
+            
+            ORDER BY due_date ASC
+            LIMIT ?";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('iiiiiii', $student_id, $student_id, $student_id, $student_id, $student_id, $student_id, $limit);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+      // Calculate time until due
+      $due_timestamp = strtotime($row['due_date']);
+      $time_diff = $due_timestamp - time();
+      
+      if ($time_diff < 0) {
+        $time_display = 'Overdue';
+      } elseif ($time_diff < 86400) {
+        $time_display = 'Due today';
+      } elseif ($time_diff < 172800) {
+        $time_display = 'Due tomorrow';
+      } else {
+        $days = floor($time_diff / 86400);
+        $time_display = "Due in {$days} days";
+      }
+
+      // Determine submission status display
+      $submission_display = match($row['submission_status']) {
+        'submitted' => 'Submitted',
+        'draft' => 'Draft',
+        'in_progress' => 'In Progress',
+        default => 'Not Submitted'
+      };
+
+      $upcoming[] = [
+        'type' => ucfirst($row['type']),
+        'title' => $row['title'],
+        'program' => $row['program_name'],
+        'time' => $time_display,
+        'icon' => $row['icon'],
+        'due_date' => $row['due_date'],
+        'unique_id' => $row['unique_id'],
+        'item_id' => $row['item_id'],
+        'submission_status' => $row['submission_status'],
+        'submission_display' => $submission_display
+      ];
+    }
+
+    return $upcoming;
+  } catch (Exception $e) {
+    error_log("Error fetching upcoming assessments: " . $e->getMessage());
     return [];
   }
 }
@@ -2376,24 +3301,28 @@ function studentHasOutstandingBalance($studentUserId)
 }
 
 /**
- * Check if a program has available capacity
+ * Check if a program has available capacity with enhanced accuracy and race condition protection
  * @param int $programId
+ * @param bool $useLock Whether to use FOR UPDATE lock (default: false)
  * @return array Array with capacity info
  */
-function checkProgramCapacity($programId)
+function checkProgramCapacity($programId, $useLock = false)
 {
   global $conn;
 
   try {
+    $lockClause = $useLock ? 'FOR UPDATE' : '';
+    
     $query = "
       SELECT 
         p.max_students as capacity,
         p.name,
-        COUNT(e.id) as enrolled_count
+        COUNT(DISTINCT e.id) as enrolled_count
       FROM programs p
       LEFT JOIN enrollments e ON p.id = e.program_id AND e.status IN ('pending', 'active')
       WHERE p.id = ? AND p.status = 'active'
       GROUP BY p.id, p.max_students, p.name
+      $lockClause
     ";
 
     $stmt = $conn->prepare($query);
@@ -2412,15 +3341,18 @@ function checkProgramCapacity($programId)
       ];
     }
 
-    $availableSlots = (int)$row['capacity'] - (int)$row['enrolled_count'];
+    $capacity = (int)$row['capacity'];
+    $enrolled = (int)$row['enrolled_count'];
+    $availableSlots = $capacity - $enrolled;
 
     return [
       'exists' => true,
       'has_capacity' => $availableSlots > 0,
       'available_slots' => $availableSlots,
-      'capacity' => (int)$row['capacity'],
-      'enrolled_count' => (int)$row['enrolled_count'],
-      'program_name' => $row['name']
+      'capacity' => $capacity,
+      'enrolled_count' => $enrolled,
+      'program_name' => $row['name'],
+      'is_over_capacity' => $enrolled > $capacity
     ];
   } catch (Exception $e) {
     error_log("Error checking program capacity: " . $e->getMessage());
@@ -2429,7 +3361,8 @@ function checkProgramCapacity($programId)
       'has_capacity' => false,
       'available_slots' => 0,
       'capacity' => 0,
-      'enrolled_count' => 0
+      'enrolled_count' => 0,
+      'is_over_capacity' => false
     ];
   }
 }
@@ -2479,14 +3412,17 @@ function checkStudentEnrollment($studentUserId, $programId)
 }
 
 /**
- * Validate enrollment eligibility (capacity + duplicate check)
+ * Validate enrollment eligibility (capacity + duplicate check + schedule conflicts)
  * @param int $studentUserId
  * @param int $programId
+ * @param bool $useLock Whether to use database locks for capacity checking
  * @return array Validation result
  */
-function validateEnrollmentEligibility($studentUserId, $programId)
+function validateEnrollmentEligibility($studentUserId, $programId, $useLock = false)
 {
-  $capacityCheck = checkProgramCapacity($programId);
+  require_once __DIR__ . '/schedule-conflict.php';
+  
+  $capacityCheck = checkProgramCapacity($programId, $useLock);
   $enrollmentCheck = checkStudentEnrollment($studentUserId, $programId);
 
   // Check if program exists
@@ -2507,11 +3443,30 @@ function validateEnrollmentEligibility($studentUserId, $programId)
     ];
   }
 
-  // Check if program has capacity
-  if (!$capacityCheck['has_capacity']) {
+  // Check for schedule conflicts
+  $conflictCheck = checkScheduleConflict($studentUserId, $programId);
+  if ($conflictCheck['has_conflict']) {
+    $conflicting_programs = array_map(function($conflict) {
+      return $conflict['program_name'];
+    }, $conflictCheck['conflicting_programs']);
+    
     return [
       'eligible' => false,
-      'reason' => 'Program is at full capacity',
+      'reason' => 'Schedule conflict with enrolled program(s): ' . implode(', ', $conflicting_programs),
+      'details' => $conflictCheck
+    ];
+  }
+
+  // Check if program has capacity
+  if (!$capacityCheck['has_capacity']) {
+    $capacity_msg = "Program is at full capacity ({$capacityCheck['enrolled_count']}/{$capacityCheck['capacity']})";
+    if (isset($capacityCheck['is_over_capacity']) && $capacityCheck['is_over_capacity']) {
+      $capacity_msg = "Program is over capacity ({$capacityCheck['enrolled_count']}/{$capacityCheck['capacity']})";
+    }
+    
+    return [
+      'eligible' => false,
+      'reason' => $capacity_msg,
       'details' => $capacityCheck
     ];
   }
@@ -2521,7 +3476,8 @@ function validateEnrollmentEligibility($studentUserId, $programId)
     'reason' => 'Enrollment allowed',
     'details' => [
       'capacity' => $capacityCheck,
-      'enrollment' => $enrollmentCheck
+      'enrollment' => $enrollmentCheck,
+      'schedule' => $conflictCheck
     ]
   ];
 }
@@ -2682,6 +3638,23 @@ function createPaymentSchedule($paymentSchedule)
         $payment['total_installments']
       );
       $stmt->execute();
+      
+      // Track payment creation
+      $payment_id = $conn->insert_id;
+      if ($payment_id) {
+        require_once __DIR__ . '/payment-history-helpers.php';
+        
+        // Get program name from enrollment
+        $program_query = "SELECT p.name FROM enrollments e JOIN programs p ON e.program_id = p.id WHERE e.id = ?";
+        $program_stmt = $conn->prepare($program_query);
+        $program_stmt->bind_param('i', $payment['enrollment_id']);
+        $program_stmt->execute();
+        $program_result = $program_stmt->get_result();
+        $program_data = $program_result->fetch_assoc();
+        $program_name = $program_data['name'] ?? 'Unknown Program';
+        
+        logPaymentCreated($payment_id, $program_name, $payment['amount']);
+      }
     }
 
     $conn->commit();
@@ -2783,6 +3756,68 @@ function validatePayment($payment_id, $validated_by, $status = 'validated', $not
       // If payment was validated, check and update enrollment status
       if ($status === 'validated' && $affected_rows > 0) {
         updateEnrollmentStatusOnPaymentValidation($actual_id);
+      }
+
+      // Add comprehensive payment history tracking and email notifications
+      if ($affected_rows > 0) {
+        // Include payment history helpers
+        require_once __DIR__ . '/payment-history-helpers.php';
+        
+        // Log the validation/rejection event
+        $old_status = 'pending'; // We know this from the check above
+        if ($status === 'validated') {
+          logPaymentValidated($actual_id, $old_status, $validated_by, $notes);
+        } else if ($status === 'rejected') {
+          logPaymentRejected($actual_id, $old_status, $validated_by, $notes);
+        }
+        
+        // Send email notification to student
+        try {
+          error_log("DEBUG: Starting email notification process for payment $actual_id");
+          require_once __DIR__ . '/notification-helpers.php';
+          
+          // Get program name for notification
+          $program_sql = "SELECT pr.name, pay.amount 
+                         FROM payments pay
+                         JOIN enrollments e ON pay.enrollment_id = e.id
+                         JOIN programs pr ON e.program_id = pr.id
+                         WHERE pay.id = ?";
+          $program_stmt = $conn->prepare($program_sql);
+          $program_stmt->bind_param('i', $actual_id);
+          $program_stmt->execute();
+          $program_result = $program_stmt->get_result();
+          $program_data = $program_result->fetch_assoc();
+          $program_stmt->close();
+          
+          error_log("DEBUG: Program data for payment $actual_id: " . json_encode($program_data));
+          error_log("DEBUG: Payment data: student_user_id=" . $payment['student_user_id'] . ", status=$status");
+          
+          if ($program_data) {
+            $notification_result = createPaymentNotification(
+              $payment['student_user_id'], 
+              $status, 
+              $program_data['name'], 
+              $program_data['amount'], 
+              $notes
+            );
+            
+            error_log("DEBUG: Notification result: " . json_encode($notification_result));
+            
+            if (!$notification_result['success']) {
+              error_log("NOTIFICATION ERROR: Failed to create payment notification: " . $notification_result['error']);
+            } else {
+              error_log("NOTIFICATION SUCCESS: Payment notification sent successfully. Email sent: " . ($notification_result['email_sent'] ? 'Yes' : 'No'));
+              if (isset($notification_result['email_error'])) {
+                error_log("NOTIFICATION EMAIL ERROR: " . $notification_result['email_error']);
+              }
+            }
+          } else {
+            error_log("NOTIFICATION ERROR: No program data found for payment $actual_id");
+          }
+        } catch (Exception $e) {
+          error_log("NOTIFICATION EXCEPTION: Error sending payment notification for payment $actual_id: " . $e->getMessage());
+          error_log("NOTIFICATION EXCEPTION TRACE: " . $e->getTraceAsString());
+        }
       }
 
       // Commit transaction
@@ -2921,28 +3956,29 @@ function checkAndUpdateEnrollmentStatusForOverduePayments()
   global $conn;
 
   try {
-    // Find enrollments with overdue installment payments
-    $overdue_sql = "SELECT DISTINCT e.id as enrollment_id, e.status as current_status,
-                           pr.name as program_name,
-                           COUNT(p.id) as overdue_count
-                    FROM enrollments e
-                    JOIN programs pr ON e.program_id = pr.id
-                    JOIN payments p ON e.id = p.enrollment_id
-                    WHERE e.status = 'active' 
-                      AND p.status = 'overdue'
-                      AND p.total_installments > 1
-                    GROUP BY e.id, e.status, pr.name
-                    HAVING overdue_count > 0";
+    // Find enrollments with locked payments (beyond 3-day grace period)
+    $locked_sql = "SELECT DISTINCT e.id as enrollment_id, e.status as current_status,
+                          pr.name as program_name,
+                          COUNT(p.id) as locked_count
+                   FROM enrollments e
+                   JOIN programs pr ON e.program_id = pr.id
+                   JOIN payments p ON e.id = p.enrollment_id
+                   WHERE e.status = 'active' 
+                     AND p.status = 'locked'
+                   GROUP BY e.id, e.status, pr.name
+                   HAVING locked_count > 0";
     
-    $result = $conn->query($overdue_sql);
+    $result = $conn->query($locked_sql);
     $updated_count = 0;
 
     while ($row = $result->fetch_assoc()) {
       $enrollment_id = $row['enrollment_id'];
       
-      // Pause the enrollment
+      // Lock the enrollment (set to 'paused' status but with locked reason)
       $update_sql = "UPDATE enrollments 
-                     SET status = 'paused', updated_at = NOW() 
+                     SET status = 'paused', 
+                         updated_at = NOW(),
+                         notes = CONCAT(COALESCE(notes, ''), '\n[', NOW(), '] Program access locked due to overdue payments beyond 3-day grace period')
                      WHERE id = ?";
       
       $stmt = $conn->prepare($update_sql);
@@ -2950,12 +3986,12 @@ function checkAndUpdateEnrollmentStatusForOverduePayments()
       
       if ($stmt->execute()) {
         $updated_count++;
-        error_log("Enrollment $enrollment_id paused due to overdue installment payments");
+        error_log("Enrollment $enrollment_id locked due to payments overdue beyond 3-day grace period");
         
         // Log the status change
         $log_sql = "INSERT INTO activity_logs (user_id, action, details) 
-                    VALUES (?, 'enrollment_status_change', ?)";
-        $log_details = "Enrollment $enrollment_id paused due to overdue installment payments in program: " . $row['program_name'];
+                    VALUES (?, 'enrollment_locked', ?)";
+        $log_details = "Enrollment $enrollment_id locked due to payments overdue beyond 3-day grace period in program: " . $row['program_name'];
         
         $log_stmt = $conn->prepare($log_sql);
         $student_id = getStudentIdFromEnrollment($enrollment_id);
@@ -2969,6 +4005,69 @@ function checkAndUpdateEnrollmentStatusForOverduePayments()
     return $updated_count;
   } catch (Exception $e) {
     error_log("Error checking overdue payment enrollments: " . $e->getMessage());
+    return 0;
+  }
+}
+
+/**
+ * Check and unlock enrollments when locked payments are settled
+ * This function should be called when payments are validated
+ */
+function checkAndUnlockEnrollmentsForSettledPayments()
+{
+  global $conn;
+
+  try {
+    // Find enrollments that were paused due to locked payments but now have all payments settled
+    $unlock_sql = "SELECT DISTINCT e.id as enrollment_id, e.status as current_status,
+                          pr.name as program_name
+                   FROM enrollments e
+                   JOIN programs pr ON e.program_id = pr.id
+                   LEFT JOIN payments p ON e.id = p.enrollment_id
+                   WHERE e.status = 'paused' 
+                     AND e.notes LIKE '%locked due to overdue payments%'
+                     AND NOT EXISTS (
+                       SELECT 1 FROM payments p2 
+                       WHERE p2.enrollment_id = e.id 
+                       AND p2.status IN ('locked', 'overdue', 'pending')
+                     )";
+    
+    $result = $conn->query($unlock_sql);
+    $unlocked_count = 0;
+
+    while ($row = $result->fetch_assoc()) {
+      $enrollment_id = $row['enrollment_id'];
+      
+      // Unlock the enrollment (set back to 'active' status)
+      $update_sql = "UPDATE enrollments 
+                     SET status = 'active', 
+                         notes = CONCAT(COALESCE(notes, ''), '\n[', NOW(), '] Program access restored - all payments settled')
+                     WHERE id = ?";
+      
+      $stmt = $conn->prepare($update_sql);
+      $stmt->bind_param("i", $enrollment_id);
+      
+      if ($stmt->execute()) {
+        $unlocked_count++;
+        error_log("Enrollment $enrollment_id unlocked - all payments settled");
+        
+        // Log the status change
+        $log_sql = "INSERT INTO activity_logs (user_id, action, details) 
+                    VALUES (?, 'enrollment_unlocked', ?)";
+        $log_details = "Enrollment $enrollment_id unlocked - all payments settled for program: " . $row['program_name'];
+        
+        $log_stmt = $conn->prepare($log_sql);
+        $student_id = getStudentIdFromEnrollment($enrollment_id);
+        $log_stmt->bind_param("is", $student_id, $log_details);
+        $log_stmt->execute();
+        $log_stmt->close();
+      }
+      $stmt->close();
+    }
+
+    return $unlocked_count;
+  } catch (Exception $e) {
+    error_log("Error checking and unlocking enrollments: " . $e->getMessage());
     return 0;
   }
 }
@@ -3023,8 +4122,13 @@ function getStudentPayments($student_username)
                    p.created_at,
                    CASE 
                      WHEN p.status = 'validated' THEN 'validated'
+                     WHEN p.status = 'rejected' AND p.due_date < CURDATE() THEN 'overdue_rejected'
                      WHEN p.status = 'rejected' THEN 'rejected'
+                     WHEN p.status = 'locked' THEN 'locked'
+                     WHEN p.status = 'overdue' THEN 'overdue'
+                     WHEN p.status = 'pending' AND p.reference_number IS NOT NULL AND p.due_date < CURDATE() THEN 'overdue_pending_validation'
                      WHEN p.status = 'pending' AND p.payment_date IS NOT NULL AND p.reference_number IS NOT NULL THEN 'pending_validation'
+                     WHEN p.status = 'pending' AND p.due_date < DATE_SUB(CURDATE(), INTERVAL 3 DAY) THEN 'locked'
                      WHEN p.status = 'pending' AND p.due_date < CURDATE() THEN 'overdue'
                      WHEN p.status = 'pending' AND p.due_date = CURDATE() THEN 'due_today'
                      WHEN p.status = 'pending' THEN 'due'
@@ -3197,11 +4301,11 @@ function getStudentEnrolledPrograms($student_id) {
 function calculateNextSession($program) {
   try {
     $current_date = new DateTime();
-    $start_date = new DateTime($program['start_date']);
-    $end_date = new DateTime($program['end_date']);
+    $start_date = !empty($program['start_date']) ? new DateTime($program['start_date']) : null;
+    $end_date = !empty($program['end_date']) ? new DateTime($program['end_date']) : null;
     
     // If program hasn't started yet
-    if ($current_date < $start_date) {
+    if ($start_date && $current_date < $start_date) {
       return [
         'date' => $start_date->format('l, M j'),
         'time' => $program['start_time'] ? date('g:i A', strtotime($program['start_time'])) : '9:00 AM',
@@ -3210,7 +4314,7 @@ function calculateNextSession($program) {
     }
     
     // If program has ended
-    if ($current_date > $end_date) {
+    if ($end_date && $current_date > $end_date) {
       return [
         'date' => 'Program Completed',
         'time' => '',
@@ -3326,8 +4430,8 @@ function generateProgramSessions($program) {
   $sessions = [];
   
   try {
-    $start_date = new DateTime($program['start_date']);
-    $end_date = new DateTime($program['end_date']);
+    $start_date = !empty($program['start_date']) ? new DateTime($program['start_date']) : new DateTime();
+    $end_date = !empty($program['end_date']) ? new DateTime($program['end_date']) : (new DateTime())->modify('+30 days');
     $current_date = new DateTime();
     
     // Parse days (e.g., "Mon, Wed, Fri")
@@ -4196,8 +5300,8 @@ function getOrCreateProgramSessions($program_id) {
     
     // Generate session dates based on program schedule
     $sessions = [];
-    $start_date = new DateTime($program['start_date']);
-    $end_date = new DateTime($program['end_date']);
+    $start_date = !empty($program['start_date']) ? new DateTime($program['start_date']) : new DateTime();
+    $end_date = !empty($program['end_date']) ? new DateTime($program['end_date']) : (new DateTime())->modify('+30 days');
     
     // Parse program days
     $days_str = strtolower($program['days'] ?? '');
@@ -4875,6 +5979,12 @@ function createSession($program_id, $session_datetime, $duration, $session_type,
 
     // Create sessions for each enrollment
     $sessions_to_create = [];
+    
+    // Validate session_datetime
+    if (empty($session_datetime)) {
+      throw new Exception("Session datetime cannot be empty");
+    }
+    
     $current_date = new DateTime($session_datetime);
     
     // If repeat session, calculate how many sessions to create
@@ -5270,7 +6380,7 @@ function updateStudentProfileSystemWide($user_id, $profile_data)
     }
     
     // Calculate age from birthday if provided
-    if (isset($profile_data['birthday'])) {
+    if (isset($profile_data['birthday']) && !empty($profile_data['birthday'])) {
       try {
         $birthday = new DateTime($profile_data['birthday']);
         $today = new DateTime();
@@ -6239,10 +7349,21 @@ function getAllUsers() {
   global $conn;
   
   try {
+    // Check if table exists first
+    $checkTable = $conn->query("SHOW TABLES LIKE 'users'");
+    if ($checkTable->num_rows == 0) {
+      error_log("Table 'users' does not exist");
+      return [];
+    }
+    
     $sql = "SELECT id, user_id, username, email, role, status, created_at, last_login 
             FROM users 
             ORDER BY created_at DESC";
     $result = $conn->query($sql);
+    
+    if (!$result) {
+      throw new Exception("Query failed: " . $conn->error);
+    }
     
     $users = [];
     while ($row = $result->fetch_assoc()) {
@@ -6369,8 +7490,17 @@ function resetUserPassword($email) {
   global $conn;
   
   try {
-    // Check if user exists
-    $checkSql = "SELECT id FROM users WHERE email = ?";
+    // Check if user exists and get user details with name from profile tables
+    $checkSql = "SELECT u.id, u.username, u.role,
+                        CASE 
+                          WHEN u.role = 'student' THEN sp.first_name
+                          WHEN u.role = 'tutor' THEN tp.first_name
+                          ELSE u.username
+                        END as first_name
+                 FROM users u
+                 LEFT JOIN student_profiles sp ON u.id = sp.user_id AND u.role = 'student'
+                 LEFT JOIN tutor_profiles tp ON u.id = tp.user_id AND u.role = 'tutor'
+                 WHERE u.email = ?";
     $checkStmt = $conn->prepare($checkSql);
     $checkStmt->bind_param('s', $email);
     $checkStmt->execute();
@@ -6379,6 +7509,9 @@ function resetUserPassword($email) {
     if ($result->num_rows === 0) {
       return ['success' => false, 'message' => 'User not found'];
     }
+    
+    $user = $result->fetch_assoc();
+    $firstName = $user['first_name'] ?: $user['username'];
     
     // Generate new password
     $newPassword = generateRandomPassword();
@@ -6390,7 +7523,15 @@ function resetUserPassword($email) {
     $stmt->bind_param('ss', $hashedPassword, $email);
     
     if ($stmt->execute()) {
-      return ['success' => true, 'new_password' => $newPassword];
+      // Send password reset email with new password
+      require_once __DIR__ . '/email-verification.php';
+      $emailSent = sendPasswordResetNotification($email, $firstName, $newPassword);
+      
+      return [
+        'success' => true, 
+        'new_password' => $newPassword,
+        'email_sent' => $emailSent
+      ];
     } else {
       return ['success' => false, 'message' => 'Failed to reset password'];
     }
@@ -6687,6 +7828,13 @@ function getAllEWalletAccounts() {
   global $conn;
   
   try {
+    // Check if table exists first
+    $checkTable = $conn->query("SHOW TABLES LIKE 'ewallet_accounts'");
+    if ($checkTable->num_rows == 0) {
+      error_log("Table 'ewallet_accounts' does not exist");
+      return [];
+    }
+    
     $stmt = $conn->prepare("SELECT * FROM ewallet_accounts WHERE is_active = 1 ORDER BY provider, id");
     $stmt->execute();
     $result = $stmt->get_result();
@@ -6711,6 +7859,13 @@ function getAllBankAccounts() {
   global $conn;
   
   try {
+    // Check if table exists first
+    $checkTable = $conn->query("SHOW TABLES LIKE 'bank_accounts'");
+    if ($checkTable->num_rows == 0) {
+      error_log("Table 'bank_accounts' does not exist");
+      return [];
+    }
+    
     $stmt = $conn->prepare("SELECT * FROM bank_accounts WHERE is_active = 1 ORDER BY bank_name, id");
     $stmt->execute();
     $result = $stmt->get_result();
@@ -6883,6 +8038,13 @@ function getAllCashSettings() {
   global $conn;
   
   try {
+    // Check if table exists first
+    $checkTable = $conn->query("SHOW TABLES LIKE 'cash_settings'");
+    if ($checkTable->num_rows == 0) {
+      error_log("Table 'cash_settings' does not exist");
+      return [];
+    }
+    
     $stmt = $conn->prepare("SELECT * FROM cash_settings WHERE is_active = 1 ORDER BY setting_key");
     $stmt->execute();
     $result = $stmt->get_result();
@@ -7207,6 +8369,145 @@ function getScheduleStats() {
   }
 }
 
+function getProgramScheduleOccupancy() {
+  global $conn;
+  
+  try {
+    // Get detailed program schedule data
+    $query = "
+      SELECT 
+        p.id as program_id,
+        p.name as program_name,
+        p.start_date,
+        p.end_date,
+        p.start_time,
+        p.end_time,
+        p.days,
+        p.max_students,
+        p.tutor_id,
+        CONCAT(u.first_name, ' ', u.last_name) as tutor_name,
+        COUNT(DISTINCT e.id) as enrolled_students,
+        COUNT(DISTINCT s.id) as total_sessions,
+        COUNT(DISTINCT CASE WHEN s.status = 'completed' THEN s.id END) as completed_sessions,
+        COUNT(DISTINCT CASE WHEN s.status = 'scheduled' THEN s.id END) as scheduled_sessions,
+        CASE 
+          WHEN p.max_students > 0 THEN ROUND((COUNT(DISTINCT e.id) / p.max_students) * 100, 1)
+          ELSE 0 
+        END as occupancy_percentage
+      FROM programs p
+      LEFT JOIN users u ON p.tutor_id = u.id
+      LEFT JOIN enrollments e ON p.id = e.program_id AND e.status = 'active'
+      LEFT JOIN sessions s ON e.id = s.enrollment_id
+      WHERE p.status = 'active'
+      GROUP BY p.id, p.name, p.start_date, p.end_date, p.start_time, p.end_time, p.days, p.max_students, p.tutor_id, u.first_name, u.last_name
+      ORDER BY p.name
+    ";
+    
+    $result = $conn->query($query);
+    $programs = [];
+    
+    while ($row = $result->fetch_assoc()) {
+      // Calculate schedule utilization
+      $totalSlots = $row['max_students'] ?: 0;
+      $enrolledStudents = $row['enrolled_students'] ?: 0;
+      $availableSlots = max(0, $totalSlots - $enrolledStudents);
+      
+      // Format days
+      $daysFormatted = !empty($row['days']) ? $row['days'] : 'Not specified';
+      
+      // Calculate program duration
+      $startDate = new DateTime($row['start_date']);
+      $endDate = new DateTime($row['end_date']);
+      $duration = $startDate->diff($endDate)->days + 1;
+      
+      $programs[] = [
+        'program_id' => $row['program_id'],
+        'program_name' => $row['program_name'],
+        'tutor_name' => $row['tutor_name'] ?: 'Not assigned',
+        'schedule' => [
+          'start_date' => $row['start_date'],
+          'end_date' => $row['end_date'],
+          'start_time' => $row['start_time'],
+          'end_time' => $row['end_time'],
+          'days' => $daysFormatted,
+          'duration_days' => $duration
+        ],
+        'capacity' => [
+          'max_students' => $totalSlots,
+          'enrolled_students' => $enrolledStudents,
+          'available_slots' => $availableSlots,
+          'occupancy_percentage' => $row['occupancy_percentage']
+        ],
+        'sessions' => [
+          'total_sessions' => $row['total_sessions'],
+          'completed_sessions' => $row['completed_sessions'],
+          'scheduled_sessions' => $row['scheduled_sessions']
+        ]
+      ];
+    }
+    
+    return $programs;
+    
+  } catch (Exception $e) {
+    error_log("Error getting program schedule occupancy: " . $e->getMessage());
+    return [];
+  }
+}
+
+function getScheduleOccupancySummary() {
+  global $conn;
+  
+  try {
+    // Get overall schedule summary
+    $query = "
+      SELECT 
+        COUNT(DISTINCT p.id) as total_programs,
+        SUM(p.max_students) as total_capacity,
+        COUNT(DISTINCT e.id) as total_enrolled,
+        COUNT(DISTINCT s.id) as total_sessions,
+        COUNT(DISTINCT CASE WHEN s.status = 'completed' THEN s.id END) as completed_sessions,
+        COUNT(DISTINCT CASE WHEN p.tutor_id IS NOT NULL THEN p.id END) as programs_with_tutors,
+        AVG(CASE 
+          WHEN p.max_students > 0 THEN (
+            SELECT COUNT(*) FROM enrollments e2 WHERE e2.program_id = p.id AND e2.status = 'active'
+          ) / p.max_students * 100
+          ELSE 0 
+        END) as avg_occupancy_rate
+      FROM programs p
+      LEFT JOIN enrollments e ON p.id = e.program_id AND e.status = 'active'
+      LEFT JOIN sessions s ON e.id = s.enrollment_id
+      WHERE p.status = 'active'
+    ";
+    
+    $result = $conn->query($query);
+    $summary = $result->fetch_assoc();
+    
+    return [
+      'total_programs' => (int)$summary['total_programs'],
+      'total_capacity' => (int)$summary['total_capacity'],
+      'total_enrolled' => (int)$summary['total_enrolled'],
+      'available_spots' => max(0, (int)$summary['total_capacity'] - (int)$summary['total_enrolled']),
+      'total_sessions' => (int)$summary['total_sessions'],
+      'completed_sessions' => (int)$summary['completed_sessions'],
+      'programs_with_tutors' => (int)$summary['programs_with_tutors'],
+      'avg_occupancy_rate' => round((float)$summary['avg_occupancy_rate'], 1)
+    ];
+    
+  } catch (Exception $e) {
+    error_log("Error getting schedule occupancy summary: " . $e->getMessage());
+    return [
+      'total_programs' => 0,
+      'total_capacity' => 0,
+      'total_enrolled' => 0,
+      'available_spots' => 0,
+      'total_sessions' => 0,
+      'completed_sessions' => 0,
+      'programs_with_tutors' => 0,
+      'avg_occupancy_rate' => 0
+    ];
+  }
+}
+
 /**
  * Get student's assignments and assessments with grades for a program
  * @param int $program_id The program ID
@@ -7521,5 +8822,306 @@ function getStudentAttendance($program_id, $student_user_id) {
     error_log("Error getting student attendance: " . $e->getMessage());
     return ['error' => 'Database error occurred'];
   }
+}
+
+/**
+ * Get detailed payment history for a specific payment ID
+ * @param string $payment_id Payment ID (e.g., PAY-20251020-083)
+ * @return array Array of payment history records
+ */
+function getPaymentHistory($payment_id)
+{
+  // Include the new payment history helpers
+  require_once __DIR__ . '/payment-history-helpers.php';
+  
+  // Use the new comprehensive history system
+  return getActualPaymentHistory($payment_id);
+}
+
+/**
+ * Create payment history table if it doesn't exist
+ */
+function createPaymentHistoryTable()
+{
+  global $conn;
+  
+  try {
+    $sql = "CREATE TABLE IF NOT EXISTS payment_history (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      payment_id INT NOT NULL,
+      action VARCHAR(50) NOT NULL,
+      old_status VARCHAR(50),
+      new_status VARCHAR(50),
+      performed_by INT,
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE,
+      FOREIGN KEY (performed_by) REFERENCES users(id) ON DELETE SET NULL,
+      INDEX idx_payment_id (payment_id),
+      INDEX idx_created_at (created_at)
+    )";
+    
+    $conn->query($sql);
+    return true;
+    
+  } catch (Exception $e) {
+    error_log("Error creating payment history table: " . $e->getMessage());
+    return false;
+  }
+}
+
+/**
+ * Log payment action to history
+ * @param int $payment_id Payment record ID
+ * @param string $action Action performed
+ * @param string $old_status Previous status
+ * @param string $new_status New status
+ * @param int $performed_by User ID who performed the action
+ * @param string $notes Additional notes
+ */
+function logPaymentHistory($payment_id, $action, $old_status = null, $new_status = null, $performed_by = null, $notes = null)
+{
+  global $conn;
+  
+  try {
+    // Create table if it doesn't exist
+    createPaymentHistoryTable();
+    
+    $sql = "INSERT INTO payment_history (payment_id, action, old_status, new_status, performed_by, notes) 
+            VALUES (?, ?, ?, ?, ?, ?)";
+            
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+      throw new Exception('Failed to prepare statement: ' . $conn->error);
+    }
+    
+    $stmt->bind_param('isssiss', $payment_id, $action, $old_status, $new_status, $performed_by, $notes);
+    $stmt->execute();
+    
+    return true;
+    
+  } catch (Exception $e) {
+    error_log("Error logging payment history: " . $e->getMessage());
+    return false;
+  }
+}
+
+/**
+ * Check if a student has access to a specific program based on payment status and grace period
+ * 
+ * @param int $student_user_id Student's user ID
+ * @param int $program_id Program ID to check access for
+ * @return array Contains access status and details
+ */
+function checkStudentProgramAccess($student_user_id, $program_id)
+{
+  global $conn;
+
+  try {
+    // First, check if student is enrolled in the program
+    $enrollment_sql = "SELECT e.id as enrollment_id, e.status as enrollment_status, 
+                              p.name as program_name
+                       FROM enrollments e 
+                       JOIN programs p ON e.program_id = p.id
+                       WHERE e.student_user_id = ? AND e.program_id = ?";
+    
+    $stmt = $conn->prepare($enrollment_sql);
+    $stmt->bind_param('ii', $student_user_id, $program_id);
+    $stmt->execute();
+    $enrollment_result = $stmt->get_result();
+    $enrollment = $enrollment_result->fetch_assoc();
+
+    if (!$enrollment) {
+      return [
+        'has_access' => false,
+        'reason' => 'not_enrolled',
+        'message' => 'You are not enrolled in this program.',
+        'enrollment_status' => null,
+        'locked_payments' => 0,
+        'overdue_payments' => 0,
+        'grace_period_remaining' => 0
+      ];
+    }
+
+    // If enrollment is not active, deny access
+    if ($enrollment['enrollment_status'] !== 'active') {
+      return [
+        'has_access' => false,
+        'reason' => 'enrollment_inactive',
+        'message' => 'Your enrollment in this program is not active.',
+        'enrollment_status' => $enrollment['enrollment_status'],
+        'locked_payments' => 0,
+        'overdue_payments' => 0,
+        'grace_period_remaining' => 0
+      ];
+    }
+
+    // Check for locked payments (overdue beyond 3-day grace period)
+    $payment_sql = "SELECT 
+                      COUNT(CASE WHEN p.status = 'locked' THEN 1 END) as locked_payments,
+                      COUNT(CASE WHEN p.status = 'overdue' THEN 1 END) as overdue_payments,
+                      COUNT(CASE WHEN p.status = 'pending' AND p.reference_number IS NOT NULL AND p.due_date < CURDATE() THEN 1 END) as pending_validation_overdue,
+                      COUNT(CASE WHEN p.status = 'rejected' AND p.due_date < CURDATE() THEN 1 END) as rejected_overdue,
+                      MIN(CASE WHEN p.status = 'overdue' THEN DATEDIFF(DATE_ADD(p.due_date, INTERVAL 3 DAY), CURDATE()) END) as min_grace_remaining,
+                      MIN(CASE WHEN p.status = 'locked' THEN p.due_date END) as earliest_locked_due_date
+                    FROM payments p
+                    WHERE p.enrollment_id = ?";
+    
+    $stmt = $conn->prepare($payment_sql);
+    $stmt->bind_param('i', $enrollment['enrollment_id']);
+    $stmt->execute();
+    $payment_result = $stmt->get_result();
+    $payment_data = $payment_result->fetch_assoc();
+
+    $locked_payments = $payment_data['locked_payments'] ?? 0;
+    $overdue_payments = $payment_data['overdue_payments'] ?? 0;
+    $pending_validation_overdue = $payment_data['pending_validation_overdue'] ?? 0;
+    $rejected_overdue = $payment_data['rejected_overdue'] ?? 0;
+    $grace_remaining = max(0, $payment_data['min_grace_remaining'] ?? 0);
+
+    // If there are locked payments, deny access
+    if ($locked_payments > 0) {
+      return [
+        'has_access' => false,
+        'reason' => 'payments_locked',
+        'message' => 'Your access to this program has been locked due to overdue payments beyond the 3-day grace period. Please settle your outstanding payments to regain access.',
+        'enrollment_status' => $enrollment['enrollment_status'],
+        'locked_payments' => $locked_payments,
+        'overdue_payments' => $overdue_payments,
+        'grace_period_remaining' => 0,
+        'earliest_locked_due_date' => $payment_data['earliest_locked_due_date']
+      ];
+    }
+
+    // If there are rejected payments that were overdue, keep access locked
+    if ($rejected_overdue > 0) {
+      return [
+        'has_access' => false,
+        'reason' => 'payments_rejected',
+        'message' => 'Your access to this program remains locked due to rejected payment submissions. Please resubmit your payment with correct information.',
+        'enrollment_status' => $enrollment['enrollment_status'],
+        'locked_payments' => 0,
+        'overdue_payments' => 0,
+        'rejected_overdue' => $rejected_overdue,
+        'grace_period_remaining' => 0
+      ];
+    }
+
+    // If there are pending validation payments that were overdue, keep access locked
+    if ($pending_validation_overdue > 0) {
+      return [
+        'has_access' => false,
+        'reason' => 'payments_pending_validation',
+        'message' => 'Your access to this program remains locked while your overdue payment submission is being validated. Access will be restored once payment is approved.',
+        'enrollment_status' => $enrollment['enrollment_status'],
+        'locked_payments' => 0,
+        'overdue_payments' => 0,
+        'pending_validation_overdue' => $pending_validation_overdue,
+        'grace_period_remaining' => 0
+      ];
+    }
+
+    // If there are overdue payments, check if grace period has expired
+    if ($overdue_payments > 0) {
+      if ($grace_remaining <= 0) {
+        // Grace period has expired, deny access
+        return [
+          'has_access' => false,
+          'reason' => 'payments_locked',
+          'message' => 'Your access to this program has been locked due to overdue payments beyond the 3-day grace period. Please settle your outstanding payments to regain access.',
+          'enrollment_status' => $enrollment['enrollment_status'],
+          'locked_payments' => 0,
+          'overdue_payments' => $overdue_payments,
+          'grace_period_remaining' => 0,
+          'earliest_locked_due_date' => null
+        ];
+      } else {
+        // Still in grace period, allow access but show warning
+        return [
+          'has_access' => true,
+          'reason' => 'grace_period',
+          'message' => "You have overdue payments. You have {$grace_remaining} day(s) remaining to settle them before program access is locked.",
+          'enrollment_status' => $enrollment['enrollment_status'],
+          'locked_payments' => 0,
+          'overdue_payments' => $overdue_payments,
+          'grace_period_remaining' => $grace_remaining,
+          'show_warning' => true
+        ];
+      }
+    }
+
+    // All good, full access
+    return [
+      'has_access' => true,
+      'reason' => 'active',
+      'message' => 'You have full access to this program.',
+      'enrollment_status' => $enrollment['enrollment_status'],
+      'locked_payments' => 0,
+      'overdue_payments' => 0,
+      'grace_period_remaining' => 0
+    ];
+
+  } catch (Exception $e) {
+    error_log("Error checking student program access: " . $e->getMessage());
+    return [
+      'has_access' => false,
+      'reason' => 'error',
+      'message' => 'An error occurred while checking program access.',
+      'enrollment_status' => null,
+      'locked_payments' => 0,
+      'overdue_payments' => 0,
+      'grace_period_remaining' => 0
+    ];
+  }
+}
+
+/**
+ * Get formatted grace period message for display
+ * 
+ * @param array $access_check Result from checkStudentProgramAccess
+ * @return string HTML formatted message
+ */
+function getGracePeriodMessage($access_check) 
+{
+  if (!$access_check['has_access']) {
+    if ($access_check['reason'] === 'payments_locked') {
+      return '<div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+                <div class="flex">
+                  <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <p class="text-sm text-red-800 font-medium">Program Access Locked</p>
+                    <p class="text-sm text-red-700 mt-1">' . htmlspecialchars($access_check['message']) . '</p>
+                    <a href="student-payments.php" class="inline-block mt-2 text-sm bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+                      View Payment Details
+                    </a>
+                  </div>
+                </div>
+              </div>';
+    }
+  } elseif ($access_check['reason'] === 'grace_period') {
+    $days_remaining = $access_check['grace_period_remaining'];
+    return '<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-yellow-800 font-medium">Payment Warning - ' . $days_remaining . ' day(s) remaining</p>
+                  <p class="text-sm text-yellow-700 mt-1">' . htmlspecialchars($access_check['message']) . '</p>
+                  <a href="student-payments.php" class="inline-block mt-2 text-sm bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded">
+                    Pay Now
+                  </a>
+                </div>
+              </div>
+            </div>';
+  }
+  
+  return '';
 }
 ?>

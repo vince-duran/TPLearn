@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✅ MySQL Fixed - Continue Testing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-green-900 via-blue-900 to-purple-900 min-h-screen p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Success Banner -->
+        <div class="bg-green-500 text-white rounded-2xl shadow-2xl p-8 mb-8 text-center">
+            <h1 class="text-5xl font-bold mb-4">✅ MySQL is Running!</h1>
+            <p class="text-2xl">Now let's test the Assessment Submissions fix</p>
+        </div>
+
+        <!-- Progress Tracker -->
+        <div class="bg-white rounded-xl shadow-2xl p-8 mb-8">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6">📊 Testing Progress</h2>
+            <div class="space-y-4">
+                <div class="flex items-center">
+                    <div class="bg-green-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold mr-4">✓</div>
+                    <div class="flex-1">
+                        <p class="font-bold text-green-700">MySQL Started</p>
+                        <p class="text-sm text-gray-600">Database is accessible</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold mr-4">2</div>
+                    <div class="flex-1">
+                        <p class="font-bold text-blue-700">Check Submission Data</p>
+                        <p class="text-sm text-gray-600">Verify if submissions exist in database</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="bg-gray-300 text-gray-600 rounded-full w-10 h-10 flex items-center justify-center font-bold mr-4">3</div>
+                    <div class="flex-1">
+                        <p class="font-bold text-gray-700">Test API</p>
+                        <p class="text-sm text-gray-600">Verify API returns correct data</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="bg-gray-300 text-gray-600 rounded-full w-10 h-10 flex items-center justify-center font-bold mr-4">4</div>
+                    <div class="flex-1">
+                        <p class="font-bold text-gray-700">Test UI</p>
+                        <p class="text-sm text-gray-600">Click Submissions in tutor stream</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step-by-Step Tests -->
+        <div class="space-y-6">
+            <!-- Test 1 -->
+            <div class="bg-white rounded-xl shadow-xl p-6">
+                <div class="flex items-start">
+                    <div class="bg-blue-600 text-white rounded-lg w-12 h-12 flex items-center justify-center font-bold text-xl mr-4 flex-shrink-0">1</div>
+                    <div class="flex-1">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-3">Check if Submissions Exist</h3>
+                        <p class="text-gray-700 mb-4">First, let's see if there are any assessment submissions in the database.</p>
+                        <button onclick="checkSubmissions()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold">
+                            🔍 Check Database
+                        </button>
+                        <div id="result1" class="mt-4 hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test 2 -->
+            <div class="bg-white rounded-xl shadow-xl p-6">
+                <div class="flex items-start">
+                    <div class="bg-green-600 text-white rounded-lg w-12 h-12 flex items-center justify-center font-bold text-xl mr-4 flex-shrink-0">2</div>
+                    <div class="flex-1">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-3">Create Test Submissions</h3>
+                        <p class="text-gray-700 mb-4">If no submissions exist, create test data to verify the system works.</p>
+                        <a href="/TPLearn/create_test_assessment_submissions.php" target="_blank"
+                           class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold">
+                            ➕ Create Test Data
+                        </a>
+                        <p class="text-sm text-gray-600 mt-2">Opens in new tab. After creating, come back here.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test 3 -->
+            <div class="bg-white rounded-xl shadow-xl p-6">
+                <div class="flex items-start">
+                    <div class="bg-purple-600 text-white rounded-lg w-12 h-12 flex items-center justify-center font-bold text-xl mr-4 flex-shrink-0">3</div>
+                    <div class="flex-1">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-3">Test Assessment API</h3>
+                        <p class="text-gray-700 mb-4">Test if the API endpoint returns data correctly.</p>
+                        <div class="flex items-center mb-4">
+                            <label class="text-gray-700 mr-3">Assessment ID:</label>
+                            <input type="number" id="apiTestId" value="242" 
+                                   class="border border-gray-300 rounded px-3 py-2 w-32 mr-3">
+                            <button onclick="testAPI()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-bold">
+                                🧪 Test API
+                            </button>
+                        </div>
+                        <div id="result3" class="mt-4 hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test 4 -->
+            <div class="bg-white rounded-xl shadow-xl p-6">
+                <div class="flex items-start">
+                    <div class="bg-red-600 text-white rounded-lg w-12 h-12 flex items-center justify-center font-bold text-xl mr-4 flex-shrink-0">4</div>
+                    <div class="flex-1">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-3">Test in Tutor Stream (Live Test)</h3>
+                        <p class="text-gray-700 mb-4">The final test - click "Submissions" button and verify it works!</p>
+                        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-4">
+                            <p class="text-yellow-800 font-bold mb-2">Before clicking "Test Now":</p>
+                            <ol class="list-decimal list-inside space-y-1 text-yellow-700 text-sm">
+                                <li>Press <kbd class="bg-gray-200 px-2 py-1 rounded">F12</kbd> to open Developer Console</li>
+                                <li>Look for logs starting with 🔍 📡 ✅ 📦</li>
+                                <li>These logs show exactly what's happening</li>
+                            </ol>
+                        </div>
+                        <a href="/TPLearn/dashboards/tutor/tutor-program-stream.php?program_id=32&program=New+Prog" 
+                           target="_blank"
+                           class="inline-block bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold">
+                            🚀 Test Now (Opens Tutor Stream)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expected Results -->
+        <div class="bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl shadow-2xl p-8 mt-8">
+            <h2 class="text-3xl font-bold mb-6">🎯 What Success Looks Like</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white bg-opacity-20 backdrop-blur rounded-lg p-6">
+                    <h3 class="text-2xl font-bold mb-4">✅ If Submissions Exist:</h3>
+                    <ul class="space-y-2">
+                        <li>✓ Modal opens</li>
+                        <li>✓ Shows assessment title & details</li>
+                        <li>✓ Displays student submission table</li>
+                        <li>✓ Shows grades, dates, status</li>
+                        <li>✓ Statistics at top (3 submissions, etc.)</li>
+                    </ul>
+                </div>
+                <div class="bg-white bg-opacity-20 backdrop-blur rounded-lg p-6">
+                    <h3 class="text-2xl font-bold mb-4">✅ If No Submissions:</h3>
+                    <ul class="space-y-2">
+                        <li>✓ Modal opens</li>
+                        <li>✓ Shows assessment title & details</li>
+                        <li>✓ Message: "No submissions found for this <strong>assessment</strong>"</li>
+                        <li>✓ (Note: Says "assessment" NOT "assignment")</li>
+                        <li>✓ Statistics show 0/X students</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Tools -->
+        <div class="bg-gray-800 rounded-xl shadow-xl p-8 mt-8">
+            <h2 class="text-2xl font-bold text-white mb-4">🛠️ Quick Access Tools</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <a href="/TPLearn/debug_assessment_submission_issue.php" target="_blank"
+                   class="bg-blue-600 hover:bg-blue-700 text-white text-center py-3 rounded-lg font-bold">
+                    Backend Check
+                </a>
+                <a href="/TPLearn/LIVE_DEBUGGER.html" target="_blank"
+                   class="bg-red-600 hover:bg-red-700 text-white text-center py-3 rounded-lg font-bold">
+                    Live Debugger
+                </a>
+                <a href="/TPLearn/FIX_ASSESSMENT_SUBMISSIONS_GUIDE.html" target="_blank"
+                   class="bg-purple-600 hover:bg-purple-700 text-white text-center py-3 rounded-lg font-bold">
+                    Full Guide
+                </a>
+                <a href="/TPLearn/START_HERE_ASSESSMENT_FIX.html" target="_blank"
+                   class="bg-green-600 hover:bg-green-700 text-white text-center py-3 rounded-lg font-bold">
+                    Start Here
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function checkSubmissions() {
+            const result = document.getElementById('result1');
+            result.classList.remove('hidden');
+            result.innerHTML = '<div class="bg-blue-100 border border-blue-300 rounded-lg p-4"><p class="text-blue-800">⏳ Checking database...</p></div>';
+
+            fetch('/TPLearn/api/check_all_assessment_submissions.php')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.total_count > 0) {
+                        result.innerHTML = `
+                            <div class="bg-green-100 border border-green-300 rounded-lg p-6">
+                                <p class="text-green-800 font-bold text-xl mb-3">✅ Great! Found ${data.total_count} submission(s)</p>
+                                <p class="text-green-700 mb-4">Submissions exist in database. You can skip step 2 and go directly to testing the API (step 3).</p>
+                                <div class="bg-white rounded p-4">
+                                    <p class="font-bold text-gray-800 mb-2">Sample submissions:</p>
+                                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
+                                        ${data.submissions.slice(0, 3).map(s => 
+                                            `<li>${s.student_name} → ${s.assessment_title || 'Assessment'} (${s.status})</li>`
+                                        ).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        result.innerHTML = `
+                            <div class="bg-yellow-100 border border-yellow-300 rounded-lg p-6">
+                                <p class="text-yellow-800 font-bold text-xl mb-3">⚠️ No submissions found</p>
+                                <p class="text-yellow-700 mb-4">The assessment_submissions table is empty. Please create test data using step 2.</p>
+                                <a href="/TPLearn/create_test_assessment_submissions.php" target="_blank"
+                                   class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold">
+                                    ➕ Create Test Submissions
+                                </a>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    result.innerHTML = `
+                        <div class="bg-red-100 border border-red-300 rounded-lg p-6">
+                            <p class="text-red-800 font-bold text-xl mb-3">❌ Error checking database</p>
+                            <p class="text-red-700">${err.message}</p>
+                            <p class="text-red-600 text-sm mt-2">Make sure MySQL is running in XAMPP</p>
+                        </div>
+                    `;
+                });
+        }
+
+        function testAPI() {
+            const assessmentId = document.getElementById('apiTestId').value;
+            const result = document.getElementById('result3');
+            result.classList.remove('hidden');
+            result.innerHTML = '<div class="bg-purple-100 border border-purple-300 rounded-lg p-4"><p class="text-purple-800">⏳ Testing API...</p></div>';
+
+            const url = `/TPLearn/api/get-assessment-submissions.php?material_id=${assessmentId}`;
+            
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        result.innerHTML = `
+                            <div class="bg-green-100 border border-green-300 rounded-lg p-6">
+                                <p class="text-green-800 font-bold text-xl mb-3">✅ API Works Perfectly!</p>
+                                <div class="bg-white rounded p-4 mb-4">
+                                    <p class="font-bold text-gray-800 mb-2">Assessment Details:</p>
+                                    <ul class="text-sm text-gray-700 space-y-1">
+                                        <li><strong>Title:</strong> ${data.assessment.title}</li>
+                                        <li><strong>Max Score:</strong> ${data.assessment.max_score} pts</li>
+                                        <li><strong>Due Date:</strong> ${data.assessment.due_date_formatted}</li>
+                                        <li><strong>Submissions:</strong> ${data.submissions.length}</li>
+                                        ${data.statistics ? `<li><strong>Graded:</strong> ${data.statistics.graded_count} / ${data.statistics.total_submissions}</li>` : ''}
+                                    </ul>
+                                </div>
+                                <p class="text-green-700 font-bold">✅ Ready for final test! Go to step 4.</p>
+                            </div>
+                        `;
+                    } else {
+                        result.innerHTML = `
+                            <div class="bg-red-100 border border-red-300 rounded-lg p-6">
+                                <p class="text-red-800 font-bold text-xl mb-3">❌ API Error</p>
+                                <p class="text-red-700 mb-2">${data.error}</p>
+                                ${data.error.includes('not found') ? `
+                                    <p class="text-yellow-700 text-sm mt-3">Try a different assessment ID or check the diagnostic:</p>
+                                    <a href="/TPLearn/debug_assessment_submission_issue.php" target="_blank"
+                                       class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg mt-2">
+                                        View Diagnostic
+                                    </a>
+                                ` : ''}
+                            </div>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    result.innerHTML = `
+                        <div class="bg-red-100 border border-red-300 rounded-lg p-6">
+                            <p class="text-red-800 font-bold text-xl mb-3">❌ Network Error</p>
+                            <p class="text-red-700">${err.message}</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // Auto-run first test on load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('%c✅ MySQL is Running - Testing System...', 'color: green; font-size: 18px; font-weight: bold');
+            setTimeout(() => checkSubmissions(), 500);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dropdown Arrow Fix Complete</title>
+</head>
+<body>
+    <h1>Dropdown Arrow Fix - COMPLETE ✅</h1>
+    
+    <h2>Issue Fixed:</h2>
+    <p><strong>Problem:</strong> The dropdown arrow next to the program progress percentage was not clickable because the arrow icon was missing from the HTML.</p>
+    
+    <h2>Solution Applied:</h2>
+    <ul>
+        <li>✅ Added dropdown arrow SVG icon with correct ID (`{programId}-icon`)</li>
+        <li>✅ Positioned arrow next to the status badge in the program header</li>
+        <li>✅ Added proper transition classes for smooth rotation animation</li>
+        <li>✅ Maintained existing `toggleProgram()` function functionality</li>
+    </ul>
+    
+    <h2>Technical Details:</h2>
+    <ul>
+        <li><strong>Icon ID:</strong> `{programId}-icon` - matches what toggleProgram() function expects</li>
+        <li><strong>CSS Classes:</strong> `w-5 h-5 text-gray-500 transition-transform duration-200`</li>
+        <li><strong>Rotation:</strong> Function rotates arrow 180 degrees when expanded</li>
+        <li><strong>Location:</strong> Next to status badge in program card header</li>
+    </ul>
+    
+    <h2>How to Test:</h2>
+    <ol>
+        <li>Navigate to tutor-programs.php</li>
+        <li>Look for the dropdown arrow next to each program's status badge</li>
+        <li>Click the arrow (or anywhere on the program header)</li>
+        <li>Verify the arrow rotates and program details expand/collapse</li>
+    </ol>
+    
+    <h2>Arrow Icon Code Added:</h2>
+    <pre><code>
+    &lt;svg id="&lt;?php echo $program_id; ?&gt;-icon" class="w-5 h-5 text-gray-500 transition-transform duration-200" fill="currentColor" viewBox="0 0 20 20"&gt;
+      &lt;path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"&gt;&lt;/path&gt;
+    &lt;/svg&gt;
+    </code></pre>
+    
+    <p><strong>Status:</strong> Dropdown arrow is now visible and fully functional! 🎉</p>
+</body>
+</html>

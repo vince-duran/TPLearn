@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Notification Badge Update</title>
+</head>
+<body>
+    <h3>Debug Information:</h3>
+    <p>Open the browser console and check the notification dropdown to test:</p>
+    <ol>
+        <li>Click on the notification bell icon</li>
+        <li>Note the current badge count (should be 2)</li>
+        <li>Click on an unread notification (bold text with blue dot)</li>
+        <li>The notification should become "read" (normal text, no blue dot)</li>
+        <li>The badge count should decrease by 1</li>
+        <li>Refresh the page - the notification should still show as read</li>
+    </ol>
+    
+    <script>
+        console.log('Testing localStorage for notifications:');
+        console.log('Read notifications:', localStorage.getItem('readNotifications'));
+        
+        // Function to clear read status (for testing)
+        function clearReadStatus() {
+            localStorage.removeItem('readNotifications');
+            console.log('Cleared read notifications from localStorage');
+            location.reload();
+        }
+        
+        console.log('To reset notifications, run: clearReadStatus()');
+    </script>
+</body>
+</html>

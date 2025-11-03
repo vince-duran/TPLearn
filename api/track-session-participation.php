@@ -32,7 +32,7 @@ $user_role = $_SESSION['role'];
 
 try {
     // Verify the meeting exists
-    $stmt = $conn->prepare("SELECT id, program_id FROM meetings WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id, program_id FROM jitsi_meetings WHERE id = ?");
     $stmt->bind_param('i', $meeting_id);
     $stmt->execute();
     $meeting = $stmt->get_result()->fetch_assoc();
@@ -49,37 +49,33 @@ try {
             $ip_address = $_SERVER['REMOTE_ADDR'] ?? null;
             $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? null;
             
-            // First, mark any previous sessions as left (cleanup)
+            // Insert or update join record using ON DUPLICATE KEY UPDATE
             $stmt = $conn->prepare("
-                UPDATE meeting_participants 
-                SET left_at = NOW() 
-                WHERE meeting_id = ? AND user_id = ? AND left_at IS NULL
+                INSERT INTO jitsi_participants 
+                (meeting_id, user_id, joined_at, status) 
+                VALUES (?, ?, NOW(), 'joined')
+                ON DUPLICATE KEY UPDATE 
+                    status = 'joined',
+                    joined_at = NOW(),
+                    left_at = NULL
             ");
             $stmt->bind_param('ii', $meeting_id, $user_id);
             $stmt->execute();
             
-            // Insert new join record
-            $stmt = $conn->prepare("
-                INSERT INTO meeting_participants 
-                (meeting_id, user_id, joined_at, last_seen, ip_address, user_agent) 
-                VALUES (?, ?, NOW(), NOW(), ?, ?)
-            ");
-            $stmt->bind_param('iiss', $meeting_id, $user_id, $ip_address, $user_agent);
-            $stmt->execute();
-            
             echo json_encode([
                 'success' => true,
-                'message' => 'Successfully joined session',
-                'participantId' => $conn->insert_id
+                'message' => 'Successfully joined session'
             ]);
             break;
             
         case 'leave':
             // Record user leaving the session
             $stmt = $conn->prepare("
-                UPDATE meeting_participants 
-                SET left_at = NOW(), last_seen = NOW() 
-                WHERE meeting_id = ? AND user_id = ? AND left_at IS NULL
+                UPDATE jitsi_participants 
+                SET status = 'left', 
+                    left_at = NOW(),
+                    duration_minutes = TIMESTAMPDIFF(MINUTE, joined_at, NOW())
+                WHERE meeting_id = ? AND user_id = ?
             ");
             $stmt->bind_param('ii', $meeting_id, $user_id);
             $stmt->execute();
@@ -91,11 +87,11 @@ try {
             break;
             
         case 'heartbeat':
-            // Update last seen timestamp to show user is still active
+            // Update status to ensure user is still marked as joined
             $stmt = $conn->prepare("
-                UPDATE meeting_participants 
-                SET last_seen = NOW() 
-                WHERE meeting_id = ? AND user_id = ? AND left_at IS NULL
+                UPDATE jitsi_participants 
+                SET status = 'joined'
+                WHERE meeting_id = ? AND user_id = ?
             ");
             $stmt->bind_param('ii', $meeting_id, $user_id);
             $stmt->execute();

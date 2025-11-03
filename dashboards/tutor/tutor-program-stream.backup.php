@@ -1556,7 +1556,7 @@ if (!empty($materials)) {
           document.getElementById('deleteProgress').remove();
           
           if (data.success) {
-            alert(`Material deleted successfully.\n\nThe material has been permanently removed and is no longer accessible to students.`);
+            TPAlert.info('Information', `Material deleted successfully.\n\nThe material has been permanently removed and is no longer accessible to students.`);
             
             // Refresh the page to show updated data
             location.reload();
@@ -1568,7 +1568,7 @@ if (!empty($materials)) {
       .catch(error => {
         console.error('Error:', error);
         document.getElementById('deleteProgress').remove();
-        alert('Error deleting material. Please try again.');
+        TPAlert.error('Error', 'Error deleting material. Please try again.');
       });
     }
 
@@ -1663,7 +1663,8 @@ if (!empty($materials)) {
 
     // Mark all present
     function markAllPresent() {
-      if (confirm('Mark all students as present for this session?')) {
+      TPAlert.confirm('Confirm Action', 'Mark all students as present for this session?').then(result => {
+        if (result.isConfirmed) {
         const selects = document.querySelectorAll('.attendance-status-select');
         selects.forEach(select => {
           select.value = 'present';
@@ -1697,7 +1698,7 @@ if (!empty($materials)) {
 
       setTimeout(() => {
         document.getElementById('exportAttendanceProgress').remove();
-        alert(`Attendance report exported successfully!\n\nFile: ${sessionId}_attendance_report.xlsx\n\nReport includes:\n- Student attendance status\n- Join times\n- Session statistics\n- Attendance summary`);
+        TPAlert.info('Information', `Attendance report exported successfully!\n\nFile: ${sessionId}_attendance_report.xlsx\n\nReport includes:\n- Student attendance status\n- Join times\n- Session statistics\n- Attendance summary`);
       }, 1600);
     }
 
@@ -1710,7 +1711,8 @@ if (!empty($materials)) {
         return;
       }
 
-      if (confirm(`Send absence notifications to ${absentStudents.length} students?`)) {
+      TPAlert.confirm('Confirm Action', `Send absence notifications to ${absentStudents.length} students?`).then(result => {
+        if (result.isConfirmed) {
         const noticeHtml = `
           <div class="fixed top-4 right-4 bg-white rounded-lg shadow-lg border p-4 z-50" id="noticeProgress">
             <div class="flex items-center space-x-3">
@@ -1730,7 +1732,7 @@ if (!empty($materials)) {
 
         setTimeout(() => {
           document.getElementById('noticeProgress').remove();
-          alert(`Absence notifications sent successfully!\n\n${absentStudents.length} students notified via email.`);
+          TPAlert.info('Information', `Absence notifications sent successfully!\n\n${absentStudents.length} students notified via email.`);
         }, 1600);
       }
     }
@@ -1969,7 +1971,7 @@ if (!empty($materials)) {
         
       } catch (error) {
         console.error('Error loading submission data:', error);
-        alert('Error loading submission data. Please try again.');
+        TPAlert.error('Error', 'Error loading submission data. Please try again.');
         closeIndividualGradingModal();
       }
     }
@@ -2257,12 +2259,12 @@ if (!empty($materials)) {
       const feedback = formData.get('feedback');
 
       if (!grade) {
-        alert('Please enter a grade before submitting.');
+        TPAlert.warning('Required', 'Please enter a grade before submitting.');
         return;
       }
 
       // Show success message
-      alert(`Grade submitted successfully!\nGrade: ${grade}%\nFeedback: ${feedback.substring(0, 50)}${feedback.length > 50 ? '...' : ''}`);
+      TPAlert.info('Information', `Grade submitted successfully!\nGrade: ${grade}%\nFeedback: ${feedback.substring(0, 50)}${feedback.length > 50 ? '...' : ''}`);
 
       // Close modal and refresh grading list
       closeStudentGradingModal();
@@ -2312,11 +2314,11 @@ if (!empty($materials)) {
       const reason = formData.get('changeReason');
 
       if (!reason.trim()) {
-        alert('Please provide a reason for changing the grade.');
+        TPAlert.warning('Required', 'Please provide a reason for changing the grade.');
         return;
       }
 
-      alert(`Grade updated successfully!\nNew Grade: ${newGrade}%\nReason: ${reason}`);
+      TPAlert.info('Information', `Grade updated successfully!\nNew Grade: ${newGrade}%\nReason: ${reason}`);
       closeEditGradeModal();
     }
 
@@ -2381,14 +2383,15 @@ if (!empty($materials)) {
 
     // Download file
     function downloadFile(fileName) {
-      alert(`Downloading ${fileName}...`);
+      TPAlert.info('Information', `Downloading ${fileName}...`);
       // In real app, would trigger actual file download
     }
 
     // Download all submissions
     function downloadAllSubmissions() {
       // Show confirmation dialog
-      if (confirm('Download all student submissions as a ZIP file?')) {
+      TPAlert.confirm('Confirm Action', 'Download all student submissions as a ZIP file?').then(result => {
+        if (result.isConfirmed) {
         // Simulate download progress
         const progressHtml = `
           <div class="fixed top-4 right-4 bg-white rounded-lg shadow-lg border p-4 z-50" id="downloadProgress">
@@ -2412,7 +2415,7 @@ if (!empty($materials)) {
           document.getElementById('downloadStatus').textContent = 'Download ready!';
           setTimeout(() => {
             document.getElementById('downloadProgress').remove();
-            alert('All submissions downloaded successfully!\nFile: Week3_Assignment_Submissions.zip');
+            TPAlert.success('Success', 'All submissions downloaded successfully!\nFile: Week3_Assignment_Submissions.zip');
           }, 500);
         }, 2000);
       }
@@ -2421,7 +2424,7 @@ if (!empty($materials)) {
     // Export grades
     function exportGrades() {
       // Show export options
-      const exportOptions = confirm('Export grades to CSV?\n\nOK = CSV Format\nCancel = PDF Report');
+      const exportOptions = (await TPAlert.confirm('Confirm Action', 'Export grades to CSV?\n\nOK = CSV Format\nCancel = PDF Report')).isConfirmed;
 
       if (exportOptions !== null) {
         const format = exportOptions ? 'CSV' : 'PDF';
@@ -2446,7 +2449,7 @@ if (!empty($materials)) {
 
         setTimeout(() => {
           document.getElementById('exportProgress').remove();
-          alert(`Grades exported successfully!\nFile: Week3_Assignment_Grades.${format.toLowerCase()}\n\nExported data includes:\n- Student names\n- Grades\n- Submission dates\n- Feedback summary`);
+          TPAlert.info('Information', `Grades exported successfully!\nFile: Week3_Assignment_Grades.${format.toLowerCase()}\n\nExported data includes:\n- Student names\n- Grades\n- Submission dates\n- Feedback summary`);
         }, 1600);
       }
     }
@@ -2984,11 +2987,11 @@ if (!empty($materials)) {
 
     // Header functions
     function openNotifications() {
-      alert('Opening notifications...');
+      TPAlert.info('Information', 'Opening notifications...');
     }
 
     function openMessages() {
-      alert('Opening messages...');
+      TPAlert.info('Information', 'Opening messages...');
     }
 
     // Back to dashboard

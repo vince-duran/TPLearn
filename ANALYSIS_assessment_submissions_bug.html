@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Issue Analysis - Assessment Submissions</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+  <div class="max-w-6xl mx-auto">
+    <div class="bg-red-500 text-white rounded-lg shadow-lg p-8 mb-8 text-center">
+      <h1 class="text-4xl font-bold mb-3">🐛 ISSUE FOUND!</h1>
+      <p class="text-2xl">Promise Chain Broken in loadAssignmentSubmissions()</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <h2 class="text-2xl font-bold mb-4">📍 Location of the Bug</h2>
+      <p class="mb-2"><strong>File:</strong> <code class="bg-gray-100 px-2 py-1 rounded">dashboards/tutor/tutor-program-stream.php</code></p>
+      <p class="mb-2"><strong>Function:</strong> <code class="bg-gray-100 px-2 py-1 rounded">loadAssignmentSubmissions(materialId)</code></p>
+      <p class="mb-2"><strong>Lines:</strong> ~2167-2270</p>
+    </div>
+
+    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-6 mb-6">
+      <h2 class="text-xl font-bold text-yellow-900 mb-3">⚠️ The Problem:</h2>
+      <div class="bg-white p-4 rounded">
+        <h3 class="font-semibold mb-2">Broken Promise Chain</h3>
+        <p class="text-sm text-gray-700 mb-3">When the assessment API returns <code class="bg-gray-100 px-1">success: false</code>, the code tries to fetch the assignment API, but the returned promise is not properly chained.</p>
+        
+        <div class="bg-red-50 p-3 rounded mb-3">
+          <p class="text-xs font-mono text-red-800 mb-2"><strong>❌ CURRENT CODE (BROKEN):</strong></p>
+          <pre class="text-xs bg-white p-2 rounded overflow-auto"><code>.then(data => {
+  if (data.success) {
+    // Handle success
+  } else {
+    // ❌ PROBLEM: This return doesn't propagate correctly
+    return fetch(assignmentApiUrl)
+      .then(...)
+      .then(...);
+  }
+})
+.catch(error => {
+  // This catch doesn't handle the inner promise
+})</code></pre>
+        </div>
+
+        <div class="bg-blue-50 p-3 rounded">
+          <p class="text-xs font-mono text-blue-800 mb-2"><strong>Why it fails:</strong></p>
+          <ul class="text-xs space-y-1 ml-5 list-disc">
+            <li>The inner <code>return fetch(...)</code> creates a new promise</li>
+            <li>But the outer <code>.catch()</code> doesn't wait for it</li>
+            <li>If the assignment API also fails, the error isn't caught</li>
+            <li>The error falls through and UI shows "Error loading"</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-green-50 border-l-4 border-green-500 p-6 mb-6">
+      <h2 class="text-xl font-bold text-green-900 mb-3">✅ The Solution:</h2>
+      <div class="space-y-4">
+        <div class="bg-white p-4 rounded shadow">
+          <h3 class="font-semibold text-green-800 mb-2">Rewrite with Proper Promise Chain</h3>
+          <pre class="text-xs bg-gray-50 p-3 rounded overflow-auto"><code>function loadAssignmentSubmissions(materialId) {
+  // Set loading state...
+  
+  const assessmentApiUrl = `...get-assessment-submissions.php?material_id=${materialId}`;
+  const assignmentApiUrl = `...get-assignment-submissions.php?material_id=${materialId}`;
+  
+  // <span class="bg-yellow-200">Try assessment API first</span>
+  fetch(assessmentApiUrl)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success && data.assessment) {
+        // <span class="bg-green-200">✅ Assessment API succeeded - display data</span>
+        displaySubmissions(data.assessment, data.submissions, data.statistics);
+        <span class="bg-yellow-200">return true; // Signal success</span>
+      } else {
+        // <span class="bg-blue-200">Assessment failed - try assignment API</span>
+        <span class="bg-yellow-200">return fetch(assignmentApiUrl)</span>
+          .then(response => response.json())
+          .then(assignmentData => {
+            if (assignmentData.success && assignmentData.assignment) {
+              // <span class="bg-green-200">✅ Assignment API succeeded - display data</span>
+              displaySubmissions(assignmentData.assignment, assignmentData.submissions, assignmentData.statistics);
+              return true;
+            } else {
+              <span class="bg-red-200">throw new Error(assignmentData.error || data.error || 'Both APIs failed');</span>
+            }
+          });
+      }
+    })
+    .catch(error => {
+      // <span class="bg-red-200">❌ All attempts failed - show error</span>
+      console.error('Error loading submissions:', error);
+      displayError(error.message);
+    });
+}
+
+// <span class="bg-purple-200">Helper function to display submissions</span>
+function displaySubmissions(itemData, submissions, statistics) {
+  document.getElementById('submissionsAssignmentTitle').textContent = itemData.title;
+  document.getElementById('submissionsAssignmentInfo').textContent = itemData.description || 'No description';
+  document.getElementById('submissionsDueDate').textContent = itemData.due_date_formatted;
+  document.getElementById('submissionsTotalPoints').textContent = `${itemData.max_score} points`;
+  document.getElementById('submissionsCount').textContent = `${statistics.total_submissions} submissions`;
+  
+  loadSubmissionsTable(submissions, itemData.max_score);
+}
+
+// <span class="bg-purple-200">Helper function to display error</span>
+function displayError(errorMessage) {
+  document.getElementById('submissionsAssignmentTitle').textContent = 'Error loading';
+  document.getElementById('submissionsAssignmentInfo').textContent = errorMessage;
+  document.getElementById('submissionsDueDate').textContent = 'Error';
+  document.getElementById('submissionsTotalPoints').textContent = 'Error';
+  document.getElementById('submissionsCount').textContent = 'Error';
+  document.getElementById('submissionsTableBody').innerHTML = 
+    '<tr><td colspan="5" class="text-center py-4 text-red-600">Error loading submissions. Please try again.</td></tr>';
+}</code></pre>
+        </div>
+
+        <div class="bg-white p-4 rounded shadow">
+          <h3 class="font-semibold text-green-800 mb-2">Key Improvements:</h3>
+          <ul class="text-sm text-gray-700 space-y-2 ml-5 list-disc">
+            <li><strong>Clean Promise Chain:</strong> Each promise properly returns to the next</li>
+            <li><strong>Single Catch Block:</strong> One catch handles all errors</li>
+            <li><strong>Helper Functions:</strong> <code>displaySubmissions()</code> and <code>displayError()</code> reduce duplication</li>
+            <li><strong>Explicit Error Handling:</strong> Throws errors that bubble up correctly</li>
+            <li><strong>No Redundant Fallback:</strong> Removed the duplicate catch/fallback code</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <h2 class="text-2xl font-bold mb-4 text-center">🔍 Flow Diagram</h2>
+      
+      <div class="space-y-4">
+        <div class="flex items-center">
+          <div class="w-48 bg-blue-500 text-white p-3 rounded text-center">
+            Click "Submissions"
+          </div>
+          <div class="flex-1 h-0.5 bg-gray-300 mx-4"></div>
+          <div class="w-48 bg-blue-500 text-white p-3 rounded text-center text-sm">
+            viewSubmissions(assessment_id)
+          </div>
+        </div>
+
+        <div class="text-center text-2xl text-gray-400">↓</div>
+
+        <div class="flex items-center">
+          <div class="w-48 bg-purple-500 text-white p-3 rounded text-center text-sm">
+            loadAssignmentSubmissions(id)
+          </div>
+          <div class="flex-1 h-0.5 bg-gray-300 mx-4"></div>
+          <div class="w-48 bg-yellow-500 text-white p-3 rounded text-center text-sm">
+            Try Assessment API
+          </div>
+        </div>
+
+        <div class="text-center text-2xl text-gray-400">↓</div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-green-100 border-2 border-green-500 p-4 rounded">
+            <p class="font-bold text-green-900 mb-2">✅ Assessment API Success</p>
+            <p class="text-xs text-gray-700">displaySubmissions()</p>
+            <p class="text-xs text-gray-700">Show assessment data</p>
+          </div>
+          <div class="bg-orange-100 border-2 border-orange-500 p-4 rounded">
+            <p class="font-bold text-orange-900 mb-2">⚠️ Assessment API Failed</p>
+            <p class="text-xs text-gray-700">Try Assignment API</p>
+          </div>
+        </div>
+
+        <div class="text-center text-2xl text-gray-400">↓ (if failed)</div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-green-100 border-2 border-green-500 p-4 rounded">
+            <p class="font-bold text-green-900 mb-2">✅ Assignment API Success</p>
+            <p class="text-xs text-gray-700">displaySubmissions()</p>
+            <p class="text-xs text-gray-700">Show assignment data</p>
+          </div>
+          <div class="bg-red-100 border-2 border-red-500 p-4 rounded">
+            <p class="font-bold text-red-900 mb-2">❌ Both APIs Failed</p>
+            <p class="text-xs text-gray-700">catch(error)</p>
+            <p class="text-xs text-gray-700">displayError()</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg p-8 text-center">
+      <h2 class="text-3xl font-bold mb-3">🔧 Ready to Fix</h2>
+      <p class="text-xl mb-2">I'll now replace the broken code with the fixed version</p>
+      <p class="text-purple-100">This will resolve the "Error loading submissions" issue</p>
+    </div>
+  </div>
+</body>
+</html>

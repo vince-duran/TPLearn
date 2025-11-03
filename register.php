@@ -559,37 +559,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST" novalidate id="registrationForm">
           <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
 
-          <div class="grid md:grid-cols-3 gap-4">
-            <div>
+          <!-- Name Fields Row -->
+          <div class="flex flex-row gap-3">
+            <div class="flex-1">
               <label class="block mb-2 text-sm font-medium text-gray-700">First Name <span class="text-red-500">*</span></label>
               <input type="text" name="first_name" id="first_name" value="<?= htmlspecialchars($old['first_name']) ?>"
                 required maxlength="50" pattern="[a-zA-Z\s'-]{2,50}"
-                class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['first_name']) ? 'border-red-500 bg-red-50' : '' ?>"
+                class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['first_name']) ? 'border-red-500 bg-red-50' : '' ?>"
                 placeholder="Enter first name">
               <?php if (isset($errors['first_name'])): ?>
                 <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['first_name']) ?></p>
               <?php endif; ?>
               <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
             </div>
-            <div>
+            <div class="flex-1">
+              <label class="block mb-2 text-sm font-medium text-gray-700">Middle Name</label>
+              <input type="text" name="middle_name" id="middle_name" value="<?= htmlspecialchars($old['middle_name']) ?>"
+                maxlength="50" pattern="[a-zA-Z\s'-]{1,50}"
+                class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['middle_name']) ? 'border-red-500 bg-red-50' : '' ?>"
+                placeholder="Middle name (optional)">
+              <?php if (isset($errors['middle_name'])): ?>
+                <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['middle_name']) ?></p>
+              <?php endif; ?>
+              <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+            </div>
+            <div class="flex-1">
               <label class="block mb-2 text-sm font-medium text-gray-700">Last Name <span class="text-red-500">*</span></label>
               <input type="text" name="last_name" id="last_name" value="<?= htmlspecialchars($old['last_name']) ?>"
                 required maxlength="50" pattern="[a-zA-Z\s'-]{2,50}"
-                class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['last_name']) ? 'border-red-500 bg-red-50' : '' ?>"
+                class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['last_name']) ? 'border-red-500 bg-red-50' : '' ?>"
                 placeholder="Enter last name">
               <?php if (isset($errors['last_name'])): ?>
                 <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['last_name']) ?></p>
               <?php endif; ?>
               <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
             </div>
-            <div>
-              <label class="block mb-2 text-sm font-medium text-gray-700">Middle Name</label>
-              <input type="text" name="middle_name" id="middle_name" value="<?= htmlspecialchars($old['middle_name']) ?>"
-                maxlength="50" pattern="[a-zA-Z\s'-]{1,50}"
-                class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['middle_name']) ? 'border-red-500 bg-red-50' : '' ?>"
-                placeholder="Enter middle name (optional)">
-              <?php if (isset($errors['middle_name'])): ?>
-                <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['middle_name']) ?></p>
+            <div class="w-24">
+              <label class="block mb-2 text-sm font-medium text-gray-700">Suffix</label>
+              <input type="text" name="suffix" id="suffix" value="<?= htmlspecialchars($old['suffix'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                maxlength="10" pattern="[a-zA-Z\s.]{1,10}"
+                class="w-full px-2 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['suffix']) ? 'border-red-500 bg-red-50' : '' ?>"
+                placeholder="Jr., Sr.">
+              <?php if (isset($errors['suffix'])): ?>
+                <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['suffix']) ?></p>
               <?php endif; ?>
               <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
             </div>
@@ -603,12 +615,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
           <?php endif; ?>
 
-          <!-- Gender and Suffix Row -->
-          <div class="grid md:grid-cols-2 gap-4 mt-4">
-            <div>
+          <!-- Gender, Birthday, Age Row -->
+          <div class="flex flex-row gap-4 mt-4">
+            <div class="flex-1">
               <label class="block mb-2 text-sm font-medium text-gray-700">Gender</label>
               <select name="gender" id="gender" 
-                class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['gender']) ? 'border-red-500 bg-red-50' : '' ?>">
+                class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['gender']) ? 'border-red-500 bg-red-50' : '' ?>">
                 <option value="">Select Gender</option>
                 <option value="Male" <?= ($old['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
                 <option value="Female" <?= ($old['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
@@ -619,47 +631,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <?php endif; ?>
               <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
             </div>
-            <div>
-              <label class="block mb-2 text-sm font-medium text-gray-700">Suffix</label>
-              <input type="text" name="suffix" id="suffix" value="<?= htmlspecialchars($old['suffix'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                maxlength="20" pattern="[a-zA-Z\s.]{1,20}"
-                class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['suffix']) ? 'border-red-500 bg-red-50' : '' ?>"
-                placeholder="Jr., Sr., III, etc. (optional)">
-              <?php if (isset($errors['suffix'])): ?>
-                <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['suffix']) ?></p>
-              <?php endif; ?>
-              <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-            </div>
-          </div>
-
-          <div class="grid md:grid-cols-3 gap-4 mt-4 items-end">
-            <div>
+            <div class="flex-1">
               <label class="block mb-2 text-sm font-medium text-gray-700">Birthday <span class="text-red-500">*</span></label>
               <input type="date" name="birthday" id="birthday" value="<?= htmlspecialchars($old['birthday']) ?>"
                 required min="<?= date('Y-m-d', strtotime('-100 years')) ?>" max="<?= date('Y-m-d', strtotime('-3 years')) ?>"
-                class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['birthday']) ? 'border-red-500 bg-red-50' : '' ?>">
+                class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['birthday']) ? 'border-red-500 bg-red-50' : '' ?>">
               <?php if (isset($errors['birthday'])): ?>
                 <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['birthday']) ?></p>
               <?php endif; ?>
               <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
             </div>
-            <div>
+            <div class="w-32">
               <label class="block mb-2 text-sm font-medium text-gray-700">Age</label>
               <input type="number" name="age" id="age" value="<?= htmlspecialchars($old['age']) ?>"
-                class="w-full border px-3 py-2 rounded bg-gray-50" readonly>
-            </div>
-            <div>
-              <label class="block mb-2 text-sm font-medium text-gray-700">Are you PWD?</label>
-              <div class="flex items-center gap-4 mt-1">
-                <label class="flex items-center gap-1 text-sm">
-                  <input type="radio" name="pwd" value="Yes" class="accent-tplearn-green"
-                    <?= $old['pwd'] === 'Yes' ? 'checked' : ''; ?>> Yes
-                </label>
-                <label class="flex items-center gap-1 text-sm">
-                  <input type="radio" name="pwd" value="No" class="accent-tplearn-green"
-                    <?= $old['pwd'] !== 'Yes' ? 'checked' : ''; ?>> No
-                </label>
-              </div>
+                class="w-full px-3 py-3 border border-gray-300 rounded-md bg-gray-50" readonly>
+              <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
             </div>
           </div>
 
@@ -672,7 +658,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <div>
                 <label class="block mb-2 text-sm font-medium text-gray-700">Province <span class="text-red-500">*</span></label>
                 <select name="province" id="province" required 
-                  class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['province']) ? 'border-red-500 bg-red-50' : '' ?>">
+                  class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['province']) ? 'border-red-500 bg-red-50' : '' ?>">
                   <option value="">Select Province</option>
                 </select>
                 <?php if (isset($errors['province'])): ?>
@@ -683,7 +669,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <div>
                 <label class="block mb-2 text-sm font-medium text-gray-700">City/Municipality <span class="text-red-500">*</span></label>
                 <select name="city" id="city" required disabled
-                  class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['city']) ? 'border-red-500 bg-red-50' : '' ?>">
+                  class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['city']) ? 'border-red-500 bg-red-50' : '' ?>">
                   <option value="">Select City/Municipality</option>
                 </select>
                 <?php if (isset($errors['city'])): ?>
@@ -698,7 +684,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <div>
                 <label class="block mb-2 text-sm font-medium text-gray-700">Barangay <span class="text-red-500">*</span></label>
                 <select name="barangay" id="barangay" required disabled
-                  class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['barangay']) ? 'border-red-500 bg-red-50' : '' ?>">
+                  class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['barangay']) ? 'border-red-500 bg-red-50' : '' ?>">
                   <option value="">Select Barangay</option>
                 </select>
                 <?php if (isset($errors['barangay'])): ?>
@@ -710,7 +696,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label class="block mb-2 text-sm font-medium text-gray-700">Zip Code <span class="text-red-500">*</span></label>
                 <input type="text" name="zip_code" id="zip_code" value="<?= htmlspecialchars($old['zip_code'] ?? '') ?>"
                   required pattern="[0-9]{4}" maxlength="4"
-                  class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['zip_code']) ? 'border-red-500 bg-red-50' : '' ?>"
+                  class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['zip_code']) ? 'border-red-500 bg-red-50' : '' ?>"
                   placeholder="e.g., 1234">
                 <?php if (isset($errors['zip_code'])): ?>
                   <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['zip_code']) ?></p>
@@ -725,7 +711,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label class="block mb-2 text-sm font-medium text-gray-700">Subdivision/Village</label>
                 <input type="text" name="subdivision" id="subdivision" value="<?= htmlspecialchars($old['subdivision'] ?? '') ?>"
                   maxlength="100"
-                  class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green"
+                  class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                   placeholder="Subdivision or village name (optional)">
                 <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
               </div>
@@ -733,7 +719,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label class="block mb-2 text-sm font-medium text-gray-700">Street <span class="text-red-500">*</span></label>
                 <input type="text" name="street" id="street" value="<?= htmlspecialchars($old['street'] ?? '') ?>"
                   required maxlength="100"
-                  class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['street']) ? 'border-red-500 bg-red-50' : '' ?>"
+                  class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['street']) ? 'border-red-500 bg-red-50' : '' ?>"
                   placeholder="Street name">
                 <?php if (isset($errors['street'])): ?>
                   <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['street']) ?></p>
@@ -747,7 +733,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <label class="block mb-2 text-sm font-medium text-gray-700">House Number/Unit <span class="text-red-500">*</span></label>
               <input type="text" name="house_number" id="house_number" value="<?= htmlspecialchars($old['house_number'] ?? '') ?>"
                 required maxlength="50"
-                class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['house_number']) ? 'border-red-500 bg-red-50' : '' ?>"
+                class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['house_number']) ? 'border-red-500 bg-red-50' : '' ?>"
                 placeholder="House number, unit, or building">
               <?php if (isset($errors['house_number'])): ?>
                 <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['house_number']) ?></p>
@@ -756,17 +742,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
           </div>
 
-          <div class="mt-4">
-            <label class="block mb-2 text-sm font-medium text-gray-700">Medical History</label>
-            <textarea name="medical" id="medical" rows="2" maxlength="500"
-              placeholder="Please list any allergies, conditions, or medications (optional)"
-              class="w-full border px-3 py-2 rounded text-sm text-gray-600 focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['medical']) ? 'border-red-500 bg-red-50' : '' ?>"><?= htmlspecialchars($old['medical']) ?></textarea>
-            <?php if (isset($errors['medical'])): ?>
-              <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['medical']) ?></p>
-            <?php endif; ?>
-            <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-            <div class="text-xs text-gray-500 mt-1">
-              <span id="medical-count">0</span>/500 characters
+          <!-- Medical History and PWD Row -->
+          <div class="flex flex-row gap-4 mt-4">
+            <div class="flex-1">
+              <label class="block mb-2 text-sm font-medium text-gray-700">Medical History</label>
+              <textarea name="medical" id="medical" rows="2" maxlength="500"
+                placeholder="Please list any allergies, conditions, or medications (optional)"
+                class="w-full px-3 py-3 border border-gray-300 rounded-md text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['medical']) ? 'border-red-500 bg-red-50' : '' ?>"><?= htmlspecialchars($old['medical']) ?></textarea>
+              <?php if (isset($errors['medical'])): ?>
+                <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['medical']) ?></p>
+              <?php endif; ?>
+              <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+              <div class="text-xs text-gray-500 mt-1">
+                <span id="medical-count">0</span>/500 characters
+              </div>
+            </div>
+            <div class="w-40">
+              <label class="block mb-2 text-sm font-medium text-gray-700">Are you PWD?</label>
+              <div class="flex items-center gap-2 mt-3">
+                <label class="flex items-center gap-1 text-sm">
+                  <input type="radio" name="pwd" value="Yes" class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300"
+                    <?= $old['pwd'] === 'Yes' ? 'checked' : ''; ?>> Yes
+                </label>
+                <label class="flex items-center gap-1 text-sm">
+                  <input type="radio" name="pwd" value="No" class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300"
+                    <?= $old['pwd'] !== 'Yes' ? 'checked' : ''; ?>> No
+                </label>
+              </div>
             </div>
           </div>
       </div>
@@ -789,7 +791,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <label class="block mb-2 text-sm font-medium text-gray-700">Parent's Full Name <span class="text-red-500">*</span></label>
           <input type="text" name="parent_name" id="parent_name" value="<?= htmlspecialchars($old['parent_name']) ?>"
             required maxlength="100" pattern="[a-zA-Z\s'-]{2,100}"
-            class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['parent_name']) ? 'border-red-500 bg-red-50' : '' ?>"
+            class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['parent_name']) ? 'border-red-500 bg-red-50' : '' ?>"
             placeholder="Enter parent/guardian full name">
           <?php if (isset($errors['parent_name'])): ?>
             <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['parent_name']) ?></p>
@@ -802,7 +804,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label class="block mb-2 text-sm font-medium text-gray-700">Facebook Name</label>
             <input type="text" name="facebook_name" id="facebook_name" value="<?= htmlspecialchars($old['facebook_name']) ?>"
               maxlength="50" pattern="[a-zA-Z0-9\s._-]{2,50}"
-              class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['facebook_name']) ? 'border-red-500 bg-red-50' : '' ?>"
+              class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['facebook_name']) ? 'border-red-500 bg-red-50' : '' ?>"
               placeholder="Facebook name (optional)">
             <?php if (isset($errors['facebook_name'])): ?>
               <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['facebook_name']) ?></p>
@@ -813,7 +815,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label class="block mb-2 text-sm font-medium text-gray-700">Contact Number <span class="text-red-500">*</span></label>
             <input type="tel" name="contact_number" id="contact_number" value="<?= htmlspecialchars($old['contact_number']) ?>"
               required pattern="^(09|\+639|639)\d{9}$" maxlength="13"
-              class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['contact_number']) ? 'border-red-500 bg-red-50' : '' ?>"
+              class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['contact_number']) ? 'border-red-500 bg-red-50' : '' ?>"
               placeholder="e.g., 09123456789 or +639123456789">
             <?php if (isset($errors['contact_number'])): ?>
               <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['contact_number']) ?></p>
@@ -829,7 +831,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label class="block mb-2 text-sm font-medium text-gray-700">Email Address <span class="text-red-500">*</span></label>
             <input type="email" name="email" id="email" value="<?= htmlspecialchars($old['email']) ?>"
               required maxlength="100" pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
-              class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['email']) ? 'border-red-500 bg-red-50' : '' ?>"
+              class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['email']) ? 'border-red-500 bg-red-50' : '' ?>"
               placeholder="name@example.com">
             <?php if (isset($errors['email'])): ?>
               <p class="text-red-500 text-xs mt-1"><?= htmlspecialchars($errors['email']) ?></p>
@@ -843,7 +845,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label class="block mb-2 text-sm font-medium text-gray-700">Password <span class="text-red-500">*</span></label>
             <div class="relative">
               <input type="password" name="password" id="password" required minlength="8" maxlength="128"
-                class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['password']) ? 'border-red-500 bg-red-50' : '' ?>"
+                class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['password']) ? 'border-red-500 bg-red-50' : '' ?>"
                 placeholder="Minimum 8 characters">
               <button type="button" id="togglePassword" class="absolute right-2 top-2 text-gray-500 hover:text-gray-700">
                 <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -857,31 +859,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
             <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
 
-            <!-- Password strength indicator -->
-            <div class="mt-2">
-              <div class="text-xs text-gray-600 mb-1">Password strength:</div>
-              <div class="flex space-x-1 mb-1">
-                <div id="strength-bar-1" class="h-1 w-full bg-gray-200 rounded"></div>
-                <div id="strength-bar-2" class="h-1 w-full bg-gray-200 rounded"></div>
-                <div id="strength-bar-3" class="h-1 w-full bg-gray-200 rounded"></div>
-                <div id="strength-bar-4" class="h-1 w-full bg-gray-200 rounded"></div>
-              </div>
-              <div id="strength-text" class="text-xs text-gray-500">Enter password to check strength</div>
-            </div>
-
-            <!-- Password requirements -->
+            <!-- Simple Password Requirements -->
             <div class="mt-2 text-xs space-y-1">
               <div id="req-length" class="flex items-center text-gray-500">
-                <span class="mr-2">✗</span> At least 8 characters
+                <span class="mr-2 w-3">✗</span> At least 8 characters
               </div>
               <div id="req-lowercase" class="flex items-center text-gray-500">
-                <span class="mr-2">✗</span> One lowercase letter
+                <span class="mr-2 w-3">✗</span> One lowercase letter
               </div>
               <div id="req-uppercase" class="flex items-center text-gray-500">
-                <span class="mr-2">✗</span> One uppercase letter
+                <span class="mr-2 w-3">✗</span> One uppercase letter
               </div>
               <div id="req-number" class="flex items-center text-gray-500">
-                <span class="mr-2">✗</span> One number
+                <span class="mr-2 w-3">✗</span> One number
+              </div>
+              <div id="req-symbol" class="flex items-center text-gray-500">
+                <span class="mr-2 w-3">✗</span> One special character (!@#$%^&*)
               </div>
             </div>
           </div>
@@ -889,7 +882,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label class="block mb-2 text-sm font-medium text-gray-700">Confirm Password <span class="text-red-500">*</span></label>
             <div class="relative">
               <input type="password" name="confirm_password" id="confirm_password" required
-                class="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-tplearn-green focus:border-tplearn-green <?= isset($errors['confirm']) ? 'border-red-500 bg-red-50' : '' ?>"
+                class="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors <?= isset($errors['confirm']) ? 'border-red-500 bg-red-50' : '' ?>"
                 placeholder="Re-enter password">
               <button type="button" id="toggleConfirmPassword" class="absolute right-2 top-2 text-gray-500 hover:text-gray-700">
                 <svg id="eyeIconConfirm" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1161,45 +1154,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           return true;
         }
 
-        function validatePassword(input, errorContainer) {
-          console.log('validatePassword called with input value:', input.value);
+        function validatePassword(input, errorContainer, showErrors = true) {
           const value = input.value;
+          
           const requirements = {
             length: value.length >= 8,
             lowercase: /[a-z]/.test(value),
             uppercase: /[A-Z]/.test(value),
-            number: /\d/.test(value)
+            number: /\d/.test(value),
+            symbol: /[!@#$%^&*(),.?":{}|<>]/.test(value)
           };
 
-          // Update requirement indicators
+          // Always update requirement indicators dynamically
           updateRequirement('req-length', requirements.length);
           updateRequirement('req-lowercase', requirements.lowercase);
           updateRequirement('req-uppercase', requirements.uppercase);
           updateRequirement('req-number', requirements.number);
-
-          // Update strength indicator
-          updatePasswordStrength(value, requirements);
+          updateRequirement('req-symbol', requirements.symbol);
 
           const allMet = Object.values(requirements).every(req => req);
 
-          if (!value) {
+          // Only show errors if explicitly requested (on blur or form submit)
+          if (!value && showErrors) {
             showError(input, errorContainer, 'Password is required.');
             return false;
           }
-          if (!allMet) {
+          if (!allMet && showErrors && value) {
             showError(input, errorContainer, 'Password must meet all requirements.');
             return false;
           }
 
-          // Check for common patterns
-          if (/(.)\1{2,}/.test(value)) {
-            showError(input, errorContainer, 'Password cannot contain more than 2 consecutive identical characters.');
-            return false;
+          // Clear errors if all requirements are met
+          if (allMet && value) {
+            showSuccess(input, errorContainer);
+          } else if (!showErrors) {
+            // Clear any existing errors during typing
+            input.classList.remove('border-red-500', 'bg-red-50');
+            errorContainer.classList.add('hidden');
           }
 
-          showSuccess(input, errorContainer);
-          validatePasswordMatch(); // Check match when password changes
-          return true;
+          validatePasswordMatch(); // Always check match when password changes
+          return allMet && value.length > 0;
         }
 
         function validatePasswordMatch() {
@@ -1209,83 +1204,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           const matchIcon = document.getElementById('match-icon');
           const matchText = document.getElementById('match-text');
 
+          // Don't show anything if confirm password is empty
           if (!confirm) {
-            matchIndicator.classList.add('hidden');
+            if (matchIndicator) matchIndicator.classList.add('hidden');
             return true;
           }
 
-          matchIndicator.classList.remove('hidden');
+          // Show the match indicator when there's content
+          if (matchIndicator) matchIndicator.classList.remove('hidden');
 
-          if (password === confirm) {
-            matchIcon.textContent = '✓';
-            matchIcon.className = 'mr-2 text-green-500';
-            matchText.textContent = 'Passwords match';
-            matchText.className = 'text-green-500';
+          if (password === confirm && confirm.length > 0) {
+            if (matchIcon) {
+              matchIcon.textContent = '✓';
+              matchIcon.className = 'mr-2 text-green-500';
+            }
+            if (matchText) {
+              matchText.textContent = 'Passwords match';
+              matchText.className = 'text-green-500';
+            }
             return true;
-          } else {
-            matchIcon.textContent = '✗';
-            matchIcon.className = 'mr-2 text-red-500';
-            matchText.textContent = 'Passwords do not match';
-            matchText.className = 'text-red-500';
+          } else if (confirm.length > 0) {
+            if (matchIcon) {
+              matchIcon.textContent = '✗';
+              matchIcon.className = 'mr-2 text-red-500';
+            }
+            if (matchText) {
+              matchText.textContent = 'Passwords do not match';
+              matchText.className = 'text-red-500';
+            }
             return false;
           }
+          
+          return true;
         }
 
         function updateRequirement(id, met) {
           const element = document.getElementById(id);
           if (element) {
             const icon = element.querySelector('span');
-            if (met) {
-              icon.textContent = '✓';
-              element.className = 'flex items-center text-green-500';
-            } else {
-              icon.textContent = '✗';
-              element.className = 'flex items-center text-gray-500';
+            if (icon) {
+              if (met) {
+                icon.textContent = '✓';
+                element.className = 'flex items-center text-green-600';
+              } else {
+                icon.textContent = '✗';
+                element.className = 'flex items-center text-gray-500';
+              }
             }
-          }
-        }
-
-        function updatePasswordStrength(password, requirements) {
-          console.log('updatePasswordStrength called with:', password, requirements);
-          const bars = [1, 2, 3, 4].map(i => document.getElementById(`strength-bar-${i}`));
-          const strengthText = document.getElementById('strength-text');
-          console.log('Found bars:', bars);
-          console.log('Found strengthText:', strengthText);
-
-          if (!password) {
-            bars.forEach(bar => bar.className = 'h-1 w-full bg-gray-200 rounded');
-            strengthText.textContent = 'Enter password to check strength';
-            strengthText.className = 'text-xs text-gray-500';
-            return;
-          }
-
-          let score = 0;
-          if (requirements.length) score++;
-          if (requirements.lowercase) score++;
-          if (requirements.uppercase) score++;
-          if (requirements.number) score++;
-
-          // Bonus points for length and special chars
-          if (password.length >= 12) score++;
-          if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score++;
-
-          const maxScore = Math.min(score, 4);
-
-          bars.forEach((bar, index) => {
-            if (index < maxScore) {
-              const colors = ['bg-red-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500'];
-              bar.className = `h-1 w-full ${colors[maxScore - 1]} rounded`;
-            } else {
-              bar.className = 'h-1 w-full bg-gray-200 rounded';
-            }
-          });
-
-          const strengthLabels = ['Very Weak', 'Weak', 'Good', 'Strong'];
-          const strengthColors = ['text-red-500', 'text-yellow-500', 'text-blue-500', 'text-green-500'];
-
-          if (maxScore > 0) {
-            strengthText.textContent = strengthLabels[maxScore - 1];
-            strengthText.className = `text-xs ${strengthColors[maxScore - 1]}`;
           }
         }
 
@@ -1303,7 +1268,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Set up real-time validation
-        console.log('Setting up validation rules...');
         const validationRules = [{
             input: 'first_name',
             validator: validateName
@@ -1341,28 +1305,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           }
         ];
 
-        console.log('Processing validation rules...');
         validationRules.forEach(({
           input: inputId,
           validator
         }) => {
-          console.log('Processing rule for:', inputId);
           const input = document.getElementById(inputId);
           const errorContainer = input?.parentElement.querySelector('.error-message');
 
           if (input && errorContainer) {
-            console.log('Setting up event listeners for:', inputId, input);
-            input.addEventListener('blur', () => validator(input, errorContainer));
+            // Blur event - show errors
+            input.addEventListener('blur', () => {
+              if (inputId === 'password') {
+                validator(input, errorContainer, true); // Show errors on blur
+              } else {
+                validator(input, errorContainer);
+              }
+            });
+            
+            // Input event - update indicators but don't show errors while typing
             input.addEventListener('input', () => {
-              console.log('Input event triggered for:', inputId, 'value:', input.value);
               // Clear error styling on input
               if (input.classList.contains('border-red-500')) {
                 input.classList.remove('border-red-500', 'bg-red-50');
                 input.classList.add('border-gray-300');
               }
-              // For password input, also run validation to update strength indicator
+              
+              // For password input, run validation without showing errors
               if (inputId === 'password') {
-                validator(input, errorContainer);
+                validator(input, errorContainer, false); // Don't show errors while typing
               }
             });
           }
@@ -1398,8 +1368,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const errorContainer = input?.parentElement.querySelector('.error-message');
 
             if (input && errorContainer) {
-              if (!validator(input, errorContainer)) {
-                isValid = false;
+              if (inputId === 'password') {
+                if (!validator(input, errorContainer, true)) { // Show errors on form submit
+                  isValid = false;
+                }
+              } else {
+                if (!validator(input, errorContainer)) {
+                  isValid = false;
+                }
               }
             }
           });
@@ -1440,12 +1416,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           }
         });
 
-        // Initialize password strength indicator
+        // Initialize password strength indicator  
         const passwordInput = document.getElementById('password');
+        if (passwordInput) {
+          // Simple direct event listener for password strength
+          passwordInput.addEventListener('input', function() {
+            const value = this.value;
+            
+            // Check each requirement
+            const hasLength = value.length >= 8;
+            const hasLowercase = /[a-z]/.test(value);
+            const hasUppercase = /[A-Z]/.test(value);
+            const hasNumber = /\d/.test(value);
+            const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(value);
+            
+            // Update each requirement indicator
+            updatePasswordRequirement('req-length', hasLength);
+            updatePasswordRequirement('req-lowercase', hasLowercase);
+            updatePasswordRequirement('req-uppercase', hasUppercase);
+            updatePasswordRequirement('req-number', hasNumber);
+            updatePasswordRequirement('req-symbol', hasSymbol);
+          });
+          
+          // Initialize on page load
+          passwordInput.dispatchEvent(new Event('input'));
+        }
+        
+        // Simple function to update password requirements
+        function updatePasswordRequirement(elementId, isMet) {
+          const element = document.getElementById(elementId);
+          if (element) {
+            const span = element.querySelector('span');
+            if (span) {
+              if (isMet) {
+                span.textContent = '✓';
+                element.className = 'flex items-center text-green-600';
+              } else {
+                span.textContent = '✗';
+                element.className = 'flex items-center text-gray-500';
+              }
+            }
+          }
+        }
+
+        // Initialize password strength indicator
         const passwordErrorContainer = passwordInput?.parentElement.querySelector('.error-message');
         if (passwordInput && passwordErrorContainer) {
           // Trigger initial password validation to set up the strength indicator
-          validatePassword(passwordInput, passwordErrorContainer);
+          validatePassword(passwordInput, passwordErrorContainer, false);
+          
+          // Add additional direct event listener to ensure it works
+          passwordInput.addEventListener('keyup', function() {
+            validatePassword(this, passwordErrorContainer, false);
+          });
         }
       });
 

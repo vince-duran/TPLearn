@@ -56,6 +56,20 @@ try {
             getMeetingDetails();
             break;
             
+        case 'end_meeting':
+            if ($user_role !== 'tutor') {
+                throw new Exception('Only tutors can end meetings');
+            }
+            endMeeting();
+            break;
+            
+        case 'save_recording':
+            if ($user_role !== 'tutor') {
+                throw new Exception('Only tutors can save recordings');
+            }
+            saveRecording();
+            break;
+            
         default:
             throw new Exception('Invalid action');
     }
@@ -197,10 +211,17 @@ function getMeetings() {
         $row['formatted_date'] = $datetime->format('M j, Y');
         $row['formatted_time'] = $datetime->format('g:i A');
         
-        // Set status based on PST calculations
-        $row['is_live'] = $meetingStatus['is_live'];
-        $row['is_upcoming'] = $meetingStatus['is_upcoming'];
-        $row['is_past'] = $meetingStatus['is_past'];
+        // Override time-based status if meeting has been explicitly ended
+        if ($row['status'] === 'completed' || $row['status'] === 'cancelled') {
+            $row['is_live'] = false;
+            $row['is_upcoming'] = false;
+            $row['is_past'] = true;
+        } else {
+            // Set status based on PST calculations
+            $row['is_live'] = $meetingStatus['is_live'];
+            $row['is_upcoming'] = $meetingStatus['is_upcoming'];
+            $row['is_past'] = $meetingStatus['is_past'];
+        }
         
         // Add debug info for timezone
         $row['timezone'] = 'PST (Asia/Manila)';
@@ -465,5 +486,94 @@ function getMeetingDetails() {
         'success' => true,
         'meeting' => $meeting
     ]);
+}
+
+function endMeeting() {
+    global $conn, $user_id;
+    
+    $meeting_id = $_POST['meeting_id'] ?? null;
+    
+    if (!$meeting_id) {
+        throw new Exception('Meeting ID required');
+    }
+    
+    // Verify tutor owns this meeting
+    $stmt = $conn->prepare("SELECT id FROM jitsi_meetings WHERE id = ? AND tutor_id = ?");
+    $stmt->bind_param('ii', $meeting_id, $user_id);
+    $stmt->execute();
+    
+    if (!$stmt->get_result()->fetch_assoc()) {
+        throw new Exception('Meeting not found or access denied');
+    }
+    
+    // Update meeting status to completed
+    $stmt = $conn->prepare("
+        UPDATE jitsi_meetings 
+        SET status = 'completed', updated_at = NOW() 
+        WHERE id = ?
+    ");
+    $stmt->bind_param('i', $meeting_id);
+    
+    if ($stmt->execute()) {
+        // Also update any participants that are still marked as joined
+        $stmt = $conn->prepare("
+            UPDATE jitsi_participants 
+            SET status = 'left', 
+                left_at = NOW(),
+                duration_minutes = TIMESTAMPDIFF(MINUTE, joined_at, NOW())
+            WHERE meeting_id = ? AND status = 'joined'
+        ");
+        $stmt->bind_param('i', $meeting_id);
+        $stmt->execute();
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Meeting ended successfully'
+        ]);
+    } else {
+        throw new Exception('Failed to end meeting');
+    }
+}
+
+function saveRecording() {
+    global $conn, $user_id;
+    
+    $meeting_id = $_POST['meeting_id'] ?? null;
+    $recording_url = $_POST['recording_url'] ?? null;
+    $recording_started_at = $_POST['recording_started_at'] ?? null;
+    $recording_ended_at = $_POST['recording_ended_at'] ?? null;
+    
+    if (!$meeting_id || !$recording_url) {
+        throw new Exception('Meeting ID and recording URL required');
+    }
+    
+    // Verify tutor owns this meeting
+    $stmt = $conn->prepare("SELECT id FROM jitsi_meetings WHERE id = ? AND tutor_id = ?");
+    $stmt->bind_param('ii', $meeting_id, $user_id);
+    $stmt->execute();
+    
+    if (!$stmt->get_result()->fetch_assoc()) {
+        throw new Exception('Meeting not found or access denied');
+    }
+    
+    // Update recording information
+    $stmt = $conn->prepare("
+        UPDATE jitsi_meetings 
+        SET recording_url = ?,
+            recording_started_at = ?,
+            recording_ended_at = ?,
+            updated_at = NOW() 
+        WHERE id = ?
+    ");
+    $stmt->bind_param('sssi', $recording_url, $recording_started_at, $recording_ended_at, $meeting_id);
+    
+    if ($stmt->execute()) {
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Recording saved successfully'
+        ]);
+    } else {
+        throw new Exception('Failed to save recording');
+    }
 }
 ?>

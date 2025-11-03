@@ -4,9 +4,25 @@ require_once '../../includes/auth.php';
 require_once '../../includes/data-helpers.php';
 requireRole('admin');
 
+// Test database connection early
+global $conn;
+if (!isset($conn) || $conn->connect_error) {
+    $message = 'Database connection failed. Please check your database configuration.';
+    $messageType = 'error';
+} else {
+    // Test if we can perform basic operations
+    $test_query = $conn->query("SELECT 1");
+    if (!$test_query) {
+        $message = 'Database query test failed: ' . $conn->error;
+        $messageType = 'error';
+    }
+}
+
 // Handle form submissions
-$message = '';
-$messageType = '';
+if (empty($message)) {
+    $message = '';
+}
+$messageType = $messageType ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
@@ -47,7 +63,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'reset_password':
                 $result = resetUserPassword($_POST['email']);
                 if ($result['success']) {
-                    $message = 'Password reset successfully! New password: ' . $result['new_password'];
+                    $emailStatus = isset($result['email_sent']) && $result['email_sent'] 
+                        ? ' Email notification sent to user.' 
+                        : ' Please manually provide the new password to the user.';
+                    $message = 'Password reset successfully! New password: ' . $result['new_password'] . $emailStatus;
                     $messageType = 'success';
                 } else {
                     $message = 'Error: ' . $result['message'];
@@ -191,13 +210,155 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['current_tab'])) {
     $currentTab = $_POST['current_tab'];
 }
 
-// Fetch all users for the manage accounts table
-$users = getAllUsers();
+// Check and create missing tables
+function checkAndCreateTables() {
+    global $conn;
+    $tablesCreated = [];
+    
+    try {
+        // Check if ewallet_accounts table exists
+        $checkEWallet = $conn->query("SHOW TABLES LIKE 'ewallet_accounts'");
+        if (!$checkEWallet) {
+            throw new Exception("Failed to check ewallet_accounts table: " . $conn->error);
+        }
+        if ($checkEWallet->num_rows == 0) {
+            if (!$conn->query("CREATE TABLE ewallet_accounts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                provider VARCHAR(50) NOT NULL,
+                account_number VARCHAR(100) NOT NULL,
+                account_name VARCHAR(100) NOT NULL,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_provider (provider),
+                INDEX idx_is_active (is_active)
+            )")) {
+                throw new Exception("Failed to create ewallet_accounts table: " . $conn->error);
+            }
+            $tablesCreated[] = 'ewallet_accounts';
+        }
+        
+        // Check if bank_accounts table exists
+        $checkBank = $conn->query("SHOW TABLES LIKE 'bank_accounts'");
+        if (!$checkBank) {
+            throw new Exception("Failed to check bank_accounts table: " . $conn->error);
+        }
+        if ($checkBank->num_rows == 0) {
+            if (!$conn->query("CREATE TABLE bank_accounts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                bank_name VARCHAR(100) NOT NULL,
+                account_number VARCHAR(100) NOT NULL,
+                account_name VARCHAR(100) NOT NULL,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_bank_name (bank_name),
+                INDEX idx_is_active (is_active)
+            )")) {
+                throw new Exception("Failed to create bank_accounts table: " . $conn->error);
+            }
+            $tablesCreated[] = 'bank_accounts';
+        }
+        
+        // Check if cash_settings table exists
+        $checkCash = $conn->query("SHOW TABLES LIKE 'cash_settings'");
+        if (!$checkCash) {
+            throw new Exception("Failed to check cash_settings table: " . $conn->error);
+        }
+        if ($checkCash->num_rows == 0) {
+            if (!$conn->query("CREATE TABLE cash_settings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                setting_key VARCHAR(50) NOT NULL UNIQUE,
+                setting_value TEXT NOT NULL,
+                setting_description VARCHAR(255),
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_setting_key (setting_key),
+                INDEX idx_is_active (is_active)
+            )")) {
+                throw new Exception("Failed to create cash_settings table: " . $conn->error);
+            }
+            
+            // Insert default cash settings
+            if (!$conn->query("INSERT INTO cash_settings (setting_key, setting_value, setting_description) VALUES
+                ('office_address', 'Tisa, Labangon, Cebu City', 'Office address for cash payments'),
+                ('business_hours', 'Monday-Friday, 8:00 AM - 5:00 PM', 'Business hours for cash payments'),
+                ('contact_person', 'Administrative Office', 'Contact person for cash payments'),
+                ('phone_number', '+63 XXX-XXX-XXXX', 'Contact phone number'),
+                ('additional_instructions', 'Please bring a valid ID when making cash payments. Receipt will be provided upon payment.', 'Additional payment instructions')")) {
+                error_log("Warning: Failed to insert default cash settings: " . $conn->error);
+            }
+            
+            $tablesCreated[] = 'cash_settings';
+        }
+        
+        // Set notification message if tables were created
+        if (!empty($tablesCreated)) {
+            $_SESSION['message'] = 'Database tables automatically created: ' . implode(', ', $tablesCreated);
+            $_SESSION['messageType'] = 'info';
+        }
+        
+        return true;
+    } catch (Exception $e) {
+        error_log("Error creating tables: " . $e->getMessage());
+        $_SESSION['message'] = 'Database setup encountered an issue. Please check server logs.';
+        $_SESSION['messageType'] = 'error';
+        return false;
+    }
+}
 
-// Fetch payment methods data
-$ewalletAccounts = getAllEWalletAccounts();
-$bankAccounts = getAllBankAccounts();
-$cashSettings = getAllCashSettings();
+// Create tables if they don't exist
+checkAndCreateTables();
+
+// Fetch all users for the manage accounts table
+try {
+    $users = getAllUsers();
+    if (empty($users) && empty($message)) {
+        $message = 'No users found. Please check your database connection.';
+        $messageType = 'info';
+    }
+} catch (Exception $e) {
+    $users = [];
+    if (empty($message)) {
+        $message = 'Database error: Unable to load user accounts. ' . $e->getMessage();
+        $messageType = 'error';
+    }
+}
+
+// Fetch payment methods data with error handling
+try {
+    $ewalletAccounts = getAllEWalletAccounts();
+} catch (Exception $e) {
+    $ewalletAccounts = [];
+    error_log("E-Wallet accounts error: " . $e->getMessage());
+    if (empty($message)) {
+        $message = 'Error loading E-Wallet accounts: ' . $e->getMessage();
+        $messageType = 'error';
+    }
+}
+
+try {
+    $bankAccounts = getAllBankAccounts();
+} catch (Exception $e) {
+    $bankAccounts = [];
+    error_log("Bank accounts error: " . $e->getMessage());
+    if (empty($message)) {
+        $message = 'Error loading Bank accounts: ' . $e->getMessage();
+        $messageType = 'error';
+    }
+}
+
+try {
+    $cashSettings = getAllCashSettings();
+} catch (Exception $e) {
+    $cashSettings = [];
+    error_log("Cash settings error: " . $e->getMessage());
+    if (empty($message)) {
+        $message = 'Error loading Cash settings: ' . $e->getMessage();
+        $messageType = 'error';
+    }
+}
 
 // Helper functions for user display
 function getInitials($name) {
@@ -425,6 +586,13 @@ function getStatusBadgeClass($status) {
                 </svg>
                 <?= htmlspecialchars($message) ?>
               </div>
+            <?php elseif ($messageType === 'info'): ?>
+              <div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                </svg>
+                <?= htmlspecialchars($message) ?>
+              </div>
             <?php else: ?>
               <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center">
                 <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -556,6 +724,7 @@ function getStatusBadgeClass($status) {
               <!-- Single Student Reset -->
               <form method="POST" id="resetPasswordForm">
                 <input type="hidden" name="action" value="reset_password">
+                <input type="hidden" name="current_tab" value="reset-passwords">
                 <div class="mb-6">
                   <label for="student-email" class="block text-sm font-medium text-gray-700 mb-2">Student Email</label>
                   <input type="email" name="email" id="student-email" placeholder="Enter student's email" class="form-control w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none" required>
@@ -572,36 +741,6 @@ function getStatusBadgeClass($status) {
                   </button>
                 </div>
               </form>
-            </div>
-
-            <!-- Bulk Password Reset Section -->
-            <div class="bg-red-50 rounded-lg p-6 border border-red-200">
-              <div class="flex items-center mb-4">
-                <svg class="w-5 h-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                </svg>
-                <h3 class="text-md font-semibold text-red-800">Bulk Password Reset</h3>
-              </div>
-
-              <p class="text-sm text-red-700 mb-4">Reset passwords for multiple students at once. This will generate random passwords and send emails to all selected students.</p>
-
-              <div class="space-y-3 mb-4">
-                <label class="flex items-center">
-                  <input type="checkbox" class="form-checkbox h-4 w-4 text-red-600">
-                  <span class="ml-2 text-sm text-red-700">Reset for inactive students</span>
-                  <span class="ml-auto text-xs text-red-600">Students who haven't logged in for over 90 days</span>
-                </label>
-
-                <label class="flex items-center">
-                  <input type="checkbox" class="form-checkbox h-4 w-4 text-red-600">
-                  <span class="ml-2 text-sm text-red-700">Reset for all students</span>
-                  <span class="ml-auto text-xs text-red-600">This will reset passwords for all enrolled students</span>
-                </label>
-              </div>
-
-              <button onclick="confirmBulkPasswordReset()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors btn-danger">
-                Perform Bulk Reset
-              </button>
             </div>
           </div>
 
@@ -749,6 +888,7 @@ function getStatusBadgeClass($status) {
       </div>
       <form method="POST" id="addAccountForm">
         <input type="hidden" name="action" value="add_user">
+        <input type="hidden" name="current_tab" value="accounts">
         <div class="space-y-4">
           <div>
             <label for="newUserName" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
@@ -798,6 +938,7 @@ function getStatusBadgeClass($status) {
       <form method="POST" id="editUserForm">
         <input type="hidden" name="action" value="edit_user">
         <input type="hidden" name="user_id" id="editUserId">
+        <input type="hidden" name="current_tab" value="accounts">
         <div class="space-y-4">
           <div>
             <label for="editUserName" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
@@ -867,6 +1008,7 @@ function getStatusBadgeClass($status) {
       <form method="POST" id="deactivateUserForm">
         <input type="hidden" name="action" value="deactivate_user">
         <input type="hidden" name="user_id" id="deactivateUserId">
+        <input type="hidden" name="current_tab" value="accounts">
       </form>
       <div class="flex justify-end space-x-3">
         <button type="button" onclick="closeModal('deactivateUserModal')" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
@@ -913,42 +1055,6 @@ function getStatusBadgeClass($status) {
     </div>
   </div>
 
-  <!-- Bulk Reset Confirmation Modal -->
-  <div id="bulkResetModal" class="modal-overlay">
-    <div class="modal-content">
-      <div class="flex justify-between items-center mb-6">
-        <h3 class="text-lg font-semibold text-red-800">Bulk Password Reset Confirmation</h3>
-        <button onclick="closeModal('bulkResetModal')" class="text-gray-400 hover:text-gray-600">
-          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-          </svg>
-        </button>
-      </div>
-      <div class="mb-6">
-        <div class="flex items-center mb-4">
-          <svg class="w-12 h-12 text-red-500 mr-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-          </svg>
-          <div>
-            <h4 class="text-lg font-medium text-gray-900">Confirm Bulk Password Reset</h4>
-            <p class="text-sm text-gray-600">This action will reset passwords for <span id="bulkResetCount" class="font-bold text-red-600"></span> students.</p>
-          </div>
-        </div>
-        <div class="bg-red-50 rounded-lg p-4 border border-red-200">
-          <p class="text-sm text-red-700"><strong>Warning:</strong> This action cannot be undone. All selected students will receive new passwords via email.</p>
-        </div>
-      </div>
-      <div class="flex justify-end space-x-3">
-        <button type="button" onclick="closeModal('bulkResetModal')" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-          Cancel
-        </button>
-        <button type="button" onclick="confirmBulkReset()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors btn-danger">
-          Confirm Reset
-        </button>
-      </div>
-    </div>
-  </div>
-
   <!-- Add E-Wallet Account Modal -->
   <div id="addEWalletModal" class="modal-overlay">
     <div class="modal-content max-h-[90vh] flex flex-col">
@@ -967,7 +1073,6 @@ function getStatusBadgeClass($status) {
         <form id="addEWalletForm" method="POST">
           <input type="hidden" name="action" value="add_ewallet">
           <input type="hidden" name="current_tab" value="payment-methods">
-          <input type="hidden" name="action" value="add_ewallet">
           <div class="space-y-4">
             <div>
               <label for="ewalletProvider" class="block text-sm font-medium text-gray-700 mb-1">E-Wallet Provider</label>
@@ -1307,32 +1412,6 @@ function getStatusBadgeClass($status) {
       openModal('resetPasswordModal');
     }
 
-    function confirmBulkPasswordReset() {
-      const inactiveChecked = document.querySelector('input[type="checkbox"]').checked;
-      const allStudentsChecked = document.querySelectorAll('input[type="checkbox"]')[1].checked;
-
-      let count = 0;
-      if (inactiveChecked) count += 25; // Demo: 25 inactive students
-      if (allStudentsChecked) count += 150; // Demo: 150 total students
-
-      if (count === 0) {
-        alert('Please select at least one option for bulk reset.');
-        return;
-      }
-
-      document.getElementById('bulkResetCount').textContent = count;
-      openModal('bulkResetModal');
-    }
-
-    function confirmBulkReset() {
-      const count = document.getElementById('bulkResetCount').textContent;
-      alert(`Bulk password reset completed for ${count} students. Notification emails have been sent.`);
-      closeModal('bulkResetModal');
-
-      // Clear checkboxes
-      document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-    }
-
     // Utility Functions
     function generateRandomPassword() {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -1501,12 +1580,16 @@ function getStatusBadgeClass($status) {
     document.addEventListener('DOMContentLoaded', function() {
       switchTab('<?= $currentTab ?>');
       
-      // Auto-dismiss alert messages after 3 seconds
+      // Auto-dismiss alert messages after 2 seconds
       const alertMessage = document.getElementById('alertMessage');
       if (alertMessage) {
         setTimeout(function() {
-          alertMessage.remove();
-        }, 3000);
+          alertMessage.style.opacity = '0';
+          alertMessage.style.transition = 'opacity 0.5s ease-out';
+          setTimeout(function() {
+            alertMessage.remove();
+          }, 500);
+        }, 2000);
       }
     });
   </script>

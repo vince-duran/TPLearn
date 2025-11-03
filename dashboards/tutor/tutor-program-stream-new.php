@@ -485,7 +485,8 @@ function formatFileSize($bytes) {
         }
 
         function deleteItem(materialId) {
-            if (confirm('Are you sure you want to delete this material? This action cannot be undone.')) {
+            TPAlert.confirm('Confirm Action', 'Are you sure you want to delete this material? This action cannot be undone.').then(result => {
+        if (result.isConfirmed) {
                 const formData = new FormData();
                 formData.append('material_id', materialId);
 

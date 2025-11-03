@@ -1,0 +1,410 @@
+// TPLearn Learning Management System - Data Flow Diagram Level 1
+// ERD-Aligned Version - October 30, 2025
+// Based on comprehensive database schema analysis and system architecture
+
+// ========================================
+// DFD LEVEL 1 - EXTERNAL ENTITIES & PROCESSES
+// ========================================
+
+// === EXTERNAL ENTITIES ===
+// [Students] - Learners using the platform for education
+// [Tutors] - Instructors providing educational services  
+// [Admins] - System administrators managing the platform
+
+// === CORE PROCESSES (Based on ERD Analysis) ===
+// Process 1.0: User Authentication & Profile Management
+// Process 2.0: Program & Enrollment Management  
+// Process 3.0: Session & Attendance Management
+// Process 4.0: Assessment & Submission System
+// Process 5.0: Payment & Financial Processing
+// Process 6.0: Communication & Notification System
+// Process 7.0: File & Document Management
+// Process 8.0: Reporting & Analytics System
+
+// === DATA STORES (Aligned with ERD) ===
+// D1: Users Database (users, student_profiles, tutor_profiles, parent_profiles)
+// D2: Programs Database (programs, program_materials)
+// D3: Enrollments Database (enrollments)
+// D4: Sessions Database (jitsi_meetings, attendance_sessions, attendance_records)
+// D5: Assessments Database (submissions, student_grades, payment_attachments)
+// D6: Payments Database (payments, ewallet_accounts, bank_accounts, cash_settings)
+// D7: Communications Database (notifications)
+// D8: Files Database (file_uploads)
+// D9: System Configuration (system_settings, activity_logs, login_attempts)
+
+// ========================================
+// DETAILED PROCESS SPECIFICATIONS
+// ========================================
+
+// === PROCESS 1.0: USER AUTHENTICATION & PROFILE MANAGEMENT ===
+// Description: Manages user registration, authentication, profile updates, and role-based access
+
+// INPUTS FROM EXTERNAL ENTITIES:
+// [Students] --registration_data--> (1.0)
+//   Content: first_name, last_name, email, password, birthday, address, medical_notes
+// [Tutors] --registration_data--> (1.0)
+//   Content: first_name, last_name, email, password, specializations, bio, hourly_rate
+// [Admins] --user_management_requests--> (1.0)
+//   Content: account_creation, role_changes, status_updates, account_suspension
+// [Students] --login_credentials--> (1.0)
+//   Content: email/username, password, device_info
+// [Tutors] --login_credentials--> (1.0)
+//   Content: email/username, password, session_info
+// [Admins] --login_credentials--> (1.0)
+//   Content: email/username, password, admin_access_level
+
+// OUTPUTS TO EXTERNAL ENTITIES:
+// (1.0) --authentication_response--> [Students]
+//   Content: login_status, user_token, role_permissions, dashboard_access
+// (1.0) --authentication_response--> [Tutors]
+//   Content: login_status, user_token, student_list, session_management
+// (1.0) --authentication_response--> [Admins]
+//   Content: login_status, admin_token, system_controls, user_management_panel
+// (1.0) --profile_confirmation--> [Students]
+//   Content: registration_success, profile_updates, verification_status
+// (1.0) --profile_confirmation--> [Tutors]
+//   Content: account_approval, profile_verification, teaching_authorization
+
+// DATA STORE INTERACTIONS:
+// READ FROM DATA STORES:
+// D1: Users --existing_credentials--> (1.0)
+//   Content: hashed_passwords, user_roles, account_status, login_history
+// D1: Users --profile_data--> (1.0)
+//   Content: student_profiles, tutor_profiles, parent_profiles, contact_info
+// D9: System Configuration --login_settings--> (1.0)
+//   Content: password_policies, session_timeouts, security_rules
+
+// WRITE TO DATA STORES:
+// (1.0) --new_user_records--> D1: Users
+//   Content: user_id, email, password_hash, role, status, created_at
+// (1.0) --profile_updates--> D1: Users
+//   Content: updated_student_profiles, updated_tutor_profiles, contact_changes
+// (1.0) --login_activity--> D9: System Configuration
+//   Content: login_attempts, activity_logs, security_events
+// (1.0) --notification_triggers--> D7: Communications
+//   Content: welcome_messages, profile_change_alerts, security_notifications
+
+// === PROCESS 2.0: PROGRAM & ENROLLMENT MANAGEMENT ===
+// Description: Handles academic programs, student enrollments, and tutor assignments
+
+// INPUTS FROM EXTERNAL ENTITIES:
+// [Admins] --program_creation--> (2.0)
+//   Content: program_name, description, duration_weeks, fee, status
+// [Students] --enrollment_requests--> (2.0)
+//   Content: program_selection, start_date_preference, payment_method
+// [Tutors] --availability_updates--> (2.0)
+//   Content: schedule_availability, student_capacity, program_expertise
+// [Admins] --enrollment_approvals--> (2.0)
+//   Content: enrollment_validation, tutor_assignments, fee_adjustments
+
+// OUTPUTS TO EXTERNAL ENTITIES:
+// (2.0) --program_catalog--> [Students]
+//   Content: available_programs, program_details, prerequisites, fees
+// (2.0) --enrollment_confirmations--> [Students]
+//   Content: enrollment_status, assigned_tutor, start_date, payment_due
+// (2.0) --student_assignments--> [Tutors]
+//   Content: assigned_students, program_curriculum, session_schedules
+// (2.0) --enrollment_reports--> [Admins]
+//   Content: enrollment_statistics, program_performance, revenue_tracking
+
+// DATA STORE INTERACTIONS:
+// READ FROM DATA STORES:
+// D2: Programs --program_catalog--> (2.0)
+//   Content: active_programs, program_materials, prerequisites, pricing
+// D1: Users --student_eligibility--> (2.0)
+//   Content: student_profiles, academic_history, enrollment_limits
+// D1: Users --tutor_availability--> (2.0)
+//   Content: tutor_profiles, specializations, current_load, schedules
+// D6: Payments --payment_status--> (2.0)
+//   Content: pending_payments, payment_confirmations, fee_structures
+
+// WRITE TO DATA STORES:
+// (2.0) --new_programs--> D2: Programs
+//   Content: program_id, name, description, duration, fee, materials
+// (2.0) --enrollment_records--> D3: Enrollments
+//   Content: student_user_id, program_id, tutor_user_id, enrollment_date, status
+// (2.0) --enrollment_notifications--> D7: Communications
+//   Content: enrollment_confirmations, assignment_notifications, payment_reminders
+// (2.0) --program_activities--> D9: System Configuration
+//   Content: enrollment_logs, program_access_records, capacity_tracking
+
+// === PROCESS 3.0: SESSION & ATTENDANCE MANAGEMENT ===
+// Description: Manages live sessions, attendance tracking, and session scheduling
+
+// INPUTS FROM EXTERNAL ENTITIES:
+// [Tutors] --session_scheduling--> (3.0)
+//   Content: session_date, start_time, end_time, session_type, meeting_url
+// [Students] --session_attendance--> (3.0)
+//   Content: session_participation, check_in_time, engagement_data
+// [Tutors] --attendance_marking--> (3.0)
+//   Content: student_presence, participation_quality, session_notes
+// [Admins] --session_monitoring--> (3.0)
+//   Content: session_audits, attendance_reviews, performance_tracking
+
+// OUTPUTS TO EXTERNAL ENTITIES:
+// (3.0) --session_invitations--> [Students]
+//   Content: meeting_links, session_schedule, preparation_materials
+// (3.0) --attendance_reports--> [Tutors]
+//   Content: student_attendance_rates, participation_summaries, absence_patterns
+// (3.0) --session_summaries--> [Admins]
+//   Content: session_statistics, attendance_trends, tutor_performance
+// (3.0) --absence_notifications--> [Students]
+//   Content: missed_session_alerts, makeup_session_options, attendance_warnings
+
+// DATA STORE INTERACTIONS:
+// READ FROM DATA STORES:
+// D3: Enrollments --active_enrollments--> (3.0)
+//   Content: enrolled_students, program_schedules, tutor_assignments
+// D4: Sessions --existing_sessions--> (3.0)
+//   Content: scheduled_sessions, attendance_history, session_records
+// D1: Users --participant_info--> (3.0)
+//   Content: student_details, tutor_credentials, contact_information
+
+// WRITE TO DATA STORES:
+// (3.0) --session_records--> D4: Sessions
+//   Content: jitsi_meetings, session_metadata, attendance_records
+// (3.0) --attendance_data--> D4: Sessions
+//   Content: attendance_sessions, student_participation, session_outcomes
+// (3.0) --session_notifications--> D7: Communications
+//   Content: session_reminders, attendance_alerts, makeup_notifications
+// (3.0) --session_logs--> D9: System Configuration
+//   Content: session_activities, technical_issues, usage_statistics
+
+// === PROCESS 4.0: ASSESSMENT & SUBMISSION SYSTEM ===
+// Description: Handles assignments, student submissions, grading, and academic feedback
+
+// INPUTS FROM EXTERNAL ENTITIES:
+// [Tutors] --assignment_creation--> (4.0)
+//   Content: assignment_title, description, due_date, grading_rubric
+// [Students] --submission_uploads--> (4.0)
+//   Content: assignment_files, submission_text, student_comments
+// [Tutors] --grading_data--> (4.0)
+//   Content: scores, feedback_comments, grade_justification, improvement_suggestions
+// [Students] --grade_inquiries--> (4.0)
+//   Content: grade_questions, clarification_requests, appeal_submissions
+
+// OUTPUTS TO EXTERNAL ENTITIES:
+// (4.0) --assignment_notifications--> [Students]
+//   Content: new_assignments, due_date_reminders, submission_confirmations
+// (4.0) --grade_results--> [Students]
+//   Content: assignment_scores, detailed_feedback, overall_progress
+// (4.0) --grading_summaries--> [Tutors]
+//   Content: submission_status, grading_progress, student_performance_analytics
+// (4.0) --academic_reports--> [Admins]
+//   Content: grade_distributions, assignment_completion_rates, tutor_grading_patterns
+
+// DATA STORE INTERACTIONS:
+// READ FROM DATA STORES:
+// D3: Enrollments --enrolled_students--> (4.0)
+//   Content: active_enrollments, program_context, assessment_eligibility
+// D5: Assessments --existing_submissions--> (4.0)
+//   Content: previous_submissions, grade_history, feedback_records
+// D8: Files --submission_files--> (4.0)
+//   Content: uploaded_assignments, attachment_metadata, file_access
+
+// WRITE TO DATA STORES:
+// (4.0) --new_submissions--> D5: Assessments
+//   Content: submission_data, uploaded_files, submission_timestamp
+// (4.0) --grade_records--> D5: Assessments
+//   Content: student_grades, feedback_text, grade_calculations
+// (4.0) --submission_files--> D8: Files
+//   Content: assignment_attachments, file_metadata, storage_references
+// (4.0) --assessment_notifications--> D7: Communications
+//   Content: grade_alerts, feedback_notifications, assignment_reminders
+
+// === PROCESS 5.0: PAYMENT & FINANCIAL PROCESSING ===
+// Description: Manages payments, financial transactions, and billing operations
+
+// INPUTS FROM EXTERNAL ENTITIES:
+// [Students] --payment_submissions--> (5.0)
+//   Content: payment_amount, payment_method, reference_number, receipt_upload
+// [Admins] --payment_validation--> (5.0)
+//   Content: payment_verification, transaction_approval, payment_rejection
+// [Admins] --financial_configuration--> (5.0)
+//   Content: payment_methods_setup, fee_structures, discount_policies
+// [Students] --payment_inquiries--> (5.0)
+//   Content: payment_status_requests, billing_questions, refund_requests
+
+// OUTPUTS TO EXTERNAL ENTITIES:
+// (5.0) --payment_confirmations--> [Students]
+//   Content: payment_success, transaction_receipt, outstanding_balance
+// (5.0) --billing_statements--> [Students]
+//   Content: fee_breakdown, payment_history, upcoming_payments
+// (5.0) --financial_reports--> [Admins]
+//   Content: revenue_summaries, payment_statistics, outstanding_receivables
+// (5.0) --payment_status--> [Tutors]
+//   Content: student_payment_status, enrollment_financial_health
+
+// DATA STORE INTERACTIONS:
+// READ FROM DATA STORES:
+// D6: Payments --payment_history--> (5.0)
+//   Content: existing_payments, transaction_records, payment_methods
+// D6: Payments --account_configurations--> (5.0)
+//   Content: ewallet_accounts, bank_accounts, cash_settings
+// D3: Enrollments --billing_context--> (5.0)
+//   Content: enrollment_fees, payment_schedules, program_costs
+
+// WRITE TO DATA STORES:
+// (5.0) --payment_records--> D6: Payments
+//   Content: new_payments, payment_validations, transaction_metadata
+// (5.0) --payment_attachments--> D6: Payments
+//   Content: receipt_images, proof_documents, payment_evidence
+// (5.0) --payment_notifications--> D7: Communications
+//   Content: payment_confirmations, billing_reminders, financial_alerts
+// (5.0) --financial_logs--> D9: System Configuration
+//   Content: payment_activities, transaction_audits, financial_events
+
+// === PROCESS 6.0: COMMUNICATION & NOTIFICATION SYSTEM ===
+// Description: Manages system notifications, alerts, and communication workflows
+
+// INPUTS FROM EXTERNAL ENTITIES:
+// [Admins] --system_announcements--> (6.0)
+//   Content: platform_updates, policy_changes, maintenance_notices
+// [Students] --notification_preferences--> (6.0)
+//   Content: communication_settings, alert_preferences, contact_methods
+// [Tutors] --communication_requests--> (6.0)
+//   Content: student_updates, session_communications, academic_notices
+
+// OUTPUTS TO EXTERNAL ENTITIES:
+// (6.0) --system_notifications--> [Students]
+//   Content: enrollment_alerts, payment_reminders, session_notifications
+// (6.0) --system_notifications--> [Tutors]
+//   Content: student_assignments, grading_reminders, session_alerts
+// (6.0) --system_notifications--> [Admins]
+//   Content: system_status, user_activities, financial_summaries
+
+// DATA STORE INTERACTIONS:
+// READ FROM DATA STORES:
+// D7: Communications --pending_notifications--> (6.0)
+//   Content: undelivered_messages, scheduled_notifications, alert_queues
+// D1: Users --notification_preferences--> (6.0)
+//   Content: user_communication_settings, contact_information, delivery_methods
+
+// WRITE TO DATA STORES:
+// (6.0) --notification_records--> D7: Communications
+//   Content: sent_notifications, delivery_status, user_responses
+// (6.0) --communication_logs--> D9: System Configuration
+//   Content: notification_activities, delivery_analytics, communication_patterns
+
+// === PROCESS 7.0: FILE & DOCUMENT MANAGEMENT ===
+// Description: Handles file uploads, document storage, and content management
+
+// INPUTS FROM EXTERNAL ENTITIES:
+// [Students] --document_uploads--> (7.0)
+//   Content: assignment_files, payment_receipts, profile_documents
+// [Tutors] --content_uploads--> (7.0)
+//   Content: learning_materials, assignment_templates, reference_documents
+// [Admins] --system_files--> (7.0)
+//   Content: policy_documents, system_configurations, backup_files
+
+// OUTPUTS TO EXTERNAL ENTITIES:
+// (7.0) --file_access--> [Students]
+//   Content: learning_materials, graded_assignments, official_documents
+// (7.0) --file_access--> [Tutors]
+//   Content: student_submissions, shared_resources, teaching_materials
+// (7.0) --file_management--> [Admins]
+//   Content: system_files, user_documents, storage_analytics
+
+// DATA STORE INTERACTIONS:
+// READ FROM DATA STORES:
+// D8: Files --existing_files--> (7.0)
+//   Content: uploaded_documents, file_metadata, access_permissions
+
+// WRITE TO DATA STORES:
+// (7.0) --file_records--> D8: Files
+//   Content: new_uploads, file_metadata, storage_locations
+// (7.0) --file_activities--> D9: System Configuration
+//   Content: upload_logs, access_records, storage_usage
+
+// === PROCESS 8.0: REPORTING & ANALYTICS SYSTEM ===
+// Description: Generates reports, analytics, and business intelligence
+
+// INPUTS FROM EXTERNAL ENTITIES:
+// [Admins] --report_requests--> (8.0)
+//   Content: report_parameters, analytics_queries, dashboard_configurations
+// [Tutors] --performance_queries--> (8.0)
+//   Content: student_progress_requests, teaching_analytics, session_reports
+// [Students] --progress_inquiries--> (8.0)
+//   Content: academic_progress_requests, attendance_summaries, grade_reports
+
+// OUTPUTS TO EXTERNAL ENTITIES:
+// (8.0) --analytics_dashboard--> [Admins]
+//   Content: system_performance, user_statistics, financial_analytics
+// (8.0) --teaching_reports--> [Tutors]
+//   Content: student_performance, session_analytics, grading_summaries
+// (8.0) --progress_reports--> [Students]
+//   Content: academic_progress, attendance_summary, grade_history
+
+// DATA STORE INTERACTIONS:
+// READ FROM DATA STORES:
+// D1: Users --user_statistics--> (8.0)
+//   Content: registration_trends, user_demographics, activity_patterns
+// D3: Enrollments --enrollment_analytics--> (8.0)
+//   Content: enrollment_trends, program_popularity, completion_rates
+// D4: Sessions --session_analytics--> (8.0)
+//   Content: attendance_patterns, session_effectiveness, engagement_metrics
+// D5: Assessments --academic_analytics--> (8.0)
+//   Content: grade_distributions, assessment_performance, learning_outcomes
+// D6: Payments --financial_analytics--> (8.0)
+//   Content: revenue_trends, payment_patterns, financial_health
+// D9: System Configuration --system_analytics--> (8.0)
+//   Content: usage_statistics, performance_metrics, system_health
+
+// ========================================
+// DATA FLOW SUMMARY MATRIX
+// ========================================
+
+// PROCESS INPUT/OUTPUT MATRIX:
+// Process | External Inputs | External Outputs | Data Store Reads | Data Store Writes
+// 1.0     | User credentials, registration | Auth responses, confirmations | D1, D9 | D1, D7, D9
+// 2.0     | Program requests, enrollments | Program info, confirmations | D1, D2, D6 | D2, D3, D7, D9
+// 3.0     | Session scheduling, attendance | Session invites, reports | D1, D3, D4 | D4, D7, D9
+// 4.0     | Assignments, submissions | Grades, feedback | D3, D5, D8 | D5, D7, D8
+// 5.0     | Payments, validations | Confirmations, reports | D3, D6 | D6, D7, D9
+// 6.0     | Communication preferences | Notifications, alerts | D1, D7 | D7, D9
+// 7.0     | File uploads | File access | D8 | D8, D9
+// 8.0     | Report requests | Analytics, reports | D1, D3, D4, D5, D6, D9 | None
+
+// DATA STORE ACCESS PATTERNS:
+// D1: Users - Read by all processes, Written by 1.0
+// D2: Programs - Read by 2.0, Written by 2.0
+// D3: Enrollments - Read by 2.0, 3.0, 4.0, 5.0, 8.0, Written by 2.0
+// D4: Sessions - Read by 3.0, 8.0, Written by 3.0
+// D5: Assessments - Read by 4.0, 8.0, Written by 4.0
+// D6: Payments - Read by 2.0, 5.0, 8.0, Written by 5.0
+// D7: Communications - Read by 6.0, Written by 1.0, 2.0, 3.0, 4.0, 5.0, 6.0
+// D8: Files - Read by 4.0, 7.0, Written by 4.0, 7.0
+// D9: System Configuration - Read by 1.0, 8.0, Written by 1.0, 2.0, 3.0, 5.0, 6.0, 7.0
+
+// ========================================
+// IMPLEMENTATION NOTES
+// ========================================
+
+// SECURITY CONSIDERATIONS:
+// - All user authentication flows through Process 1.0
+// - Role-based access control enforced at data store level
+// - Audit trails maintained in D9: System Configuration
+// - File access permissions managed through Process 7.0
+
+// PERFORMANCE OPTIMIZATION:
+// - D1: Users database indexed on user_id, email, role
+// - D3: Enrollments indexed on student_user_id, program_id, tutor_user_id
+// - D4: Sessions indexed on enrollment_id, session_date
+// - D5: Assessments indexed on student_user_id, submission_date
+// - D6: Payments indexed on enrollment_id, payment_date
+
+// SCALABILITY DESIGN:
+// - Modular process architecture allows independent scaling
+// - Data stores can be distributed across multiple databases
+// - Notification system (Process 6.0) can be implemented as message queue
+// - File management (Process 7.0) can utilize cloud storage services
+
+// ERROR HANDLING:
+// - All processes log errors to D9: System Configuration
+// - Failed operations trigger notifications through Process 6.0
+// - Data consistency maintained through database transactions
+// - Backup and recovery procedures integrated with Process 7.0
+
+// ========================================
+// END OF DFD LEVEL 1 SPECIFICATION
+// ========================================

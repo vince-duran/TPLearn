@@ -141,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       } else {
         // User not found or inactive
         $_SESSION['login_attempts'] = $attempts + 1;
-        $error = 'Student ID or email not found, or account is inactive.';
+        $error = 'User ID or email not found, or account is inactive.';
       }
 
       $stmt->close();
@@ -166,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Left Panel -->
     <div class="hidden md:flex bg-gradient-to-br from-green-400 to-green-600 flex-col items-center justify-center text-white p-12">
       <h2 class="text-3xl font-bold mb-2">TPLearn</h2>
-      <p class="text-lg text-center">Tisa at Pisara’s Academic Tutoring Services</p>
+      <p class="text-lg text-center">Tisa at Pisara's Academic Tutoring Services</p>
       <img src="assets/logo.png" alt="TPLearn Logo" class="h-24 w-24 mt-10 rounded-full shadow-lg" />
     </div>
 
@@ -207,7 +207,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Student/Tutor ID or Email Address <span class="text-red-500">*</span></label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <?= icon('student_id') ?>
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v12.75A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0z"></path>
+              </svg>
             </span>
             <input
               type="text"
@@ -228,7 +230,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password <span class="text-red-500">*</span></label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <?= icon('lock') ?>
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"></path>
+              </svg>
             </span>
             <input
               type="password"
@@ -240,9 +244,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               class="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               placeholder="Enter your password" />
             <button type="button" id="togglePassword" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Toggle password visibility">
-              <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+              <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
               </svg>
             </button>
           </div>
@@ -256,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label for="remember" class="ml-2 block text-sm text-gray-700">Remember me</label>
           </div>
           <div class="text-sm">
-            <a href="#" class="text-green-600 hover:text-green-500 hover:underline">Forgot password?</a>
+            <a href="forgot-password.php" class="text-green-600 hover:text-green-500 hover:underline">Forgot password?</a>
           </div>
         </div>
 
@@ -275,7 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- Register Links -->
         <div class="text-center text-sm text-gray-600">
           <p class="mb-3">Don't have an account?</p>
-          <div class="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4">
+          <div class="flex flex-row justify-center space-x-4">
             <a href="register.php" class="inline-flex items-center justify-center px-4 py-2 border-2 border-green-500 text-green-600 rounded-lg hover:bg-green-50 transition-colors duration-200 font-medium">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
@@ -316,13 +320,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         passwordInput.type = isPassword ? 'text' : 'password';
 
         if (isPassword) {
+          // Show "eye-slash" icon when password is visible
           eyeIcon.innerHTML = `
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.758 6.758M9.878 9.878l-6.363 6.364m0 0l3.535-3.536m0 0L9.878 9.878"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"></path>
           `;
         } else {
+          // Show "eye" icon when password is hidden
           eyeIcon.innerHTML = `
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
           `;
         }
       });
@@ -363,7 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         const value = input.value.trim();
 
         if (!value) {
-          showError(input, 'Please enter your Student ID or email address.');
+          showError(input, 'Please enter your User ID or email address.');
           return false;
         }
 
@@ -381,10 +387,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return false;
           }
         } else {
-          // Student ID format (TPyyyy-xxx)
-          const studentIdPattern = /^TP\d{4}-\d{3}$/;
-          if (!studentIdPattern.test(value)) {
-            showError(input, 'Student ID should be in format TP2024-001.');
+          // User ID format (TPT/TPS/TPA + year + number)
+          const userIdPattern = /^TP[TSA]\d{4}-\d{3}$/;
+          if (!userIdPattern.test(value)) {
+            showError(input, 'User ID should be in format TPT2025-001, TPS2024-001, or TPA2024-001.');
             return false;
           }
         }

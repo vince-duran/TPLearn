@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TPLearn Icon Standards - Complete Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <?php include 'assets/icons.php'; ?>
+    
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-4xl font-bold text-center mb-8 text-gray-800">TPLearn Icon System</h1>
+        <p class="text-center text-gray-600 mb-12">Standardized, uniform icons across all dashboards</p>
+        
+        <!-- Size Standards -->
+        <div class="bg-white rounded-xl p-6 mb-8 shadow-sm">
+            <h2 class="text-2xl font-semibold mb-6 text-gray-800">📏 Size Standards</h2>
+            <div class="grid grid-cols-7 gap-6">
+                <div class="text-center">
+                    <div class="bg-gray-100 rounded-lg p-4 mb-2 flex items-center justify-center h-16">
+                        <?= icon('star', 'xs') ?>
+                    </div>
+                    <span class="text-sm font-medium">xs (12px)</span>
+                    <div class="text-xs text-gray-500">Tiny indicators</div>
+                </div>
+                <div class="text-center">
+                    <div class="bg-gray-100 rounded-lg p-4 mb-2 flex items-center justify-center h-16">
+                        <?= icon('star', 'sm') ?>
+                    </div>
+                    <span class="text-sm font-medium">sm (16px)</span>
+                    <div class="text-xs text-gray-500">Small inline</div>
+                </div>
+                <div class="text-center">
+                    <div class="bg-gray-100 rounded-lg p-4 mb-2 flex items-center justify-center h-16">
+                        <?= icon('star', 'md') ?>
+                    </div>
+                    <span class="text-sm font-medium">md (20px)</span>
+                    <div class="text-xs text-gray-500">Default size</div>
+                </div>
+                <div class="text-center">
+                    <div class="bg-gray-100 rounded-lg p-4 mb-2 flex items-center justify-center h-16">
+                        <?= icon('star', 'lg') ?>
+                    </div>
+                    <span class="text-sm font-medium">lg (24px)</span>
+                    <div class="text-xs text-gray-500">Interface icons</div>
+                </div>
+                <div class="text-center">
+                    <div class="bg-gray-100 rounded-lg p-4 mb-2 flex items-center justify-center h-16">
+                        <?= icon('star', 'xl') ?>
+                    </div>
+                    <span class="text-sm font-medium">xl (32px)</span>
+                    <div class="text-xs text-gray-500">Prominent</div>
+                </div>
+                <div class="text-center">
+                    <div class="bg-gray-100 rounded-lg p-4 mb-2 flex items-center justify-center h-16">
+                        <?= icon('star', '2xl') ?>
+                    </div>
+                    <span class="text-sm font-medium">2xl (48px)</span>
+                    <div class="text-xs text-gray-500">Large features</div>
+                </div>
+                <div class="text-center">
+                    <div class="bg-gray-100 rounded-lg p-4 mb-2 flex items-center justify-center h-16">
+                        <?= icon('star', '3xl') ?>
+                    </div>
+                    <span class="text-sm font-medium">3xl (64px)</span>
+                    <div class="text-xs text-gray-500">Hero/banner</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Color Standards -->
+        <div class="bg-white rounded-xl p-6 mb-8 shadow-sm">
+            <h2 class="text-2xl font-semibold mb-6 text-gray-800">🎨 Color Standards</h2>
+            
+            <div class="grid grid-cols-2 gap-8">
+                <!-- Status Colors -->
+                <div>
+                    <h3 class="text-lg font-medium mb-4 text-gray-700">Status Colors</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-3">
+                            <?= icon('check-circle', 'success') ?>
+                            <span class="font-medium">success</span>
+                            <span class="text-sm text-gray-500">green-600</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= icon('exclamation-triangle', 'warning') ?>
+                            <span class="font-medium">warning</span>
+                            <span class="text-sm text-gray-500">yellow-600</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= icon('x-mark', 'error') ?>
+                            <span class="font-medium">error</span>
+                            <span class="text-sm text-gray-500">red-600</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= icon('bell', 'info') ?>
+                            <span class="font-medium">info</span>
+                            <span class="text-sm text-gray-500">blue-600</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- UI Colors -->
+                <div>
+                    <h3 class="text-lg font-medium mb-4 text-gray-700">UI Element Colors</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-3">
+                            <?= icon('home', 'primary') ?>
+                            <span class="font-medium">primary</span>
+                            <span class="text-sm text-gray-500">blue-600</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= icon('cog-6-tooth', 'secondary') ?>
+                            <span class="font-medium">secondary</span>
+                            <span class="text-sm text-gray-500">gray-600</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= icon('user', 'muted') ?>
+                            <span class="font-medium">muted</span>
+                            <span class="text-sm text-gray-500">gray-400</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= icon('star', 'accent') ?>
+                            <span class="font-medium">accent</span>
+                            <span class="text-sm text-gray-500">purple-600</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Helper Functions -->
+        <div class="bg-white rounded-xl p-6 mb-8 shadow-sm">
+            <h2 class="text-2xl font-semibold mb-6 text-gray-800">⚡ Helper Functions</h2>
+            
+            <div class="grid grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-lg font-medium mb-4 text-gray-700">Navigation & Actions</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3">
+                            <?= navIcon('home', true) ?>
+                            <code class="bg-gray-100 px-2 py-1 rounded text-sm">navIcon('home', true)</code>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= navIcon('users', false) ?>
+                            <code class="bg-gray-100 px-2 py-1 rounded text-sm">navIcon('users', false)</code>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= menuIcon() ?>
+                            <code class="bg-gray-100 px-2 py-1 rounded text-sm">menuIcon()</code>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= actionIcon('pencil') ?>
+                            <code class="bg-gray-100 px-2 py-1 rounded text-sm">actionIcon('pencil')</code>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-medium mb-4 text-gray-700">Status & Stats</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3">
+                            <?= statusIcon('check-circle', 'success') ?>
+                            <code class="bg-gray-100 px-2 py-1 rounded text-sm">statusIcon('check-circle', 'success')</code>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= statIcon('users') ?>
+                            <code class="bg-gray-100 px-2 py-1 rounded text-sm">statIcon('users')</code>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= loadingIcon() ?>
+                            <code class="bg-gray-100 px-2 py-1 rounded text-sm">loadingIcon()</code>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <?= iconWithSpacing('clock', 'sm', 'muted') ?>
+                            <span>With spacing</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Context -->
+        <div class="bg-white rounded-xl p-6 mb-8 shadow-sm">
+            <h2 class="text-2xl font-semibold mb-6 text-gray-800">🏢 Dashboard Context</h2>
+            <div class="grid grid-cols-3 gap-6">
+                <div class="text-center p-4 bg-indigo-50 rounded-lg">
+                    <?= dashboardIcon('cog-6-tooth', 'admin') ?>
+                    <h3 class="font-medium mt-2">Admin</h3>
+                    <p class="text-sm text-gray-600">indigo-600</p>
+                </div>
+                <div class="text-center p-4 bg-emerald-50 rounded-lg">
+                    <?= dashboardIcon('academic-cap', 'tutor') ?>
+                    <h3 class="font-medium mt-2">Tutor</h3>
+                    <p class="text-sm text-gray-600">emerald-600</p>
+                </div>
+                <div class="text-center p-4 bg-cyan-50 rounded-lg">
+                    <?= dashboardIcon('book-open', 'student') ?>
+                    <h3 class="font-medium mt-2">Student</h3>
+                    <p class="text-sm text-gray-600">cyan-600</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Usage Examples -->
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+            <h2 class="text-2xl font-semibold mb-6 text-gray-800">💻 Usage Examples</h2>
+            
+            <div class="space-y-6">
+                <!-- Example 1: Dashboard Stats -->
+                <div>
+                    <h3 class="text-lg font-medium mb-3 text-gray-700">Dashboard Statistics</h3>
+                    <div class="grid grid-cols-4 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <?= statIcon('users', 'primary') ?>
+                            <div class="mt-2">
+                                <div class="text-2xl font-bold text-gray-900">1,234</div>
+                                <div class="text-sm text-gray-600">Total Students</div>
+                            </div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <?= statIcon('academic-cap', 'success') ?>
+                            <div class="mt-2">
+                                <div class="text-2xl font-bold text-gray-900">56</div>
+                                <div class="text-sm text-gray-600">Active Programs</div>
+                            </div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <?= statIcon('book-open', 'accent') ?>
+                            <div class="mt-2">
+                                <div class="text-2xl font-bold text-gray-900">789</div>
+                                <div class="text-sm text-gray-600">Assignments</div>
+                            </div>
+                        </div>
+                        <div class="bg-yellow-50 p-4 rounded-lg">
+                            <?= statIcon('currency-dollar', 'warning') ?>
+                            <div class="mt-2">
+                                <div class="text-2xl font-bold text-gray-900">$45,678</div>
+                                <div class="text-sm text-gray-600">Revenue</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Example 2: Action Buttons -->
+                <div>
+                    <h3 class="text-lg font-medium mb-3 text-gray-700">Action Buttons</h3>
+                    <div class="flex space-x-3">
+                        <button class="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <?= actionIcon('plus', 'sm', 'white') ?>
+                            <span class="ml-2">Add New</span>
+                        </button>
+                        <button class="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+                            <?= actionIcon('eye', 'sm', 'white') ?>
+                            <span class="ml-2">View</span>
+                        </button>
+                        <button class="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                            <?= actionIcon('trash', 'sm', 'white') ?>
+                            <span class="ml-2">Delete</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center text-gray-500 mt-12">
+        <p>TPLearn Icon System - Standardized, Beautiful, Consistent</p>
+    </footer>
+</body>
+</html>

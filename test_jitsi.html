@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jitsi Meet API Test - TPLearn</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://meet.jit.si/external_api.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto">
+            <h1 class="text-3xl font-bold text-gray-900 mb-8 text-center">Jitsi Meet API Test</h1>
+            
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">Test Jitsi Integration</h2>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Room Name</label>
+                    <input type="text" id="roomName" value="TPLearn-Test-Room" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Display Name</label>
+                    <input type="text" id="displayName" value="Test User" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div class="flex space-x-4">
+                    <button onclick="startMeeting()" 
+                            class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                        Start Meeting
+                    </button>
+                    <button onclick="stopMeeting()" 
+                            class="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors">
+                        Stop Meeting
+                    </button>
+                </div>
+            </div>
+            
+            <div id="jitsi-container" class="bg-white rounded-lg shadow-lg overflow-hidden" style="height: 600px;">
+                <div class="flex items-center justify-center h-full text-gray-500">
+                    Click "Start Meeting" to begin
+                </div>
+            </div>
+            
+            <div id="status" class="mt-4 p-4 bg-gray-50 rounded-lg">
+                <h3 class="font-semibold text-gray-900 mb-2">Status</h3>
+                <div id="statusLog" class="text-sm text-gray-600 font-mono"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let jitsiAPI = null;
+        
+        function log(message) {
+            const statusLog = document.getElementById('statusLog');
+            const timestamp = new Date().toLocaleTimeString();
+            statusLog.innerHTML += `[${timestamp}] ${message}\n`;
+            statusLog.scrollTop = statusLog.scrollHeight;
+            console.log(message);
+        }
+        
+        function startMeeting() {
+            const roomName = document.getElementById('roomName').value;
+            const displayName = document.getElementById('displayName').value;
+            
+            if (!roomName) {
+                alert('Please enter a room name');
+                return;
+            }
+            
+            if (jitsiAPI) {
+                stopMeeting();
+            }
+            
+            log('Starting Jitsi meeting...');
+            
+            const options = {
+                roomName: roomName,
+                width: '100%',
+                height: '100%',
+                parentNode: document.querySelector('#jitsi-container'),
+                configOverwrite: {
+                    startWithAudioMuted: true,
+                    startWithVideoMuted: true,
+                    enableWelcomePage: false,
+                    prejoinPageEnabled: false,
+                    disableModeratorIndicator: false,
+                    startScreenSharing: false,
+                    enableEmailInStats: false
+                },
+                interfaceConfigOverwrite: {
+                    DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
+                    DISABLE_PRESENCE_STATUS: false,
+                    DISPLAY_WELCOME_PAGE_CONTENT: false,
+                    ENABLE_FEEDBACK_ANIMATION: false,
+                    FILMSTRIP_ENABLED: true,
+                    GENERATE_ROOMNAMES_ON_WELCOME_PAGE: false,
+                    HIDE_INVITE_MORE_HEADER: false,
+                    JITSI_WATERMARK_LINK: 'https://tplearn.com',
+                    POLICY_LOGO: null,
+                    PROVIDER_NAME: 'TPLearn',
+                    SHOW_JITSI_WATERMARK: false,
+                    SHOW_WATERMARK_FOR_GUESTS: false,
+                    SUPPORT_URL: 'https://tplearn.com/support',
+                    TOOLBAR_BUTTONS: [
+                        'microphone', 'camera', 'closedcaptions', 'desktop', 'embedmeeting',
+                        'fullscreen', 'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+                        'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
+                        'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+                        'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
+                        'security'
+                    ]
+                },
+                userInfo: {
+                    displayName: displayName,
+                    email: 'test@tplearn.com'
+                }
+            };
+            
+            try {
+                jitsiAPI = new JitsiMeetExternalAPI('meet.jit.si', options);
+                
+                // Add event listeners
+                jitsiAPI.addEventListener('videoConferenceJoined', () => {
+                    log('✅ Successfully joined the meeting');
+                });
+                
+                jitsiAPI.addEventListener('videoConferenceLeft', () => {
+                    log('📤 Left the meeting');
+                    jitsiAPI = null;
+                });
+                
+                jitsiAPI.addEventListener('readyToClose', () => {
+                    log('🔒 Ready to close meeting');
+                    stopMeeting();
+                });
+                
+                jitsiAPI.addEventListener('participantJoined', (participant) => {
+                    log(`👤 Participant joined: ${participant.displayName}`);
+                });
+                
+                jitsiAPI.addEventListener('participantLeft', (participant) => {
+                    log(`👋 Participant left: ${participant.displayName}`);
+                });
+                
+                jitsiAPI.addEventListener('audioMuteStatusChanged', (data) => {
+                    log(`🎤 Audio ${data.muted ? 'muted' : 'unmuted'}`);
+                });
+                
+                jitsiAPI.addEventListener('videoMuteStatusChanged', (data) => {
+                    log(`📹 Video ${data.muted ? 'muted' : 'unmuted'}`);
+                });
+                
+                log('🚀 Jitsi API initialized successfully');
+                
+            } catch (error) {
+                log('❌ Error initializing Jitsi API: ' + error.message);
+                console.error('Jitsi API Error:', error);
+            }
+        }
+        
+        function stopMeeting() {
+            if (jitsiAPI) {
+                log('🛑 Stopping meeting...');
+                jitsiAPI.dispose();
+                jitsiAPI = null;
+                
+                // Clear the container
+                const container = document.getElementById('jitsi-container');
+                container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500">Meeting ended. Click "Start Meeting" to begin a new one.</div>';
+            } else {
+                log('⚠️ No active meeting to stop');
+            }
+        }
+        
+        // Initialize
+        log('🔧 Jitsi Meet API Test Page loaded');
+        
+        // Check if Jitsi External API is available
+        if (typeof JitsiMeetExternalAPI !== 'undefined') {
+            log('✅ Jitsi Meet External API is available');
+        } else {
+            log('❌ Jitsi Meet External API is not available');
+        }
+    </script>
+</body>
+</html>
+</body>
+</html>

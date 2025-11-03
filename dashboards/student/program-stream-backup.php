@@ -1068,7 +1068,7 @@ function getMaterialTypeDisplay($type) {
         })
         .catch(error => {
           console.error('Error fetching material:', error);
-          alert('Error loading material details');
+          TPAlert.error('Error', 'Error loading material details');
         });
     }
 
@@ -1302,7 +1302,7 @@ function getMaterialTypeDisplay($type) {
             }
           }, 2000);
         }
-        alert('Download failed. Please try again.');
+        TPAlert.info('Information', 'Download failed. Please try again.');
       }
     }
 
@@ -1380,7 +1380,7 @@ function getMaterialTypeDisplay($type) {
       if (file) {
         // Validate file size (10MB limit)
         if (file.size > 10 * 1024 * 1024) {
-          alert('File size must be less than 10MB');
+          TPAlert.error('File Size Error', 'File size must be less than 10MB');
           input.value = '';
           return;
         }

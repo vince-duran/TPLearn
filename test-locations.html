@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Philippine Locations Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6 text-gray-800">Philippine Location Dropdowns Test</h1>
+        <p class="text-gray-600 mb-8">Testing the comprehensive Philippine location data with all provinces, cities, and barangays.</p>
+        
+        <!-- Location Test Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-4">Test Location Selection</h2>
+            
+            <div class="grid md:grid-cols-3 gap-4">
+                <!-- Province -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Province</label>
+                    <select id="province" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Loading provinces...</option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">86 provinces available</p>
+                </div>
+                
+                <!-- City/Municipality -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">City/Municipality</label>
+                    <select id="city" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
+                        <option value="">Select a province first</option>
+                    </select>
+                    <p id="city-count" class="text-xs text-gray-500 mt-1">Select province to load cities</p>
+                </div>
+                
+                <!-- Barangay -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Barangay</label>
+                    <select id="barangay" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
+                        <option value="">Select a city first</option>
+                    </select>
+                    <p id="barangay-count" class="text-xs text-gray-500 mt-1">Select city to load barangays</p>
+                </div>
+            </div>
+            
+            <!-- Display Selected Values -->
+            <div class="mt-6 p-4 bg-gray-50 rounded-md">
+                <h3 class="font-medium text-gray-800 mb-2">Selected Address:</h3>
+                <p id="selected-address" class="text-gray-600">Please select province, city, and barangay above.</p>
+            </div>
+            
+            <!-- Statistics -->
+            <div class="mt-6 p-4 bg-blue-50 rounded-md">
+                <h3 class="font-medium text-blue-800 mb-2">Data Statistics:</h3>
+                <div id="stats" class="text-blue-600 text-sm">Loading statistics...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Location dropdown functionality
+        async function loadProvinces() {
+            try {
+                const response = await fetch('api/locations.php?action=provinces');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const provinceSelect = document.getElementById('province');
+                    
+                    provinceSelect.innerHTML = '<option value="">Select Province</option>';
+                    data.data.forEach(province => {
+                        const displayName = province.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+                        provinceSelect.innerHTML += `<option value="${province}">${displayName}</option>`;
+                    });
+                    
+                    console.log(`Loaded ${data.count} provinces`);
+                } else {
+                    console.error('Failed to load provinces:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading provinces:', error);
+                document.getElementById('province').innerHTML = '<option value="">Error loading provinces</option>';
+            }
+        }
+        
+        async function loadCities(province) {
+            try {
+                const response = await fetch(`api/locations.php?action=cities&province=${encodeURIComponent(province)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const citySelect = document.getElementById('city');
+                    const barangaySelect = document.getElementById('barangay');
+                    
+                    citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+                    data.data.forEach(city => {
+                        const displayName = city.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+                        citySelect.innerHTML += `<option value="${city}">${displayName}</option>`;
+                    });
+                    citySelect.disabled = false;
+                    
+                    barangaySelect.innerHTML = '<option value="">Select City/Municipality first</option>';
+                    barangaySelect.disabled = true;
+                    
+                    document.getElementById('city-count').textContent = `${data.count} cities/municipalities available`;
+                    document.getElementById('barangay-count').textContent = 'Select city to load barangays';
+                    
+                    console.log(`Loaded ${data.count} cities for ${province}`);
+                } else {
+                    console.error('Failed to load cities:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading cities:', error);
+            }
+        }
+        
+        async function loadBarangays(province, city) {
+            try {
+                const response = await fetch(`api/locations.php?action=barangays&province=${encodeURIComponent(province)}&city=${encodeURIComponent(city)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const barangaySelect = document.getElementById('barangay');
+                    
+                    barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+                    data.data.forEach(barangay => {
+                        const displayName = barangay.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+                        barangaySelect.innerHTML += `<option value="${barangay}">${displayName}</option>`;
+                    });
+                    barangaySelect.disabled = false;
+                    
+                    document.getElementById('barangay-count').textContent = `${data.count} barangays available`;
+                    
+                    console.log(`Loaded ${data.count} barangays for ${city}, ${province}`);
+                } else {
+                    console.error('Failed to load barangays:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading barangays:', error);
+            }
+        }
+        
+        async function loadStats() {
+            try {
+                const response = await fetch('api/locations.php?action=stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const statsDiv = document.getElementById('stats');
+                    statsDiv.innerHTML = `
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <div class="text-lg font-bold">${data.data.total_provinces}</div>
+                                <div class="text-xs">Provinces</div>
+                            </div>
+                            <div>
+                                <div class="text-lg font-bold">${data.data.total_cities}</div>
+                                <div class="text-xs">Cities/Municipalities</div>
+                            </div>
+                            <div>
+                                <div class="text-lg font-bold">${data.data.total_barangays}</div>
+                                <div class="text-xs">Barangays</div>
+                            </div>
+                        </div>
+                        <div class="mt-2 text-xs text-center">Data Source: ${data.data.data_source}</div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+        
+        function updateSelectedAddress() {
+            const province = document.getElementById('province');
+            const city = document.getElementById('city');
+            const barangay = document.getElementById('barangay');
+            
+            const provinceText = province.options[province.selectedIndex]?.text || '';
+            const cityText = city.options[city.selectedIndex]?.text || '';
+            const barangayText = barangay.options[barangay.selectedIndex]?.text || '';
+            
+            let address = '';
+            if (barangayText && cityText && provinceText) {
+                address = `${barangayText}, ${cityText}, ${provinceText}`;
+            } else if (cityText && provinceText) {
+                address = `${cityText}, ${provinceText}`;
+            } else if (provinceText) {
+                address = provinceText;
+            } else {
+                address = 'Please select province, city, and barangay above.';
+            }
+            
+            document.getElementById('selected-address').textContent = address;
+        }
+        
+        // Event listeners
+        document.getElementById('province').addEventListener('change', function() {
+            if (this.value) {
+                loadCities(this.value);
+            } else {
+                document.getElementById('city').innerHTML = '<option value="">Select a province first</option>';
+                document.getElementById('city').disabled = true;
+                document.getElementById('barangay').innerHTML = '<option value="">Select a city first</option>';
+                document.getElementById('barangay').disabled = true;
+                document.getElementById('city-count').textContent = 'Select province to load cities';
+                document.getElementById('barangay-count').textContent = 'Select city to load barangays';
+            }
+            updateSelectedAddress();
+        });
+        
+        document.getElementById('city').addEventListener('change', function() {
+            const province = document.getElementById('province').value;
+            if (this.value && province) {
+                loadBarangays(province, this.value);
+            } else {
+                document.getElementById('barangay').innerHTML = '<option value="">Select a city first</option>';
+                document.getElementById('barangay').disabled = true;
+                document.getElementById('barangay-count').textContent = 'Select city to load barangays';
+            }
+            updateSelectedAddress();
+        });
+        
+        document.getElementById('barangay').addEventListener('change', updateSelectedAddress);
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProvinces();
+            loadStats();
+        });
+    </script>
+</body>
+</html>

@@ -87,7 +87,7 @@ function sendVerificationEmail($email, $firstName, $token) {
             throw new Exception("From email address not configured for provider '{$provider}'");
         }
         
-        // Gmail-specific validation
+        // Gmail-specific validation and cleanup
         if ($provider === 'gmail') {
             if (empty($providerConfig['password'])) {
                 throw new Exception("Gmail App Password is required. Please generate an App Password in your Google Account settings.");
@@ -96,9 +96,14 @@ function sendVerificationEmail($email, $firstName, $token) {
                 !str_ends_with($providerConfig['username'], '@gmail.com')) {
                 throw new Exception("Gmail username must be a valid @gmail.com email address.");
             }
-            if (strlen($providerConfig['password']) !== 16 || strpos($providerConfig['password'], ' ') !== false) {
-                throw new Exception("Gmail App Password should be 16 characters without spaces. Make sure you're using an App Password, not your regular password.");
+            
+            // Clean up Gmail App Password by removing spaces
+            $cleanPassword = str_replace(' ', '', $providerConfig['password']);
+            if (strlen($cleanPassword) !== 16) {
+                throw new Exception("Gmail App Password should be exactly 16 characters (spaces will be removed automatically). Current length after removing spaces: " . strlen($cleanPassword));
             }
+            // Update the password to the cleaned version
+            $providerConfig['password'] = $cleanPassword;
         }
         
         // Server settings
@@ -330,11 +335,13 @@ function isEmailVerified($user_id) {
 function resendVerificationEmail($email) {
     global $conn;
     
-    // Get user details
+    // Get user details with proper table joins
     $stmt = $conn->prepare("
-        SELECT u.id, u.email_verified, p.first_name 
+        SELECT u.id, u.email_verified, 
+               COALESCE(sp.first_name, tp.first_name, 'User') as first_name 
         FROM users u 
-        LEFT JOIN profiles p ON u.id = p.user_id 
+        LEFT JOIN student_profiles sp ON u.id = sp.user_id 
+        LEFT JOIN tutor_profiles tp ON u.id = tp.user_id 
         WHERE u.email = ?
     ");
     $stmt->bind_param("s", $email);
@@ -353,7 +360,7 @@ function resendVerificationEmail($email) {
     
     // Generate new token and send email
     $token = generateVerificationToken();
-    $firstName = $user['first_name'] ?: 'Student';
+    $firstName = $user['first_name'] ?: 'User';
     
     if (createEmailVerification($user['id'], $email, $token)) {
         $result = sendVerificationEmail($email, $firstName, $token);
@@ -640,5 +647,231 @@ function cancelEmailChange($user_id) {
     $stmt->close();
     
     return $result;
+}
+
+/**
+ * Send password reset email
+ */
+function sendPasswordResetEmail($email, $firstName, $resetLink) {
+    $config = require __DIR__ . '/../config/email.php';
+    
+    // Check if we should simulate emails (for development)
+    if ($config['provider'] === 'simulate' || 
+        (isset($config['debug']['enabled']) && $config['debug']['enabled'] && 
+         isset($config['debug']['log_emails']) && $config['debug']['log_emails'])) {
+        
+        $emailData = [
+            'to' => $email,
+            'subject' => 'Password Reset - TPLearn',
+            'body' => "Hi $firstName,\n\nYou requested a password reset for your TPLearn account.\n\nClick the link below to reset your password:\n$resetLink\n\nThis link will expire in 1 hour.\n\nIf you didn't request this reset, please ignore this email.\n\nBest regards,\nTPLearn Team",
+            'timestamp' => date('Y-m-d H:i:s'),
+            'type' => 'password_reset'
+        ];
+        
+        // Ensure logs directory exists
+        if (!file_exists(__DIR__ . '/../logs')) {
+            mkdir(__DIR__ . '/../logs', 0755, true);
+        }
+        
+        // Store simulated email
+        file_put_contents(
+            __DIR__ . '/../logs/simulated_emails.json',
+            json_encode($emailData) . "\n",
+            FILE_APPEND | LOCK_EX
+        );
+        
+        return true;
+    }
+    
+    // For real email sending using PHPMailer
+    $mail = new PHPMailer(true);
+    
+    try {
+        // Get provider config
+        $provider = $config['provider'];
+        $providerConfig = $config[$provider];
+        
+        // Gmail-specific password cleanup
+        if ($provider === 'gmail') {
+            $providerConfig['password'] = str_replace(' ', '', $providerConfig['password']);
+        }
+        
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host       = $providerConfig['host'];
+        $mail->SMTPAuth   = $providerConfig['auth'];
+        $mail->Username   = $providerConfig['username'];
+        $mail->Password   = $providerConfig['password'];
+        $mail->SMTPSecure = $providerConfig['security'] === 'tls' ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
+        $mail->Port       = $providerConfig['port'];
+        
+        // Recipients
+        $mail->setFrom($providerConfig['from_email'], $providerConfig['from_name']);
+        $mail->addAddress($email, $firstName);
+        
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = 'Password Reset - TPLearn';
+        $mail->Body = "
+        <html>
+        <body>
+            <h2>Password Reset Request</h2>
+            <p>Hi $firstName,</p>
+            <p>You requested a password reset for your TPLearn account.</p>
+            <p><a href='$resetLink' style='background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>Reset Your Password</a></p>
+            <p>Or copy and paste this link into your browser:<br>$resetLink</p>
+            <p><strong>This link will expire in 1 hour.</strong></p>
+            <p>If you didn't request this reset, please ignore this email.</p>
+            <br>
+            <p>Best regards,<br>TPLearn Team</p>
+        </body>
+        </html>
+        ";
+        $mail->AltBody = "Hi $firstName,\n\nYou requested a password reset for your TPLearn account.\n\nClick the link below to reset your password:\n$resetLink\n\nThis link will expire in 1 hour.\n\nIf you didn't request this reset, please ignore this email.\n\nBest regards,\nTPLearn Team";
+        
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Password reset email failed: " . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+/**
+ * Send password reset notification with new password
+ */
+function sendPasswordResetNotification($email, $firstName, $newPassword) {
+    $config = require __DIR__ . '/../config/email.php';
+    
+    // Check if we should simulate emails (for development)
+    if ($config['provider'] === 'simulate' || 
+        (isset($config['debug']['enabled']) && $config['debug']['enabled'] && 
+         isset($config['debug']['log_emails']) && $config['debug']['log_emails'])) {
+        
+        $emailData = [
+            'to' => $email,
+            'subject' => 'Password Reset Completed - TPLearn',
+            'body' => "Hi $firstName,\n\nYour password has been reset by an administrator.\n\nYour new password is: $newPassword\n\nPlease log in using this new password and consider changing it to something more memorable.\n\nLogin at: " . getBaseUrl() . "/login.php\n\nBest regards,\nTPLearn Team",
+            'timestamp' => date('Y-m-d H:i:s'),
+            'type' => 'password_reset_notification'
+        ];
+        
+        // Ensure logs directory exists
+        if (!file_exists(__DIR__ . '/../logs')) {
+            mkdir(__DIR__ . '/../logs', 0755, true);
+        }
+        
+        // Store simulated email
+        file_put_contents(
+            __DIR__ . '/../logs/simulated_emails.json',
+            json_encode($emailData) . "\n",
+            FILE_APPEND | LOCK_EX
+        );
+        
+        return true;
+    }
+    
+    // For real email sending using PHPMailer
+    $mail = new PHPMailer(true);
+    
+    try {
+        // Get provider config
+        $provider = $config['provider'];
+        $providerConfig = $config[$provider];
+        
+        // Gmail-specific password cleanup
+        if ($provider === 'gmail') {
+            $providerConfig['password'] = str_replace(' ', '', $providerConfig['password']);
+        }
+        
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host = $providerConfig['host'];
+        $mail->SMTPAuth = true;
+        $mail->Username = $providerConfig['username'];
+        $mail->Password = $providerConfig['password'];
+        
+        // Set security/encryption based on config
+        if ($providerConfig['security'] === 'tls') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        } elseif ($providerConfig['security'] === 'ssl') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        }
+        
+        $mail->Port = $providerConfig['port'];
+        
+        // Recipients
+        $mail->setFrom($providerConfig['from_email'], $providerConfig['from_name']);
+        $mail->addAddress($email, $firstName);
+        
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = 'Password Reset Completed - TPLearn';
+        $mail->Body = "
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+            <div style='background-color: #10b981; padding: 20px; text-align: center;'>
+                <h1 style='color: white; margin: 0;'>TPLearn</h1>
+                <p style='color: white; margin: 5px 0 0 0;'>Tisa at Pisara's Academic and Tutorial Services</p>
+            </div>
+            
+            <div style='padding: 30px; background-color: #f9f9f9;'>
+                <h2 style='color: #333; margin-bottom: 20px;'>Password Reset Completed</h2>
+                
+                <p style='color: #666; line-height: 1.6; margin-bottom: 20px;'>
+                    Hi $firstName,
+                </p>
+                
+                <p style='color: #666; line-height: 1.6; margin-bottom: 20px;'>
+                    Your password has been reset by an administrator. Please use the new password below to log in:
+                </p>
+                
+                <div style='background-color: #fff; padding: 20px; border-radius: 8px; border-left: 4px solid #10b981; margin-bottom: 20px;'>
+                    <p style='margin: 0; color: #333;'><strong>New Password:</strong></p>
+                    <p style='font-family: monospace; font-size: 18px; color: #10b981; margin: 10px 0 0 0; letter-spacing: 1px;'>$newPassword</p>
+                </div>
+                
+                <p style='color: #666; line-height: 1.6; margin-bottom: 20px;'>
+                    Please log in using this new password and consider changing it to something more memorable in your profile settings.
+                </p>
+                
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='" . getBaseUrl() . "/login.php' style='background-color: #10b981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;'>Login to TPLearn</a>
+                </div>
+                
+                <p style='color: #999; font-size: 14px; line-height: 1.6;'>
+                    If you have any questions, please contact your administrator or visit our support page.
+                </p>
+            </div>
+            
+            <div style='background-color: #333; padding: 20px; text-align: center;'>
+                <p style='color: #999; margin: 0; font-size: 14px;'>
+                    © 2025 TPLearn. All rights reserved.
+                </p>
+            </div>
+        </div>";
+        
+        $mail->AltBody = "Hi $firstName,\n\nYour password has been reset by an administrator.\n\nYour new password is: $newPassword\n\nPlease log in using this new password and consider changing it to something more memorable.\n\nLogin at: " . getBaseUrl() . "/login.php\n\nBest regards,\nTPLearn Team";
+        
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Password reset notification email failed: " . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+/**
+ * Get base URL for the application
+ */
+function getBaseUrl() {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+    $domainName = $_SERVER['HTTP_HOST'];
+    $scriptPath = dirname($_SERVER['REQUEST_URI']);
+    
+    // Remove /includes from the path if present
+    $basePath = str_replace('/includes', '', $scriptPath);
+    $basePath = rtrim($basePath, '/');
+    
+    return $protocol . $domainName . $basePath;
 }
 ?>

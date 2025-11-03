@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Conference Demo - TPLearn</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .video-container {
+            position: relative;
+            background: linear-gradient(45deg, #1f2937, #374151);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .demo-video {
+            width: 100%;
+            height: 300px;
+            background: #111827;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-6 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">🎥 Video Conference Demo</h1>
+            <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                Experience the power of TPLearn's integrated video conferencing system. 
+                This demo shows how our platform delivers crystal-clear communication for effective online learning.
+            </p>
+        </div>
+
+        <!-- Demo Video Section -->
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <div class="video-container mb-6">
+                <div class="demo-video">
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">🎬</div>
+                        <p>Interactive Video Demo</p>
+                        <p class="text-sm mt-2">HD Video • Screen Sharing • Real-time Chat</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Features showcase -->
+            <div class="grid md:grid-cols-3 gap-6 mt-8">
+                <div class="text-center p-4 bg-blue-50 rounded-lg">
+                    <div class="text-3xl mb-2">🔊</div>
+                    <h3 class="font-semibold text-blue-900">Crystal Clear Audio</h3>
+                    <p class="text-sm text-blue-700 mt-2">Noise cancellation and echo reduction</p>
+                </div>
+                <div class="text-center p-4 bg-green-50 rounded-lg">
+                    <div class="text-3xl mb-2">📺</div>
+                    <h3 class="font-semibold text-green-900">HD Video Quality</h3>
+                    <p class="text-sm text-green-700 mt-2">Up to 1080p resolution support</p>
+                </div>
+                <div class="text-center p-4 bg-purple-50 rounded-lg">
+                    <div class="text-3xl mb-2">🖥️</div>
+                    <h3 class="font-semibold text-purple-900">Screen Sharing</h3>
+                    <p class="text-sm text-purple-700 mt-2">Share documents and presentations</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Controls Demo -->
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">🎮 Interactive Controls</h2>
+            <div class="flex justify-center space-x-4 mb-6">
+                <button class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center">
+                    <span class="mr-2">🎥</span> Join Session
+                </button>
+                <button class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center">
+                    <span class="mr-2">🖥️</span> Share Screen
+                </button>
+                <button class="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center">
+                    <span class="mr-2">💬</span> Open Chat
+                </button>
+            </div>
+            
+            <!-- Demo chat window -->
+            <div class="bg-gray-100 rounded-lg p-4 max-w-md mx-auto">
+                <div class="text-sm font-semibold text-gray-700 mb-2">Live Chat Demo</div>
+                <div class="space-y-2">
+                    <div class="bg-blue-500 text-white p-2 rounded-lg text-sm max-w-xs">
+                        Welcome to the session! 👋
+                    </div>
+                    <div class="bg-white p-2 rounded-lg text-sm max-w-xs ml-auto">
+                        Thanks! The video quality is excellent.
+                    </div>
+                    <div class="bg-blue-500 text-white p-2 rounded-lg text-sm max-w-xs">
+                        Great! Let's start with today's lesson.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technical Specifications -->
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">⚙️ Technical Specifications</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="font-semibold text-lg mb-4 text-gray-800">System Requirements</h3>
+                    <ul class="space-y-2 text-gray-600">
+                        <li>✅ Modern web browser (Chrome, Firefox, Safari, Edge)</li>
+                        <li>✅ Stable internet connection (minimum 1 Mbps)</li>
+                        <li>✅ Webcam and microphone (built-in or external)</li>
+                        <li>✅ No software installation required</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-lg mb-4 text-gray-800">Features</h3>
+                    <ul class="space-y-2 text-gray-600">
+                        <li>🎥 HD video up to 1080p</li>
+                        <li>🔊 Crystal clear audio with noise reduction</li>
+                        <li>🖥️ Full screen sharing capabilities</li>
+                        <li>💬 Real-time text chat</li>
+                        <li>📹 Session recording (with permission)</li>
+                        <li>🖊️ Interactive whiteboard</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="text-center">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Ready to Experience TPLearn?</h2>
+            <p class="text-gray-600 mb-6">Join thousands of students and tutors using our platform for effective online learning.</p>
+            <div class="space-x-4">
+                <a href="register.php" class="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 inline-block">
+                    🚀 Start Free Trial
+                </a>
+                <a href="index.php" class="bg-gray-500 hover:bg-gray-600 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 inline-block">
+                    ← Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple demo interactions
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', function() {
+                const action = this.textContent.trim();
+                
+                // Add visual feedback
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 150);
+                
+                // Show demo notification
+                if (action.includes('Join Session')) {
+                    showNotification('🎥 Connecting to video session...', 'success');
+                } else if (action.includes('Share Screen')) {
+                    showNotification('🖥️ Screen sharing activated', 'info');
+                } else if (action.includes('Open Chat')) {
+                    showNotification('💬 Chat window opened', 'info');
+                }
+            });
+        });
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transition-all duration-300 ${
+                type === 'success' ? 'bg-green-500' : 'bg-blue-500'
+            } text-white`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Add some demo animations
+        const videoContainer = document.querySelector('.video-container');
+        if (videoContainer) {
+            setInterval(() => {
+                videoContainer.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.3)';
+                setTimeout(() => {
+                    videoContainer.style.boxShadow = '0 0 0 rgba(59, 130, 246, 0)';
+                }, 1000);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

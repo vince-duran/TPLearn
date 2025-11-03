@@ -1,6 +1,6 @@
 <?php
 require_once '../../includes/auth.php';
-require_once '../../includes/db.php';
+require_once '../../includes/data-helpers.php';
 require_once '../../assets/icons.php';
 requireRole('student');
 
@@ -56,6 +56,14 @@ if ($program['enrolled_count'] >= $program['max_students']) {
 
 // Store program data in session for use in next steps
 $_SESSION['enrollment_program'] = $program;
+
+// Get current user data from session
+$user_id = $_SESSION['user_id'] ?? null;
+$user_name = $_SESSION['name'] ?? 'Student';
+
+// Get student data for display name
+$student_data = getStudentDashboardData($user_id);
+$display_name = $student_data['name'] ?? $user_name;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -145,52 +153,22 @@ $_SESSION['enrollment_program'] = $program;
 
     <!-- Main Content -->
     <div class="lg:ml-64 flex-1">
-      <!-- Top Header -->
-      <header class="bg-white shadow-sm border-b border-gray-200 px-4 lg:px-6 py-4">
-        <div class="flex justify-between items-center">
-          <div class="flex items-center">
-            <!-- Mobile menu button -->
-            <button id="mobile-menu-button" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-tplearn-green mr-3">
-              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <div>
-              <h1 class="text-xl lg:text-2xl font-bold text-gray-800">Enrollment</h1>
-            </div>
-          </div>
-          <div class="flex items-center space-x-4">
-            <!-- Notifications -->
-            <div class="relative">
-              <button onclick="openNotifications()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"></path>
-                </svg>
-              </button>
-              <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">1</span>
-            </div>
-
-            <!-- Messages -->
-            <div class="relative">
-              <button onclick="openMessages()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
-                </svg>
-              </button>
-              <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
-            </div>
-
-            <!-- Profile -->
-            <div class="flex items-center space-x-2">
-              <span class="text-sm font-medium text-gray-700">Maria Santos</span>
-              <div class="w-8 h-8 bg-tplearn-green rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                M
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <?php 
+      // Direct header call using variables already defined
+      require_once '../../includes/header.php';
+      
+      // Use variables that are already defined above
+      $notifications = getUserNotifications($user_id, 10);
+      
+      renderHeader(
+        'Enrollment',
+        'Complete your program enrollment',
+        'student',
+        $display_name,
+        $notifications,
+        []
+      );
+      ?>
 
       <!-- Main Content Area -->
       <main class="p-6 max-w-4xl mx-auto">
@@ -325,62 +303,8 @@ $_SESSION['enrollment_program'] = $program;
       window.location.href = 'student-enrollment.php';
     }
 
-    // Notification functions
-    function openNotifications() {
-      const modal = document.createElement('div');
-      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-      modal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold">Notifications</h3>
-            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-          <div class="space-y-3">
-            <div class="p-3 bg-blue-50 rounded-lg">
-              <p class="text-sm text-blue-800">New program available: Reading Fundamentals</p>
-              <p class="text-xs text-blue-600 mt-1">2 hours ago</p>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-    }
-
-    function openMessages() {
-      const modal = document.createElement('div');
-      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-      modal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold">Messages</h3>
-            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-          <div class="space-y-3">
-            <div class="p-3 bg-gray-50 rounded-lg">
-              <p class="text-sm text-gray-800">Welcome to TPLearn! Please complete your profile.</p>
-              <p class="text-xs text-gray-600 mt-1">1 day ago</p>
-            </div>
-            <div class="p-3 bg-gray-50 rounded-lg">
-              <p class="text-sm text-gray-800">Your enrollment application is under review.</p>
-              <p class="text-xs text-gray-600 mt-1">2 days ago</p>
-            </div>
-            <div class="p-3 bg-gray-50 rounded-lg">
-              <p class="text-sm text-gray-800">New semester starts next month. Prepare your documents.</p>
-              <p class="text-xs text-gray-600 mt-1">3 days ago</p>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-    }
+    // Notification and message functions are handled by header.php
+    // No need for custom functions here
 
     // Mobile menu functionality
     document.getElementById('mobile-menu-button').addEventListener('click', function() {
@@ -393,7 +317,10 @@ $_SESSION['enrollment_program'] = $program;
         event.target.remove();
       }
     });
+
   </script>
+  
+  <!-- Notification JavaScript is included by renderHeader() -->
 </body>
 
 </html>

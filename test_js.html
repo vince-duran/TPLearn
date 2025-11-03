@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JS Test for TPLearn</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <button onclick="testFunction()">Test Button</button>
+    
+    <script>
+        function testFunction() {
+            alert('Function works!');
+        }
+        
+        // Test if we can access the buttons from the actual page
+        setTimeout(() => {
+            const iframe = document.createElement('iframe');
+            iframe.src = 'tutor-program-stream.php?program_id=3';
+            iframe.style.width = '100%';
+            iframe.style.height = '600px';
+            document.body.appendChild(iframe);
+        }, 1000);
+    </script>
+</body>
+</html>

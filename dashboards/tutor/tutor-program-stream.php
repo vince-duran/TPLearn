@@ -69,23 +69,14 @@ if (!empty($materials)) {
       );
       ?>
 
-      <!-- Back to Programs and Program Description -->
+      <!-- Back to Programs -->
       <div class="bg-white border-b border-gray-200 px-4 lg:px-6 py-4">
-        <div class="flex items-center mb-3">
-          <a href="tutor-programs.php" class="flex items-center text-gray-600 hover:text-gray-900">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
-            Back to Programs
-          </a>
-        </div>
-        <div class="flex justify-between items-start">
-          <div class="flex-1">
-            <h2 class="text-xl font-semibold text-gray-900 mb-2"><?= htmlspecialchars($program_name) ?></h2>
-            <p class="text-gray-600"><?= htmlspecialchars($program_description) ?></p>
-          </div>
-
-        </div>
+        <a href="tutor-programs.php" class="flex items-center text-gray-600 hover:text-gray-900">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          Back to Programs
+        </a>
       </div>
 
       <!-- Filter Tabs -->
@@ -127,7 +118,27 @@ if (!empty($materials)) {
           </div>
         </div>
         
-        <div class="space-y-6">
+        <div class="space-y-6" id="content-area">
+          
+          <!-- Empty State (shown when no content) -->
+          <div id="empty-state" class="hidden bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <div class="max-w-md mx-auto">
+              <div class="flex justify-center space-x-4 mb-6">
+                <div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <svg class="w-8 h-8 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+                <div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <svg class="w-8 h-8 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+              </div>
+              <h3 class="text-xl font-semibold text-gray-900 mb-2">No Content Yet</h3>
+              <p class="text-gray-600">Get started by uploading materials or creating a live session for your students.</p>
+            </div>
+          </div>
           
           <!-- Live Classes Section -->
           <div id="live-classes-section" class="content-section" data-type="live-classes">
@@ -237,8 +248,9 @@ if (!empty($materials)) {
                       <?php endif; ?>
                       <?php if (!empty($material['assessment_id'])): ?>
                       <button onclick="viewAssessment('<?= $material['assessment_id'] ?>')" class="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                          <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path>
                         </svg>
                         View Assessment
                       </button>
@@ -263,19 +275,8 @@ if (!empty($materials)) {
           </div>
           <?php 
             endforeach; 
-          else: 
+          endif; 
           ?>
-          <!-- No materials uploaded yet -->
-          <div class="bg-white rounded-lg border border-gray-200 p-6 text-center">
-            <div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
-              </svg>
-            </div>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">No Materials Yet</h3>
-            <p class="text-gray-600">You haven't uploaded any materials for this program yet.</p>
-          </div>
-          <?php endif; ?>
 
         </div>
       </main>
@@ -1692,14 +1693,6 @@ if (!empty($materials)) {
               <input type="number" id="liveClassMaxParticipants" name="max_participants" value="50" min="1" max="100"
                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
-          </div>
-
-          <!-- Options -->
-          <div class="flex items-center space-x-4">
-            <label class="flex items-center">
-              <input type="checkbox" id="liveClassRecorded" name="is_recorded" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-              <span class="ml-2 text-sm text-gray-700">Record this session</span>
-            </label>
           </div>
         </div>
 
@@ -5321,6 +5314,7 @@ if (!empty($materials)) {
       
       if (meetings.length === 0) {
         container.innerHTML = '';
+        checkEmptyState();
         return;
       }
       
@@ -5330,10 +5324,16 @@ if (!empty($materials)) {
         const isLive = meeting.is_live;
         const isUpcoming = meeting.is_upcoming;
         const isPast = meeting.is_past;
+        const isEnded = meeting.status === 'completed' || meeting.status === 'cancelled';
         
         // Use consistent status colors and text
         const statusColor = getLiveStatusColor(isLive, isUpcoming, isPast);
-        const statusText = getStatusText(isLive, isUpcoming, isPast);
+        let statusText = getStatusText(isLive, isUpcoming, isPast);
+        
+        // Override status text if explicitly ended
+        if (isEnded) {
+          statusText = meeting.status === 'completed' ? 'Ended' : 'Cancelled';
+        }
         
         // Calculate time ago
         const createdAt = new Date(meeting.created_at);
@@ -5354,8 +5354,8 @@ if (!empty($materials)) {
           <div class="content-item bg-white rounded-lg border border-gray-200 p-6 mb-6" data-type="live-classes">
             <div class="flex items-start space-x-4">
               <div class="flex-shrink-0">
-                <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                  <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                <div class="w-12 h-12 ${isEnded ? 'bg-gray-100' : 'bg-red-100'} rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 ${isEnded ? 'text-gray-600' : 'text-red-600'}" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" clip-rule="evenodd"></path>
                   </svg>
                 </div>
@@ -5432,6 +5432,21 @@ if (!empty($materials)) {
         `;
       });
       container.innerHTML = html;
+      checkEmptyState();
+    }
+    
+    // Check if there's any content and show/hide empty state
+    function checkEmptyState() {
+      const liveClassesContainer = document.getElementById('live-classes-container');
+      const materialsExist = document.querySelectorAll('.content-item').length > 0;
+      const liveClassesExist = liveClassesContainer && liveClassesContainer.innerHTML.trim() !== '';
+      const emptyState = document.getElementById('empty-state');
+      
+      if (!materialsExist && !liveClassesExist) {
+        emptyState.classList.remove('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+      }
     }
     
     // Get status color for meetings based on live status
@@ -5493,9 +5508,34 @@ if (!empty($materials)) {
         });
         
         if (openInNewTab) {
+          // Store meeting ID in session storage for tracking
+          sessionStorage.setItem('active_meeting_id', meetingId);
+          
           // Open in new tab/window
-          window.open(meetingUrl, '_blank');
-          showInfo('Opening live session...');
+          const meetingWindow = window.open(meetingUrl, '_blank');
+          showInfo('Opening live session in new tab...');
+          
+          // Set up polling to check if the meeting window is closed
+          const checkWindowClosed = setInterval(async () => {
+            if (meetingWindow && meetingWindow.closed) {
+              clearInterval(checkWindowClosed);
+              console.log('Meeting window closed, ending session...');
+              
+              // End the meeting
+              await endMeetingSession(meetingId);
+              await trackTutorLeave(meetingId);
+              
+              // Remove from session storage
+              sessionStorage.removeItem('active_meeting_id');
+              
+              // Refresh the live classes list
+              showSuccess('Live session ended - Meeting marked as completed');
+              setTimeout(() => {
+                loadLiveClasses();
+              }, 1000);
+            }
+          }, 1000); // Check every second
+          
         } else {
           // Extract room name from meeting URL
           const roomName = meetingUrl.split('/').pop();
@@ -5584,7 +5624,7 @@ if (!empty($materials)) {
       modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75';
       modal.innerHTML = `
         <div class="relative w-full h-full max-w-7xl mx-4">
-          <div class="absolute top-4 right-4 z-10">
+          <div class="absolute top-4 right-4 z-10 flex items-center space-x-2">
             <button onclick="closeJitsiMeeting()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium">
               Leave Meeting
             </button>
@@ -5639,7 +5679,7 @@ if (!empty($materials)) {
           // Full toolbar for tutor/moderator with all controls
           TOOLBAR_BUTTONS: [
             'microphone', 'camera', 'closedcaptions', 'desktop', 'embedmeeting',
-            'fullscreen', 'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+            'fullscreen', 'fodeviceselection', 'hangup', 'profile', 'chat',
             'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
             'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
             'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
@@ -5668,6 +5708,8 @@ if (!empty($materials)) {
       // Add event listeners with moderator-specific functionality
       jitsiAPI.addEventListener('videoConferenceJoined', () => {
         console.log('Tutor (Moderator) successfully joined the meeting');
+        
+        // Show success message
         showSuccess('Successfully joined as moderator! You have full control of the session.');
         
         // Set moderator privileges
@@ -5721,8 +5763,12 @@ if (!empty($materials)) {
     
     // Close Jitsi Meeting
     function closeJitsiMeeting() {
-      // Track tutor leaving the session
+      // Track tutor leaving the session and end the meeting
       if (window.currentMeetingId) {
+        // End the meeting (mark as completed)
+        endMeetingSession(window.currentMeetingId);
+        
+        // Track tutor leaving
         trackTutorLeave(window.currentMeetingId);
         window.currentMeetingId = null;
       }
@@ -5743,7 +5789,34 @@ if (!empty($materials)) {
       // Remove escape key listener
       document.removeEventListener('keydown', handleJitsiEscape);
       
-      showWarning('Left the live session - Students can no longer join until you return');
+      showSuccess('Live session ended - Meeting marked as completed');
+      
+      // Refresh the live classes list to show updated status
+      setTimeout(() => {
+        loadLiveClasses();
+      }, 1000);
+    }
+    
+    // End meeting session (mark as completed)
+    async function endMeetingSession(meetingId) {
+      try {
+        const response = await fetch('../../api/jitsi_meetings.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `action=end_meeting&meeting_id=${meetingId}`,
+          credentials: 'include'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          console.log('Meeting ended successfully');
+        } else {
+          console.error('Failed to end meeting:', result.message);
+        }
+      } catch (error) {
+        console.error('Error ending meeting:', error);
+      }
     }
     
     // Handle escape key to close Jitsi meeting
@@ -5803,12 +5876,20 @@ if (!empty($materials)) {
           const startDate = new Date(meeting.scheduled_start);
           const endDate = new Date(meeting.scheduled_end);
           
+          // Check actual database status first
+          const isEnded = meeting.status === 'completed' || meeting.status === 'cancelled' || meeting.status === 'ended';
+          
           // Calculate consistent status for details view
-          const isLive = meeting.is_live;
-          const isUpcoming = meeting.is_upcoming;
-          const isPast = meeting.is_past;
+          const isLive = !isEnded && meeting.is_live;
+          const isUpcoming = !isEnded && meeting.is_upcoming;
+          const isPast = isEnded || meeting.is_past;
           const statusColor = getLiveStatusColor(isLive, isUpcoming, isPast);
-          const statusText = getStatusText(isLive, isUpcoming, isPast);
+          let statusText = getStatusText(isLive, isUpcoming, isPast);
+          
+          // Override status text for explicitly ended meetings
+          if (isEnded) {
+            statusText = meeting.status === 'completed' ? 'Ended' : 'Cancelled';
+          }
           
           content.innerHTML = `
             <div class="space-y-6">
@@ -5880,7 +5961,7 @@ if (!empty($materials)) {
 
               <!-- Tutor Actions -->
               <div class="flex space-x-3 pt-4 border-t">
-                ${meeting.status !== 'completed' && meeting.status !== 'cancelled' ? `
+                ${!isEnded ? `
                   <button onclick="closeMeetingDetailsModal(); joinLiveClass('${meeting.meeting_url}', ${meeting.id}, true)" 
                           class="bg-tplearn-green text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 flex items-center">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -5996,6 +6077,9 @@ if (!empty($materials)) {
       // Load live classes
       loadLiveClasses();
       
+      // Check empty state on page load
+      checkEmptyState();
+      
       // Test if assignment details element exists
       const assignmentDetails = document.getElementById('assignmentDetails');
       if (assignmentDetails) {
@@ -6010,6 +6094,34 @@ if (!empty($materials)) {
         console.log('Material type select found');
       } else {
         console.error('Material type select NOT found');
+      }
+    });
+    
+    // Add window focus event to refresh live classes when returning to page
+    window.addEventListener('focus', function() {
+      console.log('Window focused, checking for active meetings...');
+      
+      // Check if there was an active meeting that might have ended
+      const activeMeetingId = sessionStorage.getItem('active_meeting_id');
+      if (activeMeetingId) {
+        console.log('Active meeting detected, refreshing live classes...');
+        // Give it a moment for any background processes to complete
+        setTimeout(() => {
+          loadLiveClasses();
+        }, 500);
+      } else {
+        // Still refresh to show any status updates
+        loadLiveClasses();
+      }
+    });
+    
+    // Add visibility change event for better mobile support
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        console.log('Page became visible, refreshing live classes...');
+        setTimeout(() => {
+          loadLiveClasses();
+        }, 500);
       }
     });
 

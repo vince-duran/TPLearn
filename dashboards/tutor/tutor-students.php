@@ -1,4 +1,10 @@
 <?php
+// Set charset header to prevent encoding issues
+header('Content-Type: text/html; charset=UTF-8');
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 require_once '../../includes/auth.php';
 require_once '../../includes/data-helpers.php';
 requireRole('tutor');
@@ -97,6 +103,26 @@ if (!empty($_GET['debug'])) {
     if (!empty($students)) {
         echo "First student: " . print_r($students[0], true);
     }
+    
+    // Additional debug info
+    echo "\nDetailed Debug Info:\n";
+    echo "- Session user_id: " . ($_SESSION['user_id'] ?? 'not set') . "\n";
+    echo "- Session username: " . ($_SESSION['username'] ?? 'not set') . "\n";
+    echo "- Session role: " . ($_SESSION['role'] ?? 'not set') . "\n";
+    
+    // Check if tutor has programs
+    $program_check = $conn->query("SELECT COUNT(*) as count FROM programs WHERE tutor_id = $tutor_user_id");
+    $program_count = $program_check->fetch_assoc()['count'];
+    echo "- Programs assigned to this tutor: $program_count\n";
+    
+    if ($program_count > 0) {
+        $programs_list = $conn->query("SELECT id, name FROM programs WHERE tutor_id = $tutor_user_id");
+        echo "- Programs:\n";
+        while ($prog = $programs_list->fetch_assoc()) {
+            echo "  * ID {$prog['id']}: {$prog['name']}\n";
+        }
+    }
+    
     echo "</pre>";
 }
 
@@ -131,21 +157,13 @@ sort($all_programs);
 
     <?php 
     include '../../includes/tutor-sidebar.php';
-    include '../../includes/ui-components.php';
     ?>
 
     <!-- Main Content -->
     <div class="lg:ml-64 flex-1 flex flex-col h-screen">
       <?php 
-      require_once '../../includes/header.php';
-      renderHeader(
-        'My Students',
-        '',
-        'tutor',
-        $tutor_name ?? 'Tutor',
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
-      );
+      require_once '../../includes/tutor-header-standard.php';
+      renderTutorHeader('My Students');
       ?>
 
       <!-- Main Content Area -->
@@ -328,7 +346,39 @@ sort($all_programs);
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-2.239"></path>
                         </svg>
                         <h3 class="mt-2 text-sm font-medium text-gray-900">No Students Found</h3>
-                        <p class="mt-1 text-sm text-gray-500">You don't have any students enrolled in your programs yet.</p>
+                        <?php
+                        // Check if tutor has any programs
+                        $program_check = $conn->query("SELECT COUNT(*) as count FROM programs WHERE tutor_id = $tutor_user_id");
+                        $program_count = $program_check->fetch_assoc()['count'];
+                        
+                        if ($program_count == 0): ?>
+                          <p class="mt-1 text-sm text-gray-500">
+                            You don't have any programs assigned yet. Contact an administrator to get programs assigned to you.
+                          </p>
+                          <div class="mt-3">
+                            <a href="../tutor/programs.php" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-tplearn-green hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                              <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                              </svg>
+                              View Programs
+                            </a>
+                          </div>
+                        <?php else: ?>
+                          <p class="mt-1 text-sm text-gray-500">
+                            You have <?= $program_count ?> program<?= $program_count > 1 ? 's' : '' ?> but no students are enrolled yet.
+                          </p>
+                          <div class="mt-3">
+                            <a href="../tutor/programs.php" class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                              View My Programs
+                            </a>
+                          </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($_GET['debug'])): ?>
+                          <div class="mt-4 text-left">
+                            <p class="text-xs text-gray-400">Debug: Tutor ID <?= $tutor_user_id ?> | Programs: <?= $program_count ?></p>
+                          </div>
+                        <?php endif; ?>
                       </div>
                     </td>
                   </tr>

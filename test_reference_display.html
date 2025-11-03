@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Reference Number Display</title>
+    <style>
+        .text-blue-700 { color: #1d4ed8; font-weight: 500; }
+        .text-blue-900 { color: #1e3a8a; }
+        .container { max-width: 600px; margin: 20px auto; padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Test Payment Details Display</h2>
+        <div id="testContent"></div>
+        
+        <script>
+            // Test data that mimics Payment 26
+            const payment = {
+                id: 26,
+                amount: '1000.00',
+                reference_number: 'BP344554',
+                payment_method: 'gcash',
+                status: 'pending'
+            };
+            
+            // Original broken condition
+            const originalHTML = `
+                <h3>Original (Broken) Condition:</h3>
+                <div>
+                    ${payment.payment_method && payment.reference_number ? `
+                    <div>
+                        <span class="text-blue-700">Payment Method:</span>
+                        <div class="text-blue-900">${payment.payment_method}</div>
+                    </div>
+                    <div>
+                        <span class="text-blue-700">Reference Number:</span>
+                        <div class="text-blue-900">${payment.reference_number}</div>
+                    </div>
+                    ` : '<div style="color: red;">No payment method AND reference number</div>'}
+                </div>
+            `;
+            
+            // Fixed condition
+            const fixedHTML = `
+                <h3>Fixed Condition:</h3>
+                <div>
+                    ${payment.payment_method ? `
+                    <div>
+                        <span class="text-blue-700">Payment Method:</span>
+                        <div class="text-blue-900">${payment.payment_method}</div>
+                    </div>
+                    ` : ''}
+                    ${payment.reference_number ? `
+                    <div>
+                        <span class="text-blue-700">Reference Number:</span>
+                        <div class="text-blue-900">${payment.reference_number}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            // Test with payment method as null (original issue)
+            const paymentWithNullMethod = {...payment, payment_method: null};
+            
+            const nullMethodTest = `
+                <h3>Test with NULL Payment Method (Original Issue):</h3>
+                <div>
+                    ${paymentWithNullMethod.payment_method && paymentWithNullMethod.reference_number ? `
+                    <div>
+                        <span class="text-blue-700">Payment Method:</span>
+                        <div class="text-blue-900">${paymentWithNullMethod.payment_method}</div>
+                    </div>
+                    <div>
+                        <span class="text-blue-700">Reference Number:</span>
+                        <div class="text-blue-900">${paymentWithNullMethod.reference_number}</div>
+                    </div>
+                    ` : '<div style="color: red;">No payment method AND reference number</div>'}
+                </div>
+                
+                <h3>Fixed Version with NULL Payment Method:</h3>
+                <div>
+                    ${paymentWithNullMethod.payment_method ? `
+                    <div>
+                        <span class="text-blue-700">Payment Method:</span>
+                        <div class="text-blue-900">${paymentWithNullMethod.payment_method}</div>
+                    </div>
+                    ` : ''}
+                    ${paymentWithNullMethod.reference_number ? `
+                    <div>
+                        <span class="text-blue-700">Reference Number:</span>
+                        <div class="text-blue-900">${paymentWithNullMethod.reference_number}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            document.getElementById('testContent').innerHTML = originalHTML + fixedHTML + nullMethodTest;
+        </script>
+    </div>
+</body>
+</html>

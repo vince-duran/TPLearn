@@ -20,6 +20,61 @@ $display_name = $student_data['name'] ?? $user_name;
 // Get enrolled programs for the student
 $enrolled_programs = getStudentEnrolledPrograms($user_id);
 $currentDate = date('l, F j, Y');
+
+// Handle error messages from URL parameters
+$error_message = '';
+if (isset($_GET['error'])) {
+  switch ($_GET['error']) {
+    case 'payment_locked':
+      $error_message = '<div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+                          <div class="flex">
+                            <div class="flex-shrink-0">
+                              <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                              </svg>
+                            </div>
+                            <div class="ml-3">
+                              <p class="text-sm text-red-800 font-medium">Program Access Locked</p>
+                              <p class="text-sm text-red-700 mt-1">Your access to this program has been locked due to overdue payments beyond the 3-day grace period. Please settle your outstanding payments to regain access.</p>
+                              <a href="student-payments.php" class="inline-block mt-2 text-sm bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+                                View Payment Details
+                              </a>
+                            </div>
+                          </div>
+                        </div>';
+      break;
+    case 'access_denied':
+      $error_message = '<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                          <div class="flex">
+                            <div class="flex-shrink-0">
+                              <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                              </svg>
+                            </div>
+                            <div class="ml-3">
+                              <p class="text-sm text-yellow-800 font-medium">Access Denied</p>
+                              <p class="text-sm text-yellow-700 mt-1">You do not have access to the requested program. This may be because your enrollment is not active or you are not enrolled in this program.</p>
+                            </div>
+                          </div>
+                        </div>';
+      break;
+    case 'program_not_found':
+      $error_message = '<div class="bg-gray-50 border-l-4 border-gray-400 p-4 mb-6">
+                          <div class="flex">
+                            <div class="flex-shrink-0">
+                              <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                              </svg>
+                            </div>
+                            <div class="ml-3">
+                              <p class="text-sm text-gray-800 font-medium">Program Not Found</p>
+                              <p class="text-sm text-gray-700 mt-1">The requested program could not be found or is no longer available.</p>
+                            </div>
+                          </div>
+                        </div>';
+      break;
+  }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -59,19 +114,17 @@ $currentDate = date('l, F j, Y');
     <!-- Main Content Area -->
     <div class="flex-1 lg:ml-64">
       <?php 
-      require_once '../../includes/header.php';
-      renderHeader(
-        'Academic Progress',
-        $currentDate,
-        'student',
-        $display_name,
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
-      );
+      require_once '../../includes/student-header-standard.php';
+      renderStudentHeader('Academic Progress', 'Track your learning progress and performance');
       ?>
 
       <!-- Dashboard Content -->
       <main class="p-6">
+        <!-- Error Messages -->
+        <?php if ($error_message): ?>
+          <?php echo $error_message; ?>
+        <?php endif; ?>
+
         <!-- Tab Navigation -->
         <div class="bg-white rounded-t-lg shadow-sm border border-gray-200 border-b-0">
           <div class="flex border-b border-gray-200">
@@ -132,11 +185,28 @@ $currentDate = date('l, F j, Y');
                 // Generate unique ID for this program
                 $program_id = 'program-' . $program['id'];
                 
-                // Determine status badge
+                // Check program access status for payment restrictions
+                $access_check = checkStudentProgramAccess($user_id, $program['id']);
+                $is_access_blocked = !$access_check['has_access'];
+                $access_reason = $access_check['reason'];
+                
+                // Determine status badge with payment lock consideration
                 $status_badge = '';
                 $status_color = '';
                 
-                if ($program['enrollment_status'] === 'paused') {
+                if ($is_access_blocked && ($access_reason === 'payments_locked' || $access_reason === 'payments_pending_validation' || $access_reason === 'payments_rejected')) {
+                  if ($access_reason === 'payments_pending_validation') {
+                    $status_badge = 'Payment Under Review';
+                  } elseif ($access_reason === 'payments_rejected') {
+                    $status_badge = 'Payment Rejected';
+                  } else {
+                    $status_badge = 'Access Locked';
+                  }
+                  $status_color = 'bg-red-100 text-red-800';
+                } elseif ($access_check['reason'] === 'grace_period') {
+                  $status_badge = 'Payment Warning';
+                  $status_color = 'bg-yellow-100 text-yellow-800';
+                } elseif ($program['enrollment_status'] === 'paused') {
                   $status_badge = 'Paused';
                   $status_color = 'bg-yellow-100 text-yellow-800';
                 } elseif ($program['program_status'] === 'completed') {
@@ -208,15 +278,87 @@ $currentDate = date('l, F j, Y');
                       </div>
                     </div>
 
+                    <!-- Payment Status Warning (if applicable) -->
+                    <?php if ($is_access_blocked || $access_check['reason'] === 'grace_period'): ?>
+                    <div class="mb-4 p-3 rounded-lg border-l-4 <?php echo $is_access_blocked ? 'bg-red-50 border-red-400' : 'bg-yellow-50 border-yellow-400'; ?>">
+                      <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                          <?php if ($is_access_blocked): ?>
+                            <svg class="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+                            </svg>
+                          <?php else: ?>
+                            <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                          <?php endif; ?>
+                        </div>
+                        <div class="ml-3 flex-1">
+                          <?php if ($is_access_blocked): ?>
+                            <h4 class="text-sm font-medium text-red-800">Program Access Locked</h4>
+                            <p class="text-sm text-red-700 mt-1">
+                              <?php echo htmlspecialchars($access_check['message']); ?>
+                            </p>
+                          <?php else: ?>
+                            <h4 class="text-sm font-medium text-yellow-800">Payment Warning</h4>
+                            <p class="text-sm text-yellow-700 mt-1">
+                              You have <?php echo $access_check['overdue_payments']; ?> overdue payment(s). 
+                              <span class="font-medium"><?php echo $access_check['grace_period_remaining']; ?> day(s) remaining</span> 
+                              to settle before program access is locked.
+                            </p>
+                          <?php endif; ?>
+                        </div>
+                      </div>
+                    </div>
+                    <?php endif; ?>
+
                     <!-- Action Buttons -->
                     <div class="mb-4 space-y-2">
-                      <!-- View Program Stream Button -->
-                      <a href="program-stream.php?program_id=<?php echo $program['id']; ?>&program=<?php echo urlencode($program['name'] ?? 'Program'); ?>" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-lg border border-gray-300 flex items-center justify-center space-x-2 transition-colors">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span>View Program Stream</span>
-                      </a>
+                      <?php if ($is_access_blocked && ($access_reason === 'payments_locked' || $access_reason === 'payments_pending_validation' || $access_reason === 'payments_rejected')): ?>
+                        <!-- Blocked Access Button -->
+                        <div class="w-full bg-red-50 text-red-700 py-3 px-4 rounded-lg border border-red-200 flex items-center justify-center space-x-2">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+                          </svg>
+                          <span class="font-medium">
+                            <?php if ($access_reason === 'payments_pending_validation'): ?>
+                              Access Blocked - Payment Under Review
+                            <?php elseif ($access_reason === 'payments_rejected'): ?>
+                              Access Blocked - Payment Rejected
+                            <?php else: ?>
+                              Access Blocked - Settle Payments
+                            <?php endif; ?>
+                          </span>
+                        </div>
+                        <a href="student-payments.php" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors text-sm">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path>
+                          </svg>
+                          <span>View Payment Details</span>
+                        </a>
+                      <?php elseif ($access_check['reason'] === 'grace_period'): ?>
+                        <!-- Grace Period Warning Button -->
+                        <div class="w-full bg-yellow-50 text-yellow-800 py-2 px-4 rounded-lg border border-yellow-200 flex items-center justify-center space-x-2 text-sm">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                          </svg>
+                          <span class="font-medium">Payment Warning - <?php echo $access_check['grace_period_remaining']; ?> days remaining</span>
+                        </div>
+                        <a href="program-stream.php?program_id=<?php echo $program['id']; ?>&program=<?php echo urlencode($program['name'] ?? 'Program'); ?>" class="w-full bg-yellow-100 hover:bg-yellow-200 text-yellow-800 py-3 px-4 rounded-lg border border-yellow-300 flex items-center justify-center space-x-2 transition-colors">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                          </svg>
+                          <span>View Program Stream</span>
+                        </a>
+                      <?php else: ?>
+                        <!-- Normal Access Button -->
+                        <a href="program-stream.php?program_id=<?php echo $program['id']; ?>&program=<?php echo urlencode($program['name'] ?? 'Program'); ?>" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-lg border border-gray-300 flex items-center justify-center space-x-2 transition-colors">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                          </svg>
+                          <span>View Program Stream</span>
+                        </a>
+                      <?php endif; ?>
                     </div>
 
                     <!-- Expanded Content -->
@@ -381,11 +523,11 @@ $currentDate = date('l, F j, Y');
 
     // Header functions
     function openNotifications() {
-      alert('Opening notifications...');
+      TPAlert.info('Information', 'Opening notifications...');
     }
 
     function openMessages() {
-      alert('Opening messages...');
+      TPAlert.info('Information', 'Opening messages...');
     }
 
     // Student action functions

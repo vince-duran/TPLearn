@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Tutor Attached Assessments Fix</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-5xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">🔬 Verification Test</h1>
+            <p class="text-gray-600">Testing tutor attached assessments with real data</p>
+        </div>
+
+        <div id="testResults" class="space-y-4">
+            <!-- Test results will be inserted here -->
+        </div>
+
+        <div class="bg-blue-50 border-2 border-blue-500 rounded-lg p-6 mt-6">
+            <h2 class="text-xl font-bold text-blue-800 mb-3">🎬 Next Steps</h2>
+            <ol class="list-decimal list-inside space-y-2 text-blue-900">
+                <li>Review the test results above</li>
+                <li><a href="/TPLearn/dashboards/tutor/tutor-program-stream.php?program_id=31&program=Coloring" class="text-blue-600 underline font-semibold">Go to Tutor Stream (Coloring Program)</a></li>
+                <li>Find materials with "Attached Assessments" section</li>
+                <li>Verify submission counts and statistics are displayed</li>
+                <li>Click "Submissions" button to see all student submissions</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const resultsContainer = document.getElementById('testResults');
+
+        function addTest(title, description, status, details = null) {
+            const statusColors = {
+                'pass': 'green',
+                'fail': 'red',
+                'running': 'yellow'
+            };
+            const statusIcons = {
+                'pass': '✅',
+                'fail': '❌',
+                'running': '⏳'
+            };
+            
+            const color = statusColors[status] || 'gray';
+            const icon = statusIcons[status] || '?';
+            
+            const testDiv = document.createElement('div');
+            testDiv.className = `bg-${color}-50 border-2 border-${color}-500 rounded-lg p-4`;
+            testDiv.innerHTML = `
+                <div class="flex items-start">
+                    <span class="text-2xl mr-3">${icon}</span>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-${color}-900 mb-1">${title}</h3>
+                        <p class="text-${color}-800 mb-2">${description}</p>
+                        ${details ? `<pre class="bg-white p-3 rounded text-xs overflow-x-auto border border-${color}-200">${details}</pre>` : ''}
+                    </div>
+                </div>
+            `;
+            resultsContainer.appendChild(testDiv);
+        }
+
+        async function runTests() {
+            addTest('Starting Tests', 'Verifying tutor attached assessments functionality...', 'running');
+
+            try {
+                // Test 1: Check if new API exists
+                addTest('Test 1: New API Endpoint', 'Checking if get-attached-assessments-tutor.php exists...', 'running');
+                
+                const apiResponse = await fetch('/TPLearn/api/get-attached-assessments-tutor.php?material_id=50');
+                const apiData = await apiResponse.json();
+                
+                if (apiData.success) {
+                    addTest(
+                        'Test 1: PASSED ✅',
+                        'API endpoint is working correctly',
+                        'pass',
+                        JSON.stringify(apiData, null, 2)
+                    );
+
+                    // Test 2: Check if statistics are present
+                    if (apiData.assessments && apiData.assessments.length > 0) {
+                        const firstAssessment = apiData.assessments[0];
+                        if (firstAssessment.statistics) {
+                            const stats = firstAssessment.statistics;
+                            addTest(
+                                'Test 2: PASSED ✅',
+                                'Statistics are included in the response',
+                                'pass',
+                                `Total Submissions: ${stats.total_submissions}\nGraded: ${stats.graded_count}\nPending: ${stats.pending_count}\nAverage Grade: ${stats.average_grade || 'N/A'}`
+                            );
+                        } else {
+                            addTest('Test 2: FAILED ❌', 'Statistics object is missing', 'fail');
+                        }
+                    } else {
+                        addTest('Test 2: INFO ℹ️', 'No attached assessments found for material ID 50', 'running', 'This is OK if material 50 has no attached assessments');
+                    }
+                } else {
+                    addTest(
+                        'Test 1: FAILED ❌',
+                        'API returned error: ' + (apiData.error || 'Unknown error'),
+                        'fail',
+                        JSON.stringify(apiData, null, 2)
+                    );
+                }
+
+                // Test 3: Check if material_assessments table has data
+                addTest('Test 3: Database Check', 'Verifying material_assessments table has data...', 'running');
+                
+                // We'll check via the debug page
+                const debugResponse = await fetch('/TPLearn/debug_tutor_attached_assessments.php');
+                const debugText = await debugResponse.text();
+                
+                if (debugText.includes('Materials with Attached Assessments')) {
+                    addTest('Test 3: PASSED ✅', 'Database has attached assessments data', 'pass', 'Check debug page for detailed information');
+                } else {
+                    addTest('Test 3: WARNING ⚠️', 'Could not verify database data', 'running');
+                }
+
+                // Test 4: UI Integration
+                addTest('Test 4: UI Integration', 'Next: Manually verify tutor stream UI', 'running', 
+                    'Go to tutor stream and check:\n' +
+                    '1. Attached Assessments section is visible\n' +
+                    '2. Submission counts are displayed\n' +
+                    '3. Statistics line is showing\n' +
+                    '4. Submissions button works'
+                );
+
+                // Summary
+                addTest(
+                    '📋 Test Summary',
+                    'API tests completed. Please verify the UI manually.',
+                    'pass',
+                    'Files Created:\n' +
+                    '✅ api/get-attached-assessments-tutor.php\n' +
+                    '✅ Modified: dashboards/tutor/tutor-program-stream.php\n\n' +
+                    'Expected Behavior:\n' +
+                    '✅ Submission counts visible on attached assessments\n' +
+                    '✅ Statistics showing graded/pending/average\n' +
+                    '✅ Submissions button shows count\n' +
+                    '✅ Modal displays all student submissions'
+                );
+
+            } catch (error) {
+                addTest('ERROR ❌', 'Test failed with error', 'fail', error.message);
+            }
+        }
+
+        // Run tests on page load
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>

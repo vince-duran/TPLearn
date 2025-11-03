@@ -19,13 +19,12 @@ requireRole('admin');
             <?php 
             require_once '../../includes/header.php';
             renderHeader(
-                'SweetAlert2 Demo',
-                'Test all available notification types',
-                'admin',
-                $_SESSION['name'] ?? 'Admin',
-                [],
-                []
-            );
+        'SweetAlert2 Demo',
+        'Test all available notification types',
+        'admin',
+        $_SESSION['name'] ?? 'Admin',
+        []
+      );
             ?>
             
             <main class="p-6">
@@ -98,11 +97,11 @@ requireRole('admin');
                             <!-- Confirmation Alerts -->
                             <div class="space-y-3">
                                 <h3 class="font-semibold text-purple-800">Confirmations</h3>
-                                <button onclick="demoConfirm()" 
+                                <button onclick="demo(await TPAlert.confirm('Confirm Action', )" 
                                         class="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
                                     Confirm Action
                                 </button>
-                                <button onclick="demoDeleteConfirm()" 
+                                <button onclick="demoDeleteConfirm()).isConfirmed" 
                                         class="w-full px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
                                     Delete Confirm
                                 </button>
@@ -141,11 +140,11 @@ requireRole('admin');
     <script src="../../assets/admin-sidebar.js"></script>
     
     <script>
-        async function demoConfirm() {
+        async function demo(await TPAlert.confirm('Confirm Action', ) {
             const result = await TPAlert.confirm(
                 'Are you sure?', 
                 'This action will update the student record.'
-            );
+            )).isConfirmed;
             
             if (result.isConfirmed) {
                 TPAlert.success('Confirmed!', 'Action has been completed.');
@@ -154,8 +153,8 @@ requireRole('admin');
             }
         }
         
-        async function demoDeleteConfirm() {
-            const result = await TPAlert.deleteConfirm('student profile');
+        async function demoDelete(await TPAlert.confirm('Confirm Action', ) {
+            const result = await TPAlert.delete(await TPAlert.confirm('Confirm Action', 'student profile')).isConfirmed).isConfirmed;
             
             if (result.isConfirmed) {
                 TPAlert.success('Deleted!', 'The student profile has been removed.');

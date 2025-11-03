@@ -1,0 +1,438 @@
+// TPLearn DFD Level 1 - dbdiagram.io Code
+// Created: October 31, 2025
+// Purpose: Visual representation of DFD using database notation
+// Copy this code to dbdiagram.io to generate the diagram
+
+// ========================================
+// EXTERNAL ENTITIES (as Tables)
+// ========================================
+
+Table external_entities {
+  entity_id varchar [pk]
+  entity_name varchar
+  entity_type varchar
+  description text
+  
+  Note: 'External entities interacting with the system'
+}
+
+Table students {
+  student_id varchar [pk]
+  entity_type varchar [default: 'external_entity']
+  interactions text
+  
+  Note: 'Students - Learners using the platform for education'
+}
+
+Table tutors {
+  tutor_id varchar [pk]
+  entity_type varchar [default: 'external_entity']
+  interactions text
+  
+  Note: 'Tutors - Instructors providing educational services'
+}
+
+Table admins {
+  admin_id varchar [pk]
+  entity_type varchar [default: 'external_entity']
+  interactions text
+  
+  Note: 'Admins - System administrators managing the platform'
+}
+
+// ========================================
+// CORE PROCESSES (as Tables)
+// ========================================
+
+Table process_1_0_auth_profile {
+  process_id varchar [pk, default: '1.0']
+  process_name varchar [default: 'User Authentication & Profile Management']
+  description text
+  complexity varchar [default: 'High']
+  
+  Note: 'Manages user registration, authentication, profile updates, and role-based access'
+}
+
+Table process_2_0_program_enrollment {
+  process_id varchar [pk, default: '2.0']
+  process_name varchar [default: 'Program & Enrollment Management']
+  description text
+  complexity varchar [default: 'High']
+  
+  Note: 'Handles academic programs, student enrollments, and tutor assignments'
+}
+
+Table process_3_0_session_attendance {
+  process_id varchar [pk, default: '3.0']
+  process_name varchar [default: 'Session & Attendance Management']
+  description text
+  complexity varchar [default: 'Medium']
+  
+  Note: 'Manages live sessions, attendance tracking, and session scheduling'
+}
+
+Table process_4_0_assessment_submission {
+  process_id varchar [pk, default: '4.0']
+  process_name varchar [default: 'Assessment & Submission System']
+  description text
+  complexity varchar [default: 'Medium']
+  
+  Note: 'Handles assignments, student submissions, grading, and academic feedback'
+}
+
+Table process_5_0_payment_financial {
+  process_id varchar [pk, default: '5.0']
+  process_name varchar [default: 'Payment & Financial Processing']
+  description text
+  complexity varchar [default: 'High']
+  
+  Note: 'Manages payments, financial transactions, and billing operations'
+}
+
+Table process_6_0_communication_notification {
+  process_id varchar [pk, default: '6.0']
+  process_name varchar [default: 'Communication & Notification System']
+  description text
+  complexity varchar [default: 'Low']
+  
+  Note: 'Manages system notifications, alerts, and communication workflows'
+}
+
+Table process_7_0_file_document {
+  process_id varchar [pk, default: '7.0']
+  process_name varchar [default: 'File & Document Management']
+  description text
+  complexity varchar [default: 'Low']
+  
+  Note: 'Handles file uploads, document storage, and content management'
+}
+
+Table process_8_0_reporting_analytics {
+  process_id varchar [pk, default: '8.0']
+  process_name varchar [default: 'Reporting & Analytics System']
+  description text
+  complexity varchar [default: 'Medium']
+  
+  Note: 'Generates reports, analytics, and business intelligence'
+}
+
+// ========================================
+// DATA STORES (as Tables)
+// ========================================
+
+Table datastore_d1_users {
+  store_id varchar [pk, default: 'D1']
+  store_name varchar [default: 'Users Database']
+  tables text [default: 'users, student_profiles, tutor_profiles, parent_profiles']
+  access_pattern varchar [default: 'High Read/Write']
+  
+  Note: 'Master repository for all user accounts and profiles'
+}
+
+Table datastore_d2_programs {
+  store_id varchar [pk, default: 'D2']
+  store_name varchar [default: 'Programs Database']
+  tables text [default: 'programs, program_materials']
+  access_pattern varchar [default: 'Medium Read/Write']
+  
+  Note: 'Academic programs and curriculum data'
+}
+
+Table datastore_d3_enrollments {
+  store_id varchar [pk, default: 'D3']
+  store_name varchar [default: 'Enrollments Database']
+  tables text [default: 'enrollments']
+  access_pattern varchar [default: 'High Read/Medium Write']
+  
+  Note: 'Student enrollment records and status'
+}
+
+Table datastore_d4_sessions {
+  store_id varchar [pk, default: 'D4']
+  store_name varchar [default: 'Sessions Database']
+  tables text [default: 'jitsi_meetings, attendance_sessions, attendance_records']
+  access_pattern varchar [default: 'Medium Read/Write']
+  
+  Note: 'Live session and attendance tracking data'
+}
+
+Table datastore_d5_assessments {
+  store_id varchar [pk, default: 'D5']
+  store_name varchar [default: 'Assessments Database']
+  tables text [default: 'submissions, student_grades, payment_attachments']
+  access_pattern varchar [default: 'Medium Read/Write']
+  
+  Note: 'Student submissions, grades, and assessment data'
+}
+
+Table datastore_d6_payments {
+  store_id varchar [pk, default: 'D6']
+  store_name varchar [default: 'Payments Database']
+  tables text [default: 'payments, ewallet_accounts, bank_accounts, cash_settings']
+  access_pattern varchar [default: 'Medium Read/High Write']
+  
+  Note: 'Financial transactions and payment processing records'
+}
+
+Table datastore_d7_communications {
+  store_id varchar [pk, default: 'D7']
+  store_name varchar [default: 'Communications Database']
+  tables text [default: 'notifications']
+  access_pattern varchar [default: 'High Read/High Write']
+  
+  Note: 'System notifications and communication logs'
+}
+
+Table datastore_d8_files {
+  store_id varchar [pk, default: 'D8']
+  store_name varchar [default: 'Files Database']
+  tables text [default: 'file_uploads']
+  access_pattern varchar [default: 'Medium Read/Write']
+  
+  Note: 'Document storage and file management'
+}
+
+Table datastore_d9_system_config {
+  store_id varchar [pk, default: 'D9']
+  store_name varchar [default: 'System Configuration']
+  tables text [default: 'system_settings, activity_logs, login_attempts']
+  access_pattern varchar [default: 'Low Read/High Write']
+  
+  Note: 'System configuration and audit logs'
+}
+
+// ========================================
+// DATA FLOWS (as Relationships)
+// ========================================
+
+// EXTERNAL ENTITY TO PROCESS FLOWS (Input Flows)
+
+// Students Input Flows
+Ref: students.student_id > process_1_0_auth_profile.process_id
+Ref: students.student_id > process_1_0_auth_profile.process_id
+Ref: students.student_id > process_2_0_program_enrollment.process_id
+Ref: students.student_id > process_3_0_session_attendance.process_id
+Ref: students.student_id > process_4_0_assessment_submission.process_id
+Ref: students.student_id > process_4_0_assessment_submission.process_id
+Ref: students.student_id > process_5_0_payment_financial.process_id
+Ref: students.student_id > process_5_0_payment_financial.process_id
+Ref: students.student_id > process_6_0_communication_notification.process_id
+Ref: students.student_id > process_7_0_file_document.process_id
+Ref: students.student_id > process_8_0_reporting_analytics.process_id
+
+// Tutors Input Flows
+Ref: tutors.tutor_id > process_1_0_auth_profile.process_id
+Ref: tutors.tutor_id > process_1_0_auth_profile.process_id
+Ref: tutors.tutor_id > process_2_0_program_enrollment.process_id
+Ref: tutors.tutor_id > process_3_0_session_attendance.process_id
+Ref: tutors.tutor_id > process_3_0_session_attendance.process_id
+Ref: tutors.tutor_id > process_4_0_assessment_submission.process_id
+Ref: tutors.tutor_id > process_4_0_assessment_submission.process_id
+Ref: tutors.tutor_id > process_6_0_communication_notification.process_id
+Ref: tutors.tutor_id > process_7_0_file_document.process_id
+Ref: tutors.tutor_id > process_8_0_reporting_analytics.process_id
+
+// Admins Input Flows
+Ref: admins.admin_id > process_1_0_auth_profile.process_id
+Ref: admins.admin_id > process_1_0_auth_profile.process_id
+Ref: admins.admin_id > process_2_0_program_enrollment.process_id
+Ref: admins.admin_id > process_2_0_program_enrollment.process_id
+Ref: admins.admin_id > process_3_0_session_attendance.process_id
+Ref: admins.admin_id > process_5_0_payment_financial.process_id
+Ref: admins.admin_id > process_5_0_payment_financial.process_id
+Ref: admins.admin_id > process_6_0_communication_notification.process_id
+Ref: admins.admin_id > process_7_0_file_document.process_id
+Ref: admins.admin_id > process_8_0_reporting_analytics.process_id
+
+// PROCESS TO EXTERNAL ENTITY FLOWS (Output Flows)
+
+// Process to Students Output Flows
+Ref: process_1_0_auth_profile.process_id > students.student_id
+Ref: process_1_0_auth_profile.process_id > students.student_id
+Ref: process_2_0_program_enrollment.process_id > students.student_id
+Ref: process_2_0_program_enrollment.process_id > students.student_id
+Ref: process_3_0_session_attendance.process_id > students.student_id
+Ref: process_3_0_session_attendance.process_id > students.student_id
+Ref: process_4_0_assessment_submission.process_id > students.student_id
+Ref: process_4_0_assessment_submission.process_id > students.student_id
+Ref: process_5_0_payment_financial.process_id > students.student_id
+Ref: process_5_0_payment_financial.process_id > students.student_id
+Ref: process_6_0_communication_notification.process_id > students.student_id
+Ref: process_7_0_file_document.process_id > students.student_id
+Ref: process_8_0_reporting_analytics.process_id > students.student_id
+
+// Process to Tutors Output Flows
+Ref: process_1_0_auth_profile.process_id > tutors.tutor_id
+Ref: process_1_0_auth_profile.process_id > tutors.tutor_id
+Ref: process_2_0_program_enrollment.process_id > tutors.tutor_id
+Ref: process_3_0_session_attendance.process_id > tutors.tutor_id
+Ref: process_4_0_assessment_submission.process_id > tutors.tutor_id
+Ref: process_5_0_payment_financial.process_id > tutors.tutor_id
+Ref: process_6_0_communication_notification.process_id > tutors.tutor_id
+Ref: process_7_0_file_document.process_id > tutors.tutor_id
+Ref: process_8_0_reporting_analytics.process_id > tutors.tutor_id
+
+// Process to Admins Output Flows
+Ref: process_1_0_auth_profile.process_id > admins.admin_id
+Ref: process_2_0_program_enrollment.process_id > admins.admin_id
+Ref: process_3_0_session_attendance.process_id > admins.admin_id
+Ref: process_4_0_assessment_submission.process_id > admins.admin_id
+Ref: process_5_0_payment_financial.process_id > admins.admin_id
+Ref: process_6_0_communication_notification.process_id > admins.admin_id
+Ref: process_7_0_file_document.process_id > admins.admin_id
+Ref: process_8_0_reporting_analytics.process_id > admins.admin_id
+
+// PROCESS TO DATA STORE FLOWS (Write Operations)
+
+// Process 1.0 Writes
+Ref: process_1_0_auth_profile.process_id > datastore_d1_users.store_id
+Ref: process_1_0_auth_profile.process_id > datastore_d1_users.store_id
+Ref: process_1_0_auth_profile.process_id > datastore_d7_communications.store_id
+Ref: process_1_0_auth_profile.process_id > datastore_d9_system_config.store_id
+
+// Process 2.0 Writes
+Ref: process_2_0_program_enrollment.process_id > datastore_d2_programs.store_id
+Ref: process_2_0_program_enrollment.process_id > datastore_d3_enrollments.store_id
+Ref: process_2_0_program_enrollment.process_id > datastore_d7_communications.store_id
+Ref: process_2_0_program_enrollment.process_id > datastore_d9_system_config.store_id
+
+// Process 3.0 Writes
+Ref: process_3_0_session_attendance.process_id > datastore_d4_sessions.store_id
+Ref: process_3_0_session_attendance.process_id > datastore_d4_sessions.store_id
+Ref: process_3_0_session_attendance.process_id > datastore_d7_communications.store_id
+Ref: process_3_0_session_attendance.process_id > datastore_d9_system_config.store_id
+
+// Process 4.0 Writes
+Ref: process_4_0_assessment_submission.process_id > datastore_d5_assessments.store_id
+Ref: process_4_0_assessment_submission.process_id > datastore_d5_assessments.store_id
+Ref: process_4_0_assessment_submission.process_id > datastore_d7_communications.store_id
+Ref: process_4_0_assessment_submission.process_id > datastore_d8_files.store_id
+
+// Process 5.0 Writes
+Ref: process_5_0_payment_financial.process_id > datastore_d6_payments.store_id
+Ref: process_5_0_payment_financial.process_id > datastore_d6_payments.store_id
+Ref: process_5_0_payment_financial.process_id > datastore_d7_communications.store_id
+Ref: process_5_0_payment_financial.process_id > datastore_d9_system_config.store_id
+
+// Process 6.0 Writes
+Ref: process_6_0_communication_notification.process_id > datastore_d7_communications.store_id
+Ref: process_6_0_communication_notification.process_id > datastore_d9_system_config.store_id
+
+// Process 7.0 Writes
+Ref: process_7_0_file_document.process_id > datastore_d8_files.store_id
+Ref: process_7_0_file_document.process_id > datastore_d9_system_config.store_id
+
+// DATA STORE TO PROCESS FLOWS (Read Operations)
+
+// Data Store D1 Reads
+Ref: datastore_d1_users.store_id > process_1_0_auth_profile.process_id
+Ref: datastore_d1_users.store_id > process_1_0_auth_profile.process_id
+Ref: datastore_d1_users.store_id > process_2_0_program_enrollment.process_id
+Ref: datastore_d1_users.store_id > process_2_0_program_enrollment.process_id
+Ref: datastore_d1_users.store_id > process_3_0_session_attendance.process_id
+Ref: datastore_d1_users.store_id > process_6_0_communication_notification.process_id
+Ref: datastore_d1_users.store_id > process_8_0_reporting_analytics.process_id
+
+// Data Store D2 Reads
+Ref: datastore_d2_programs.store_id > process_2_0_program_enrollment.process_id
+
+// Data Store D3 Reads
+Ref: datastore_d3_enrollments.store_id > process_3_0_session_attendance.process_id
+Ref: datastore_d3_enrollments.store_id > process_4_0_assessment_submission.process_id
+Ref: datastore_d3_enrollments.store_id > process_5_0_payment_financial.process_id
+Ref: datastore_d3_enrollments.store_id > process_8_0_reporting_analytics.process_id
+
+// Data Store D4 Reads
+Ref: datastore_d4_sessions.store_id > process_3_0_session_attendance.process_id
+Ref: datastore_d4_sessions.store_id > process_8_0_reporting_analytics.process_id
+
+// Data Store D5 Reads
+Ref: datastore_d5_assessments.store_id > process_4_0_assessment_submission.process_id
+Ref: datastore_d5_assessments.store_id > process_8_0_reporting_analytics.process_id
+
+// Data Store D6 Reads
+Ref: datastore_d6_payments.store_id > process_2_0_program_enrollment.process_id
+Ref: datastore_d6_payments.store_id > process_5_0_payment_financial.process_id
+Ref: datastore_d6_payments.store_id > process_5_0_payment_financial.process_id
+Ref: datastore_d6_payments.store_id > process_8_0_reporting_analytics.process_id
+
+// Data Store D7 Reads
+Ref: datastore_d7_communications.store_id > process_6_0_communication_notification.process_id
+
+// Data Store D8 Reads
+Ref: datastore_d8_files.store_id > process_4_0_assessment_submission.process_id
+Ref: datastore_d8_files.store_id > process_7_0_file_document.process_id
+
+// Data Store D9 Reads
+Ref: datastore_d9_system_config.store_id > process_1_0_auth_profile.process_id
+Ref: datastore_d9_system_config.store_id > process_8_0_reporting_analytics.process_id
+
+// ========================================
+// VISUAL GROUPING ANNOTATIONS
+// ========================================
+
+TableGroup external_entities {
+  students
+  tutors  
+  admins
+  
+  Note: 'External entities that interact with the TPLearn system'
+}
+
+TableGroup core_processes_row_1 {
+  process_1_0_auth_profile
+  process_2_0_program_enrollment
+  process_3_0_session_attendance
+  process_4_0_assessment_submission
+  
+  Note: 'Primary business processes - Row 1'
+}
+
+TableGroup core_processes_row_2 {
+  process_5_0_payment_financial
+  process_6_0_communication_notification
+  process_7_0_file_document
+  process_8_0_reporting_analytics
+  
+  Note: 'Secondary business processes - Row 2'
+}
+
+TableGroup data_stores_core {
+  datastore_d1_users
+  datastore_d2_programs
+  datastore_d3_enrollments
+  
+  Note: 'Core data repositories - Row 1'
+}
+
+TableGroup data_stores_secondary {
+  datastore_d4_sessions
+  datastore_d5_assessments
+  datastore_d6_payments
+  
+  Note: 'Secondary data repositories - Row 2'
+}
+
+TableGroup data_stores_support {
+  datastore_d7_communications
+  datastore_d8_files
+  datastore_d9_system_config
+  
+  Note: 'Support data repositories - Row 3'
+}
+
+// ========================================
+// DIAGRAM METADATA
+// ========================================
+
+Table diagram_info {
+  title varchar [default: 'TPLearn Learning Management System - DFD Level 1']
+  created_date varchar [default: 'October 31, 2025']
+  purpose varchar [default: 'Complete data flow representation using database notation']
+  external_entities int [default: 3]
+  core_processes int [default: 8]
+  data_stores int [default: 9]
+  total_flows int [default: 96]
+  
+  Note: 'Diagram statistics and metadata'
+}

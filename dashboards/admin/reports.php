@@ -9,6 +9,9 @@ $start_date = $_GET['start_date'] ?? date('Y-m-01'); // First day of current mon
 $end_date = $_GET['end_date'] ?? date('Y-m-30'); // 30th of current month
 $report_type = $_GET['report_type'] ?? 'payment_summary';
 
+// Debug: Log the received parameters
+error_log("Reports filter - Start: $start_date, End: $end_date, Type: $report_type");
+
 // Fetch payment summary data with error handling
 try {
   $paymentSummary = getPaymentSummaryData($start_date, $end_date);
@@ -158,13 +161,16 @@ $enrollmentTrends = $enrollmentTrends ?: [];
     <div class="lg:ml-64 flex-1">
       <?php 
       require_once '../../includes/header.php';
+      
+      // Get admin notifications
+      $admin_notifications = getAdminNotifications(15);
+      
       renderHeader(
         'Reports',
         '',
         'admin',
-        $_SESSION['name'] ?? 'Admin',
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
+        $_SESSION['username'] ?? 'Admin',
+        $admin_notifications
       );
       ?>
 
@@ -197,9 +203,6 @@ $enrollmentTrends = $enrollmentTrends ?: [];
             </button>
             <button id="tab-payment" class="px-4 sm:px-6 py-3 text-sm font-medium tab-active whitespace-nowrap flex-shrink-0" onclick="switchTab('payment')">
               Payment Summary
-            </button>
-            <button id="tab-schedule" class="px-4 sm:px-6 py-3 text-sm font-medium tab-inactive whitespace-nowrap flex-shrink-0" onclick="switchTab('schedule')">
-              Schedule Occupancy
             </button>
           </div>
         </div>
@@ -271,21 +274,24 @@ $enrollmentTrends = $enrollmentTrends ?: [];
           <!-- Payment Summary Tab -->
           <div id="content-payment" class="p-6">
             <!-- Date Range Filter -->
-            <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
-              <div class="flex space-x-4">
+            <form method="GET" action="reports.php" class="mb-6">
+              <div class="flex flex-wrap items-end gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                  <input type="date" id="startDate" value="<?= $start_date ?>" class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-tplearn-green focus:border-transparent">
+                  <input type="date" name="start_date" id="startDate" value="<?= $start_date ?>" class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent">
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                  <input type="date" id="endDate" value="<?= $end_date ?>" class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-tplearn-green focus:border-transparent">
+                  <input type="date" name="end_date" id="endDate" value="<?= $end_date ?>" class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                </div>
+                <div>
+                  <input type="hidden" name="report_type" value="payment_summary">
+                  <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium">
+                    Apply Filter
+                  </button>
                 </div>
               </div>
-              <button onclick="applyDateFilter()" class="px-4 py-2 bg-tplearn-green text-white rounded-lg hover:bg-green-600 transition-colors text-sm">
-                Apply Filter
-              </button>
-            </div>
+            </form>
 
             <h3 class="text-lg font-semibold text-gray-800 mb-4">Payment Summary</h3>
             
@@ -425,51 +431,138 @@ $enrollmentTrends = $enrollmentTrends ?: [];
             </div>
           </div>
 
-          <!-- Schedule Occupancy Tab -->
-          <div id="content-schedule" class="p-6 hidden">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Schedule Occupancy</h3>
-            
-            <!-- Occupancy Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div class="stat-card p-6">
-                <div class="text-center">
-                  <p class="text-sm font-medium text-gray-600 mb-2">Total Schedules</p>
-                  <p class="text-3xl font-bold text-gray-900 stat-number"><?= number_format($scheduleStats['total_schedules']) ?></p>
-                </div>
-              </div>
-              
-              <div class="stat-card p-6">
-                <div class="text-center">
-                  <p class="text-sm font-medium text-gray-600 mb-2">Occupied</p>
-                  <p class="text-3xl font-bold text-green-600 stat-number"><?= number_format($scheduleStats['occupied']) ?></p>
-                </div>
-              </div>
-              
-              <div class="stat-card p-6">
-                <div class="text-center">
-                  <p class="text-sm font-medium text-gray-600 mb-2">Available</p>
-                  <p class="text-3xl font-bold text-blue-600 stat-number"><?= number_format($scheduleStats['available']) ?></p>
-                </div>
-              </div>
-              
-              <div class="stat-card p-6">
-                <div class="text-center">
-                  <p class="text-sm font-medium text-gray-600 mb-2">Occupancy Rate</p>
-                  <p class="text-3xl font-bold text-gray-900 stat-number"><?= $scheduleStats['occupancy_rate'] ?>%</p>
-                </div>
-              </div>
-            </div>
+        </div>
+      </main>
+    </div>
+  </div>
 
-            <div class="chart-placeholder">
-              <?php if ($scheduleStats['total_schedules'] > 0): ?>
-                Schedule occupancy visualization will be displayed here
-              <?php else: ?>
-                <div class="text-center">
-                  <p class="text-gray-500 mb-2">No schedule data available</p>
-                  <p class="text-sm text-gray-400">Create sessions and programs to see schedule occupancy</p>
+  <script src="../../assets/admin-sidebar.js"></script>
+
+  <!-- Tab Switching JavaScript -->
+  <script>
+    function switchTab(tabName) {
+      // Hide all tab contents first
+      document.getElementById('content-enrollment').classList.add('hidden');
+      document.getElementById('content-payment').classList.add('hidden');
+
+      // Show selected tab content and mark tab as active
+      if (tabName === 'enrollment') {
+        document.getElementById('content-enrollment').classList.remove('hidden');
+        document.getElementById('tab-enrollment').classList.add('border-tplearn-green', 'text-tplearn-green');
+        document.getElementById('tab-enrollment').classList.remove('border-transparent', 'text-gray-500');
+        document.getElementById('tab-payment').classList.add('border-transparent', 'text-gray-500');
+        document.getElementById('tab-payment').classList.remove('border-tplearn-green', 'text-tplearn-green');
+      } else if (tabName === 'payment') {
+        document.getElementById('content-payment').classList.remove('hidden');
+        document.getElementById('tab-payment').classList.add('border-tplearn-green', 'text-tplearn-green');
+        document.getElementById('tab-payment').classList.remove('border-transparent', 'text-gray-500');
+        document.getElementById('tab-enrollment').classList.add('border-transparent', 'text-gray-500');
+        document.getElementById('tab-enrollment').classList.remove('border-tplearn-green', 'text-tplearn-green');
+      }
+    }
+
+    // Export functionality
+    function exportReport(format) {
+      const reportType = getActiveTab();
+      console.log('Exporting', reportType, 'as', format);
+      // Implementation for export functionality
+    }
+
+    function getActiveTab() {
+      if (!document.getElementById('content-enrollment').classList.contains('hidden')) {
+        return 'enrollment';
+      } else if (!document.getElementById('content-payment').classList.contains('hidden')) {
+        return 'payment';
+      }
+      return 'payment'; // default
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+      // Show payment summary tab by default
+      switchTab('payment');
+    });
+
+            <!-- Program Details Table -->
+            <?php if (!empty($programSchedules)): ?>
+              <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                  <h4 class="text-lg font-medium text-gray-900">Program Schedule Details</h4>
+                  <p class="text-sm text-gray-500 mt-1">Detailed view of each program's schedule and occupancy</p>
                 </div>
-              <?php endif; ?>
-            </div>
+                
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Program</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Schedule</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tutor</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Occupancy</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sessions</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <?php foreach ($programSchedules as $program): ?>
+                        <tr class="hover:bg-gray-50">
+                          <td class="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($program['program_name']) ?></div>
+                              <div class="text-sm text-gray-500">
+                                <?= date('M j', strtotime($program['schedule']['start_date'])) ?> - 
+                                <?= date('M j, Y', strtotime($program['schedule']['end_date'])) ?>
+                              </div>
+                            </div>
+                          </td>
+                          <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">
+                              <?= htmlspecialchars($program['schedule']['days']) ?>
+                            </div>
+                            <div class="text-sm text-gray-500">
+                              <?= date('g:i A', strtotime($program['schedule']['start_time'])) ?> - 
+                              <?= date('g:i A', strtotime($program['schedule']['end_time'])) ?>
+                            </div>
+                          </td>
+                          <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900"><?= htmlspecialchars($program['tutor_name']) ?></div>
+                          </td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <?= number_format($program['capacity']['enrolled_students']) ?> / <?= number_format($program['capacity']['max_students']) ?>
+                            <div class="text-xs text-gray-500">
+                              <?= number_format($program['capacity']['available_slots']) ?> available
+                            </div>
+                          </td>
+                          <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                              <div class="text-sm font-medium text-gray-900">
+                                <?= $program['capacity']['occupancy_percentage'] ?>%
+                              </div>
+                              <div class="ml-2 w-16 bg-gray-200 rounded-full h-2">
+                                <div class="h-2 rounded-full <?= 
+                                  $program['capacity']['occupancy_percentage'] >= 80 ? 'bg-green-500' : 
+                                  ($program['capacity']['occupancy_percentage'] >= 50 ? 'bg-yellow-500' : 'bg-red-500') 
+                                ?>" style="width: <?= min(100, $program['capacity']['occupancy_percentage']) ?>%"></div>
+                              </div>
+                            </div>
+                          </td>
+                          <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">
+                              <?= number_format($program['sessions']['completed_sessions']) ?> / <?= number_format($program['sessions']['total_sessions']) ?>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                              <?= number_format($program['sessions']['scheduled_sessions']) ?> scheduled
+                            </div>
+                          </td>
+                        </tr>
+                      <?php endforeach; ?>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            <?php else: ?>
+
+            <?php endif; ?>
           </div>
 
         </div>
@@ -486,12 +579,10 @@ $enrollmentTrends = $enrollmentTrends ?: [];
       // Hide all tab contents first
       document.getElementById('content-enrollment').classList.add('hidden');
       document.getElementById('content-payment').classList.add('hidden');
-      document.getElementById('content-schedule').classList.add('hidden');
 
       // Remove active class from all tabs
       document.getElementById('tab-enrollment').className = 'px-4 sm:px-6 py-3 text-sm font-medium tab-inactive whitespace-nowrap flex-shrink-0';
       document.getElementById('tab-payment').className = 'px-4 sm:px-6 py-3 text-sm font-medium tab-inactive whitespace-nowrap flex-shrink-0';
-      document.getElementById('tab-schedule').className = 'px-4 sm:px-6 py-3 text-sm font-medium tab-inactive whitespace-nowrap flex-shrink-0';
 
       // Show selected tab content and mark tab as active
       if (tabName === 'enrollment') {
@@ -500,9 +591,6 @@ $enrollmentTrends = $enrollmentTrends ?: [];
       } else if (tabName === 'payment') {
         document.getElementById('content-payment').classList.remove('hidden');
         document.getElementById('tab-payment').className = 'px-4 sm:px-6 py-3 text-sm font-medium tab-active whitespace-nowrap flex-shrink-0';
-      } else if (tabName === 'schedule') {
-        document.getElementById('content-schedule').classList.remove('hidden');
-        document.getElementById('tab-schedule').className = 'px-4 sm:px-6 py-3 text-sm font-medium tab-active whitespace-nowrap flex-shrink-0';
       }
     }
 
@@ -510,30 +598,22 @@ $enrollmentTrends = $enrollmentTrends ?: [];
       const startDate = document.getElementById('startDate').value;
       const endDate = document.getElementById('endDate').value;
       
+      console.log('Filter clicked with dates:', startDate, endDate);
+      
       if (!startDate || !endDate) {
-        TPAlert.warning('Missing Dates', 'Please select both start and end dates to filter the reports.');
+        TPAlert.warning('Required', 'Please select both start and end dates to filter the reports.');
         return;
       }
       
       if (new Date(startDate) > new Date(endDate)) {
-        TPAlert.error('Invalid Date Range', 'Start date cannot be later than end date. Please check your date selection.');
+        TPAlert.info('Information', 'Start date cannot be later than end date. Please check your date selection.');
         return;
       }
       
-      // Show loading state
-      const button = event.target;
-      const originalText = button.innerHTML;
-      button.innerHTML = '<svg class="w-4 h-4 mr-2 animate-spin" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path></svg>Filtering...';
-      button.disabled = true;
-      
-      // Show loading alert
-      TPAlert.loading('Applying Date Filter', 'Refreshing report data for the selected date range...');
-      
-      // Small delay to show the loading state
-      setTimeout(() => {
-        // Redirect with parameters
-        window.location.href = `reports.php?start_date=${startDate}&end_date=${endDate}&report_type=payment_summary`;
-      }, 1000);
+      // Simple redirect without complex tab detection
+      const newUrl = `reports.php?start_date=${startDate}&end_date=${endDate}&report_type=payment_summary`;
+      console.log('Redirecting to:', newUrl);
+      window.location.href = newUrl;
     }
 
     function exportReport(format) {
@@ -544,8 +624,6 @@ $enrollmentTrends = $enrollmentTrends ?: [];
       let activeTab = 'payment'; // default
       if (!document.getElementById('content-enrollment').classList.contains('hidden')) {
         activeTab = 'enrollment';
-      } else if (!document.getElementById('content-schedule').classList.contains('hidden')) {
-        activeTab = 'schedule';
       }
       
       // Show loading state
@@ -556,10 +634,7 @@ $enrollmentTrends = $enrollmentTrends ?: [];
       
       // Show loading alert
       const formatName = format === 'pdf' ? 'PDF' : 'CSV';
-      TPAlert.loading(
-        `Generating ${formatName} Report`, 
-        `Creating ${activeTab} report for ${startDate} to ${endDate}...`
-      );
+      console.log(`Generating ${formatName} Report for ${activeTab} report from ${startDate} to ${endDate}...`);
       
       // Construct export URL
       const exportFormat = format === 'pdf' ? 'pdf' : 'csv';
@@ -580,10 +655,7 @@ $enrollmentTrends = $enrollmentTrends ?: [];
         setTimeout(() => {
           button.innerHTML = originalText;
           button.disabled = false;
-          TPAlert.success(
-            'PDF Report Generated!', 
-            'Your report has opened in a new tab. You can save or print it from there.'
-          );
+          TPAlert.info('Information', 'PDF Report Generated! Your report has opened in a new tab.');
         }, 1000);
         
       } else {
@@ -594,10 +666,7 @@ $enrollmentTrends = $enrollmentTrends ?: [];
         setTimeout(() => {
           button.innerHTML = originalText;
           button.disabled = false;
-          TPAlert.success(
-            'CSV Report Downloaded!', 
-            'Your report has been downloaded and can be opened in Excel or any spreadsheet application.'
-          );
+          TPAlert.info('Information', 'CSV Report Downloaded! Your report has been downloaded.');
         }, 1500);
       }
       
@@ -605,9 +674,20 @@ $enrollmentTrends = $enrollmentTrends ?: [];
       document.body.removeChild(link);
     }
 
-    // Initialize with payment summary tab active
+    // Initialize with correct tab based on URL parameter
     document.addEventListener('DOMContentLoaded', function() {
-      switchTab('payment');
+      const urlParams = new URLSearchParams(window.location.search);
+      const reportType = urlParams.get('report_type') || 'payment_summary';
+      
+      // Determine which tab to show
+      let activeTab = 'payment';
+      if (reportType === 'enrollment') {
+        activeTab = 'enrollment';
+      } else if (reportType === 'schedule') {
+        activeTab = 'schedule';
+      }
+      
+      switchTab(activeTab);
       initializeEnrollmentChart();
       initializePaymentStatusChart();
     });

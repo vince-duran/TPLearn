@@ -388,7 +388,7 @@ error_log("Sessions count: " . count($sessions));
                 'scheduled' => 'bg-blue-100 text-blue-800',
                 'ongoing' => 'bg-yellow-100 text-yellow-800',
                 'completed' => 'bg-green-100 text-green-800',
-                'cancelled' => 'bg-red-100 text-red-800'
+                'cancelled' => 'bg-gray-100 text-gray-800'
               ];
               $status_color = $status_colors[$status] ?? 'bg-gray-100 text-gray-800';
           ?>
@@ -608,7 +608,7 @@ error_log("Sessions count: " . count($sessions));
     // View item details
     function viewItem(id, type) {
       // Implementation would depend on your specific requirements
-      alert(`Viewing ${type} with ID: ${id}`);
+      TPAlert.info('Information', `Viewing ${type} with ID: ${id}`);
     }
 
     // Download item
@@ -649,7 +649,7 @@ error_log("Sessions count: " . count($sessions));
       if (file) {
         // Validate file size (10MB limit)
         if (file.size > 10 * 1024 * 1024) {
-          alert('File size must be less than 10MB');
+          TPAlert.error('File Size Error', 'File size must be less than 10MB');
           input.value = '';
           return;
         }
@@ -669,21 +669,21 @@ error_log("Sessions count: " . count($sessions));
 
     // Join session
     function joinSession(sessionId) {
-      alert(`Joining session with ID: ${sessionId}`);
+      TPAlert.info('Information', `Joining session with ID: ${sessionId}`);
     }
 
     // View session recording
     function viewSessionRecording(sessionId) {
-      alert(`Viewing recording for session with ID: ${sessionId}`);
+      TPAlert.info('Information', `Viewing recording for session with ID: ${sessionId}`);
     }
 
     // Header functions
     function openNotifications() {
-      alert('Opening notifications...');
+      TPAlert.info('Information', 'Opening notifications...');
     }
 
     function openMessages() {
-      alert('Opening messages...');
+      TPAlert.info('Information', 'Opening messages...');
     }
 
     function backToDashboard() {
@@ -708,7 +708,7 @@ error_log("Sessions count: " . count($sessions));
         const assignmentId = document.getElementById('submissionModal').getAttribute('data-assignment-id');
         
         if (!fileInput.files[0]) {
-          alert('Please select a file to submit');
+          TPAlert.warning('Required', 'Please select a file to submit');
           return;
         }
         
@@ -719,7 +719,7 @@ error_log("Sessions count: " . count($sessions));
         formData.append('comments', comments);
         
         // Submit form (implement your submission logic here)
-        alert('Assignment submitted successfully!');
+        TPAlert.success('Success', 'Assignment submitted successfully!');
         closeSubmissionModal();
       });
     });

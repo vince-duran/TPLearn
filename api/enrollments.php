@@ -3,6 +3,7 @@
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
+require_once '../includes/schedule-conflict.php';
 
 header('Content-Type: application/json');
 
@@ -46,6 +47,40 @@ try {
 
       if ($existing) {
         throw new Exception('Student is already enrolled in this program');
+      }
+
+      // Check for schedule conflicts
+      $conflict_result = checkScheduleConflict($student_user_id, $program_id);
+      if ($conflict_result['has_conflict']) {
+        $conflicting_programs = array_map(function($conflict) {
+          return $conflict['program_name'];
+        }, $conflict_result['conflicting_programs']);
+        
+        throw new Exception(
+          'Schedule conflict detected with enrolled program(s): ' . 
+          implode(', ', $conflicting_programs) . 
+          '. Please choose a different program or contact support.'
+        );
+      }
+
+      // Check program capacity with race condition protection
+      $capacity_check = $db->getRow(
+        "SELECT p.max_students, COUNT(e.id) as enrolled_count, p.name 
+         FROM programs p 
+         LEFT JOIN enrollments e ON p.id = e.program_id AND e.status IN ('pending', 'active')
+         WHERE p.id = ? AND p.status = 'active'
+         GROUP BY p.id, p.max_students, p.name
+         FOR UPDATE", // Lock to prevent race conditions
+        [$program_id],
+        "i"
+      );
+
+      if (!$capacity_check) {
+        throw new Exception('Program not found or inactive');
+      }
+
+      if ($capacity_check['enrolled_count'] >= $capacity_check['max_students']) {
+        throw new Exception('Program is at full capacity (' . $capacity_check['enrolled_count'] . '/' . $capacity_check['max_students'] . '). No more spots available.');
       }
 
       $enrollment_id = $enrollmentManager->createEnrollment($student_user_id, $program_id, $tutor_user_id);

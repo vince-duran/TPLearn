@@ -63,15 +63,8 @@ $activities = getTutorRecentActivities($user_id, 8);
     <!-- Main Content -->
     <div class="lg:ml-64 flex-1 flex flex-col h-screen">
       <?php 
-      require_once '../../includes/header.php';
-      renderHeader(
-        'Tutor Dashboard',
-        'Welcome back, ' . $display_name . '!',
-        'tutor',
-        $display_name,
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
-      );
+      require_once '../../includes/tutor-header-standard.php';
+      renderTutorHeader('Tutor Dashboard', getTutorGreeting($display_name));
       ?>
 
       <!-- Main Content Area -->
@@ -106,49 +99,66 @@ $activities = getTutorRecentActivities($user_id, 8);
         </div>
 
         <!-- Stats Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <!-- Total Students -->
           <div class="stat-card p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div class="p-3 bg-blue-100 rounded-lg">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600">Total Students</p>
+                <p class="text-3xl font-bold text-gray-900" id="total-students"><?php echo $tutor_data['total_students'] ?? 0; ?></p>
+              </div>
+              <div class="bg-blue-100 p-3 rounded-full">
                 <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path>
                 </svg>
               </div>
-              <span class="text-sm text-green-600 font-medium" id="student-growth">-</span>
             </div>
-            <h3 class="text-2xl font-bold text-gray-900 mb-1" id="total-students"><?php echo $tutor_data['total_students'] ?? 0; ?></h3>
-            <p class="text-gray-600 text-sm">Total Students</p>
           </div>
 
           <!-- Active Programs -->
           <div class="stat-card p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div class="p-3 bg-green-100 rounded-lg">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600">Active Programs</p>
+                <p class="text-3xl font-bold text-gray-900" id="active-programs"><?php echo $tutor_data['assigned_programs'] ?? 0; ?></p>
+              </div>
+              <div class="bg-green-100 p-3 rounded-full">
                 <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
               </div>
-              <span class="text-sm text-green-600 font-medium" id="program-status">-</span>
             </div>
-            <h3 class="text-2xl font-bold text-gray-900 mb-1" id="active-programs"><?php echo $tutor_data['assigned_programs'] ?? 0; ?></h3>
-            <p class="text-gray-600 text-sm">Active Programs</p>
           </div>
 
-          <!-- Total Classes -->
+          <!-- Payments -->
           <div class="stat-card p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div class="p-3 bg-purple-100 rounded-lg">
-                <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600">Payments</p>
+                <p class="text-3xl font-bold text-gray-900" id="total-payments"><?php echo $tutor_data['total_payments'] ?? 0; ?></p>
+              </div>
+              <div class="bg-yellow-100 p-3 rounded-full">
+                <svg class="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"></path>
                 </svg>
               </div>
-              <span class="text-sm text-green-600 font-medium" id="weekly-classes">-</span>
             </div>
-            <h3 class="text-2xl font-bold text-gray-900 mb-1" id="total-classes"><?php echo $tutor_data['sessions_today'] ?? 0; ?></h3>
-            <p class="text-gray-600 text-sm">Sessions Today</p>
           </div>
 
+          <!-- Assessments -->
+          <div class="stat-card p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600">Assessments</p>
+                <p class="text-3xl font-bold text-gray-900" id="total-assessments"><?php echo $tutor_data['total_assessments'] ?? 0; ?></p>
+              </div>
+              <div class="bg-purple-100 p-3 rounded-full">
+                <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                </svg>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Programs and Activities Row -->
@@ -220,62 +230,6 @@ $activities = getTutorRecentActivities($user_id, 8);
                     <?php endforeach; ?>
                   <?php endif; ?>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Recent Activities -->
-          <div class="lg:col-span-1">
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="p-6 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900">Recent Activities</h3>
-              </div>
-              <div class="divide-y divide-gray-200" id="activities-container">
-                <?php if (empty($activities)): ?>
-                  <div class="p-6 text-center text-gray-500">
-                    <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <p>No recent activities</p>
-                    <p class="text-sm">Your teaching activities will appear here</p>
-                  </div>
-                <?php else: ?>
-                  <?php foreach ($activities as $activity): ?>
-                    <div class="activity-item">
-                      <div class="flex-shrink-0 mr-3">
-                        <?php if ($activity['icon'] === 'academic-cap'): ?>
-                          <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
-                            </svg>
-                          </div>
-                        <?php elseif ($activity['icon'] === 'user-plus'): ?>
-                          <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                            <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z"></path>
-                            </svg>
-                          </div>
-                        <?php elseif ($activity['icon'] === 'trophy'): ?>
-                          <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                            <svg class="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                          </div>
-                        <?php else: ?>
-                          <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                            <svg class="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
-                            </svg>
-                          </div>
-                        <?php endif; ?>
-                      </div>
-                      <div class="flex-1 min-w-0">
-                        <p class="text-sm text-gray-900 font-medium"><?php echo $activity['message']; ?></p>
-                        <p class="text-xs text-gray-500"><?php echo $activity['time']; ?></p>
-                      </div>
-                    </div>
-                  <?php endforeach; ?>
-                <?php endif; ?>
               </div>
             </div>
           </div>
@@ -403,8 +357,6 @@ $activities = getTutorRecentActivities($user_id, 8);
       });
     });
   </script>
-  <!-- Dashboard JavaScript -->
-  <script src="../../assets/dashboard.js"></script>
 </body>
 
 </html>

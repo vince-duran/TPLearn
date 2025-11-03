@@ -1,6 +1,7 @@
 <?php
 require_once '../../includes/auth.php';
 require_once '../../includes/db.php';
+require_once '../../includes/data-helpers.php';
 requireRole('student');
 
 // Fetch student data from database
@@ -177,15 +178,8 @@ $total_attendance = 0; // Placeholder for attendance percentage
     <!-- Main Content -->
     <div class="lg:ml-64 flex-1">
       <?php 
-      require_once '../../includes/header.php';
-      renderHeader(
-        'Student Profile',
-        '',
-        'student',
-        trim(($student_data['first_name'] ?? 'Student') . ' ' . ($student_data['last_name'] ?? 'User')),
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
-      );
+      require_once '../../includes/student-header-standard.php';
+      renderStudentHeader('Student Profile', 'Manage your personal information');
       ?>
 
       <!-- Main Content Area -->
@@ -217,7 +211,7 @@ $total_attendance = 0; // Placeholder for attendance percentage
               <h2 class="text-2xl font-bold text-gray-900">
                 <?= htmlspecialchars(trim(($student_data['first_name'] ?? '') . ' ' . ($student_data['last_name'] ?? '')) ?: 'Student User') ?>
               </h2>
-              <p class="text-gray-600 mb-2"><?= htmlspecialchars($student_data['age_display']) ?></p>
+              <p class="text-gray-600 mb-2"><?= htmlspecialchars($student_data['age_display'] ?? 'Not specified') ?></p>
               <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                 Active Student
               </span>
@@ -260,19 +254,19 @@ $total_attendance = 0; // Placeholder for attendance percentage
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($student_data['first_name']) ?>
+                      <?= htmlspecialchars($student_data['first_name'] ?? 'Not specified') ?>
                     </div>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Middle Name</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($student_data['middle_name']) ?>
+                      <?= htmlspecialchars($student_data['middle_name'] ?? 'Not specified') ?>
                     </div>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($student_data['last_name']) ?>
+                      <?= htmlspecialchars($student_data['last_name'] ?? 'Not specified') ?>
                     </div>
                   </div>
                   <div>
@@ -290,13 +284,13 @@ $total_attendance = 0; // Placeholder for attendance percentage
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Birthday</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($student_data['birthday_display']) ?>
+                      <?= htmlspecialchars($student_data['birthday_display'] ?? 'Not specified') ?>
                     </div>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">PWD Status</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($student_data['pwd_status']) ?>
+                      <?= htmlspecialchars($student_data['pwd_status'] ?? 'Not specified') ?>
                     </div>
                   </div>
                 </div>
@@ -306,7 +300,7 @@ $total_attendance = 0; // Placeholder for attendance percentage
               <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Home Address</label>
                 <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                  <?= htmlspecialchars($student_data['home_address']) ?>
+                  <?= htmlspecialchars($student_data['home_address'] ?? 'Not specified') ?>
                 </div>
               </div>
 
@@ -314,7 +308,7 @@ $total_attendance = 0; // Placeholder for attendance percentage
               <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Medical History</label>
                 <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 min-h-[60px]">
-                  <?= htmlspecialchars($student_data['medical_history']) ?>
+                  <?= htmlspecialchars($student_data['medical_history'] ?? 'Not specified') ?>
                 </div>
               </div>
 
@@ -325,25 +319,25 @@ $total_attendance = 0; // Placeholder for attendance percentage
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Parent's Full Name</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($student_data['parent_guardian_name']) ?>
+                      <?= htmlspecialchars($student_data['parent_guardian_name'] ?? 'Not specified') ?>
                     </div>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Facebook Name</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($student_data['facebook_name']) ?>
+                      <?= htmlspecialchars($student_data['facebook_name'] ?? 'Not specified') ?>
                     </div>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($student_data['phone']) ?>
+                      <?= htmlspecialchars($student_data['phone'] ?? 'Not specified') ?>
                     </div>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($student_data['email']) ?>
+                      <?= htmlspecialchars($student_data['email'] ?? 'Not specified') ?>
                     </div>
                   </div>
                 </div>
@@ -360,7 +354,7 @@ $total_attendance = 0; // Placeholder for attendance percentage
               <div class="space-y-3">
                 <div>
                   <span class="text-sm text-gray-500">Student ID</span>
-                  <p class="font-medium">TP2025-<?= str_pad($user_id, 3, '0', STR_PAD_LEFT) ?></p>
+                  <p class="font-medium"><?= htmlspecialchars($student_data['username'] ?? 'Not assigned') ?></p>
                 </div>
                 <div>
                   <span class="text-sm text-gray-500">Member Since</span>
@@ -447,21 +441,21 @@ $total_attendance = 0; // Placeholder for attendance percentage
           <div class="grid md:grid-cols-3 gap-4 mb-4">
             <div>
               <label class="block mb-1 text-sm">First Name <span class="text-red-500">*</span></label>
-              <input type="text" id="edit_first_name" value="<?php echo htmlspecialchars($student_data['first_name']); ?>" 
+              <input type="text" id="edit_first_name" value="<?php echo htmlspecialchars($student_data['first_name'] ?? ''); ?>" 
                 required maxlength="50" pattern="[a-zA-Z\s'-]{2,50}"
                 class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter first name">
             </div>
             <div>
               <label class="block mb-1 text-sm">Last Name <span class="text-red-500">*</span></label>
-              <input type="text" id="edit_last_name" value="<?php echo htmlspecialchars($student_data['last_name']); ?>" 
+              <input type="text" id="edit_last_name" value="<?php echo htmlspecialchars($student_data['last_name'] ?? ''); ?>" 
                 required maxlength="50" pattern="[a-zA-Z\s'-]{2,50}"
                 class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter last name">
             </div>
             <div>
               <label class="block mb-1 text-sm">Middle Name</label>
-              <input type="text" id="edit_middle_name" value="<?php echo htmlspecialchars($student_data['middle_name']); ?>" 
+              <input type="text" id="edit_middle_name" value="<?php echo htmlspecialchars($student_data['middle_name'] ?? ''); ?>" 
                 maxlength="50" pattern="[a-zA-Z\s'-]{1,50}"
                 class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter middle name (optional)">
@@ -482,7 +476,7 @@ $total_attendance = 0; // Placeholder for attendance percentage
             </div>
             <div>
               <label class="block mb-1 text-sm">Suffix</label>
-              <input type="text" id="edit_suffix" value="<?php echo htmlspecialchars($student_data['suffix']); ?>" 
+              <input type="text" id="edit_suffix" value="<?php echo htmlspecialchars($student_data['suffix'] ?? ''); ?>" 
                 maxlength="20" pattern="[a-zA-Z\s.]{1,20}"
                 class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Jr., Sr., III, etc. (optional)">
@@ -1416,7 +1410,8 @@ $total_attendance = 0; // Placeholder for attendance percentage
     }
 
     function cancelEmailChange() {
-      if (confirm('Are you sure you want to cancel the email change?')) {
+      TPAlert.confirm('Confirm Action', 'Are you sure you want to cancel the email change?').then(result => {
+        if (result.isConfirmed) {
         fetch('../api/email-change.php', {
           method: 'POST',
           headers: {

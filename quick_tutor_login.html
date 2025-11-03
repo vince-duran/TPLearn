@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Tutor Login</title>
+</head>
+<body>
+    <h2>Quick Tutor Login</h2>
+    <form action="login.php" method="POST">
+        <label>Username:</label>
+        <input type="text" name="username" value="TUT2025-745" required><br><br>
+        
+        <label>Password:</label>
+        <input type="password" name="password" value="password123" required><br><br>
+        
+        <button type="submit">Login as Sarah (Tutor)</button>
+    </form>
+    
+    <script>
+        // Auto-submit the form
+        setTimeout(() => {
+            document.querySelector('form').submit();
+        }, 1000);
+    </script>
+</body>
+</html>

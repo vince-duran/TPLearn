@@ -183,6 +183,13 @@ function updateTutorProfile($user_id) {
                 suffix = ?,
                 contact_number = ?,
                 address = ?,
+                province = ?,
+                city = ?,
+                barangay = ?,
+                zip_code = ?,
+                subdivision = ?,
+                street = ?,
+                house_number = ?,
                 bachelor_degree = ?,
                 specializations = ?,
                 bio = ?
@@ -193,17 +200,43 @@ function updateTutorProfile($user_id) {
             throw new Exception("Prepare failed: " . $conn->error);
         }
         
-        $stmt->bind_param("ssssssssssi", 
-            $input['first_name'],
-            $input['middle_name'] ?: null,
-            $input['last_name'],
-            $input['gender'] ?: null,
-            $input['suffix'] ?: null,
-            $input['contact_number'] ?: null,
-            $input['address'] ?: null,
-            $input['bachelor_degree'] ?: null,
-            $input['specializations'] ?: null,
-            $input['bio'] ?: null,
+        // Prepare variables for binding (bind_param requires variables, not expressions)
+        $first_name = $input['first_name'];
+        $middle_name = $input['middle_name'] ?: null;
+        $last_name = $input['last_name'];
+        $gender = $input['gender'] ?: null;
+        $suffix = $input['suffix'] ?: null;
+        $contact_number = $input['contact_number'] ?: null;
+        $address = $input['address'] ?: null;
+        $province = $input['province'] ?: null;
+        $city = $input['city'] ?: null;
+        $barangay = $input['barangay'] ?: null;
+        $zip_code = $input['zip_code'] ?: null;
+        $subdivision = $input['subdivision'] ?: null;
+        $street = $input['street'] ?: null;
+        $house_number = $input['house_number'] ?: null;
+        $bachelor_degree = $input['bachelor_degree'] ?: null;
+        $specializations = $input['specializations'] ?: null;
+        $bio = $input['bio'] ?: null;
+        
+        $stmt->bind_param("sssssssssssssssssi", 
+            $first_name,
+            $middle_name,
+            $last_name,
+            $gender,
+            $suffix,
+            $contact_number,
+            $address,
+            $province,
+            $city,
+            $barangay,
+            $zip_code,
+            $subdivision,
+            $street,
+            $house_number,
+            $bachelor_degree,
+            $specializations,
+            $bio,
             $user_id
         );
         

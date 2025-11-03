@@ -1,6 +1,7 @@
 <?php
 require_once '../../includes/auth.php';
 require_once '../../includes/db.php';
+require_once '../../includes/data-helpers.php';
 requireRole('tutor');
 
 // Fetch tutor data from database
@@ -50,11 +51,19 @@ if (!$tutor_data) {
         'first_name' => 'Tutor',
         'middle_name' => '',
         'last_name' => 'User',
+        'username' => 'Not specified',
         'member_since' => 'Not specified',
         'gender' => '',
         'suffix' => '',
         'contact_number' => 'Not specified',
         'address' => 'Not specified',
+        'province' => '',
+        'city' => '',
+        'barangay' => '',
+        'zip_code' => '',
+        'subdivision' => '',
+        'street' => '',
+        'house_number' => '',
         'bachelor_degree' => 'Not specified',
         'specializations' => 'Not specified',
         'bio' => 'Not specified',
@@ -69,10 +78,15 @@ function getInitials($firstName, $lastName) {
   return $first . $last ?: 'T';
 }
 
-// Get tutor stats (placeholder values - implement these functions in your data-helpers.php)
-$total_programs = 0; // Placeholder for tutor's programs count
-$total_students = 0; // Placeholder for tutor's students count
-$total_assessments = 0; // Placeholder for tutor's assessments count
+// Helper function to safely escape HTML with null check
+function safeHtmlspecialchars($string, $default = '') {
+  return htmlspecialchars($string ?? $default);
+}
+
+// Get tutor stats using real data
+$tutor_dashboard_data = getTutorDashboardData($user_id);
+$total_programs = $tutor_dashboard_data['assigned_programs'];
+$total_students = $tutor_dashboard_data['total_students'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -126,15 +140,8 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
     <!-- Main Content -->
     <div class="lg:ml-64 flex-1">
       <?php 
-      require_once '../../includes/header.php';
-      renderHeader(
-        'Tutor Profile',
-        '',
-        'tutor',
-        trim(($tutor_data['first_name'] ?? 'Tutor') . ' ' . ($tutor_data['last_name'] ?? 'User')),
-        [], // notifications array - to be implemented
-        []  // messages array - to be implemented
-      );
+      require_once '../../includes/tutor-header-standard.php';
+      renderTutorHeader('Tutor Profile', 'Manage your profile and settings');
       ?>
 
       <!-- Main Content Area -->
@@ -154,11 +161,6 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
               <div class="w-24 h-24 bg-tplearn-green rounded-full flex items-center justify-center text-white text-2xl font-bold">
                 <?= getInitials($tutor_data['first_name'] ?? '', $tutor_data['last_name'] ?? '') ?>
               </div>
-              <button onclick="changeProfilePicture()" class="absolute bottom-0 right-0 bg-tplearn-green text-white p-2 rounded-full hover:bg-green-600 transition-colors">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path>
-                </svg>
-              </button>
             </div>
 
             <!-- Profile Info -->
@@ -181,10 +183,6 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
               <div>
                 <div class="text-2xl font-bold text-blue-600"><?= $total_students ?></div>
                 <div class="text-sm text-gray-500">Students</div>
-              </div>
-              <div>
-                <div class="text-2xl font-bold text-green-600"><?= $total_assessments ?></div>
-                <div class="text-sm text-gray-500">Assessments</div>
               </div>
             </div>
           </div>
@@ -215,7 +213,7 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Middle Name</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($tutor_data['middle_name']) ?>
+                      <?= htmlspecialchars($tutor_data['middle_name'] ?? '') ?>
                     </div>
                   </div>
                   <div>
@@ -225,21 +223,27 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
                     </div>
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Gender</label>
-                    <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($tutor_data['gender'] ?: 'Not specified') ?>
-                    </div>
-                  </div>
-                  <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Suffix</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
                       <?= htmlspecialchars($tutor_data['suffix'] ?: 'Not specified') ?>
                     </div>
                   </div>
                   <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                    <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                      <?= htmlspecialchars($tutor_data['gender'] ?: 'Not specified') ?>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Birthday</label>
+                    <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                      <?= $tutor_data['birthday'] ? date('F j, Y', strtotime($tutor_data['birthday'])) : 'Not specified' ?>
+                    </div>
+                  </div>
+                  <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($tutor_data['contact_number']) ?>
+                      <?= htmlspecialchars($tutor_data['contact_number'] ?? '') ?>
                     </div>
                   </div>
                 </div>
@@ -249,7 +253,7 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
               <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
                 <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                  <?= htmlspecialchars($tutor_data['address']) ?>
+                  <?= htmlspecialchars($tutor_data['address'] ?? '') ?>
                 </div>
               </div>
 
@@ -260,19 +264,19 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Bachelor's Degree</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      <?= htmlspecialchars($tutor_data['bachelor_degree']) ?>
+                      <?= htmlspecialchars($tutor_data['bachelor_degree'] ?? '') ?>
                     </div>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Specializations</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 min-h-[60px]">
-                      <?= htmlspecialchars($tutor_data['specializations']) ?>
+                      <?= htmlspecialchars($tutor_data['specializations'] ?? '') ?>
                     </div>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Bio</label>
                     <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 min-h-[60px]">
-                      <?= htmlspecialchars($tutor_data['bio']) ?>
+                      <?= htmlspecialchars($tutor_data['bio'] ?? '') ?>
                     </div>
                   </div>
                 </div>
@@ -289,7 +293,7 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
               <div class="space-y-3">
                 <div>
                   <span class="text-sm text-gray-500">User ID</span>
-                  <p class="font-medium">#<?= str_pad($user_id, 3, '0', STR_PAD_LEFT) ?></p>
+                  <p class="font-medium"><?= htmlspecialchars($tutor_data['username']) ?></p>
                 </div>
                 <div>
                   <span class="text-sm text-gray-500">Member Since</span>
@@ -390,7 +394,7 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
             </div>
             <div>
               <label class="block mb-1 text-sm">Middle Name</label>
-              <input type="text" id="edit_middle_name" value="<?php echo htmlspecialchars($tutor_data['middle_name']); ?>" 
+              <input type="text" id="edit_middle_name" value="<?php echo htmlspecialchars($tutor_data['middle_name'] ?? ''); ?>" 
                 maxlength="50" pattern="[a-zA-Z\s'-]{1,50}"
                 class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter middle name (optional)">
@@ -411,7 +415,7 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
             </div>
             <div>
               <label class="block mb-1 text-sm">Suffix</label>
-              <input type="text" id="edit_suffix" value="<?php echo htmlspecialchars($tutor_data['suffix']); ?>" 
+              <input type="text" id="edit_suffix" value="<?php echo htmlspecialchars($tutor_data['suffix'] ?? ''); ?>" 
                 maxlength="20" pattern="[a-zA-Z\s.]{1,20}"
                 class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Jr., Sr., III, etc. (optional)">
@@ -422,7 +426,7 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
           <div class="grid md:grid-cols-2 gap-4 mb-4">
             <div>
               <label class="block mb-1 text-sm">Contact Number <span class="text-red-500">*</span></label>
-              <input type="tel" id="edit_contact_number" value="<?php echo htmlspecialchars($tutor_data['contact_number']); ?>" 
+              <input type="tel" id="edit_contact_number" value="<?php echo htmlspecialchars($tutor_data['contact_number'] ?? ''); ?>" 
                 required pattern="[+]?[0-9]{10,15}"
                 class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter contact number">
@@ -435,12 +439,78 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
             </div>
           </div>
 
-          <!-- Address -->
-          <div class="mb-4">
-            <label class="block mb-1 text-sm">Address <span class="text-red-500">*</span></label>
-            <textarea id="edit_address" rows="3" required maxlength="500"
-              placeholder="Enter your complete address"
-              class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><?php echo htmlspecialchars($tutor_data['address']); ?></textarea>
+          <!-- Address Information -->
+          <div class="mb-6">
+            <h4 class="text-md font-medium mb-3 text-gray-700">Address Information</h4>
+            
+            <!-- Province, City, Barangay -->
+            <div class="grid md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label class="block mb-1 text-sm">Province <span class="text-red-500">*</span></label>
+                <select id="edit_province" required
+                  class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  <option value="">Select Province</option>
+                </select>
+              </div>
+              <div>
+                <label class="block mb-1 text-sm">City/Municipality <span class="text-red-500">*</span></label>
+                <select id="edit_city" required disabled
+                  class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  <option value="">Select City/Municipality</option>
+                </select>
+              </div>
+              <div>
+                <label class="block mb-1 text-sm">Barangay <span class="text-red-500">*</span></label>
+                <select id="edit_barangay" required disabled
+                  class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  <option value="">Select Barangay</option>
+                </select>
+              </div>
+            </div>
+            
+            <!-- Zip Code, Subdivision -->
+            <div class="grid md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block mb-1 text-sm">Zip Code <span class="text-red-500">*</span></label>
+                <input type="text" id="edit_zip_code" value="<?php echo htmlspecialchars($tutor_data['zip_code'] ?? ''); ?>" 
+                  required pattern="[0-9]{4}" maxlength="4"
+                  class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., 1234">
+              </div>
+              <div>
+                <label class="block mb-1 text-sm">Subdivision/Village</label>
+                <input type="text" id="edit_subdivision" value="<?php echo htmlspecialchars($tutor_data['subdivision'] ?? ''); ?>" 
+                  maxlength="100"
+                  class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Subdivision or village name (optional)">
+              </div>
+            </div>
+            
+            <!-- Street, House Number -->
+            <div class="grid md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block mb-1 text-sm">Street <span class="text-red-500">*</span></label>
+                <input type="text" id="edit_street" value="<?php echo htmlspecialchars($tutor_data['street'] ?? ''); ?>" 
+                  required maxlength="200"
+                  class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Street name">
+              </div>
+              <div>
+                <label class="block mb-1 text-sm">House Number/Unit <span class="text-red-500">*</span></label>
+                <input type="text" id="edit_house_number" value="<?php echo htmlspecialchars($tutor_data['house_number'] ?? ''); ?>" 
+                  required maxlength="50"
+                  class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="House number, unit, or building">
+              </div>
+            </div>
+            
+            <!-- Complete Address (read-only display) -->
+            <div class="mb-4">
+              <label class="block mb-1 text-sm">Complete Home Address</label>
+              <textarea id="edit_address" rows="3" readonly
+                class="w-full border border-gray-300 px-3 py-2 rounded bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Complete address will be auto-generated"><?php echo htmlspecialchars($tutor_data['address'] ?? ''); ?></textarea>
+            </div>
           </div>
         </div>
 
@@ -451,7 +521,7 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
           <!-- Bachelor's Degree -->
           <div class="mb-4">
             <label class="block mb-1 text-sm">Bachelor's Degree <span class="text-red-500">*</span></label>
-            <input type="text" id="edit_bachelor_degree" value="<?php echo htmlspecialchars($tutor_data['bachelor_degree']); ?>" 
+            <input type="text" id="edit_bachelor_degree" value="<?php echo htmlspecialchars($tutor_data['bachelor_degree'] ?? ''); ?>" 
               required maxlength="200"
               class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter your bachelor's degree">
@@ -462,7 +532,7 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
             <label class="block mb-1 text-sm">Specializations <span class="text-red-500">*</span></label>
             <textarea id="edit_specializations" rows="3" required maxlength="500"
               placeholder="Enter your areas of specialization"
-              class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><?php echo htmlspecialchars($tutor_data['specializations']); ?></textarea>
+              class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><?php echo htmlspecialchars($tutor_data['specializations'] ?? ''); ?></textarea>
           </div>
 
           <!-- Bio -->
@@ -470,17 +540,17 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
             <label class="block mb-1 text-sm">Bio</label>
             <textarea id="edit_bio" rows="4" maxlength="1000"
               placeholder="Tell us about yourself and your teaching philosophy (optional)"
-              class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><?php echo htmlspecialchars($tutor_data['bio']); ?></textarea>
+              class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><?php echo htmlspecialchars($tutor_data['bio'] ?? ''); ?></textarea>
           </div>
         </div>
 
         <!-- Form Actions -->
-        <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
-          <button type="submit" class="flex-1 bg-tplearn-green text-white px-6 py-3 rounded-lg font-medium hover:bg-green-600 transition-colors">
-            Save Changes
-          </button>
-          <button type="button" onclick="closeEditModal()" class="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+        <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+          <button type="button" onclick="closeEditModal()" class="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
             Cancel
+          </button>
+          <button type="submit" class="px-6 py-2 bg-tplearn-green text-white rounded-lg hover:bg-green-700 transition-colors">
+            Save Changes
           </button>
         </div>
       </form>
@@ -492,16 +562,126 @@ $total_assessments = 0; // Placeholder for tutor's assessments count
 // Profile Management Functions
 function editProfile() {
   document.getElementById('editModal').classList.remove('hidden');
-  document.getElementById('editModal').classList.add('flex');
 }
 
 function closeEditModal() {
   document.getElementById('editModal').classList.add('hidden');
-  document.getElementById('editModal').classList.remove('flex');
 }
 
-function changeProfilePicture() {
-  alert('Profile picture upload functionality will be implemented soon.');
+// Address Management Functions
+async function loadProvinces() {
+  try {
+    const response = await fetch('../../api/locations.php?action=provinces');
+    const result = await response.json();
+    const provinces = result.data || [];
+    const provinceSelect = document.getElementById('edit_province');
+    
+    // Clear existing options except the first one
+    provinceSelect.innerHTML = '<option value="">Select Province</option>';
+    
+    provinces.forEach(province => {
+      const option = document.createElement('option');
+      option.value = province;
+      option.textContent = province;
+      provinceSelect.appendChild(option);
+    });
+    
+    // Set current province if exists
+    const currentProvince = <?php echo json_encode($tutor_data['province'] ?? ''); ?>;
+    if (currentProvince) {
+      provinceSelect.value = currentProvince;
+      await loadCities(currentProvince);
+    }
+  } catch (error) {
+    console.error('Error loading provinces:', error);
+  }
+}
+
+async function loadCities(provinceName) {
+  try {
+    const response = await fetch(`../../api/locations.php?action=cities&province=${encodeURIComponent(provinceName)}`);
+    const result = await response.json();
+    const cities = result.data || [];
+    const citySelect = document.getElementById('edit_city');
+    
+    // Clear existing options except the first one
+    citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+    citySelect.disabled = false;
+    
+    cities.forEach(city => {
+      const option = document.createElement('option');
+      option.value = city;
+      option.textContent = city;
+      citySelect.appendChild(option);
+    });
+    
+    // Set current city if exists
+    const currentCity = <?php echo json_encode($tutor_data['city'] ?? ''); ?>;
+    if (currentCity) {
+      citySelect.value = currentCity;
+      await loadBarangays(provinceName, currentCity);
+    }
+  } catch (error) {
+    console.error('Error loading cities:', error);
+  }
+}
+
+async function loadBarangays(provinceName, cityName) {
+  try {
+    const response = await fetch(`../../api/locations.php?action=barangays&province=${encodeURIComponent(provinceName)}&city=${encodeURIComponent(cityName)}`);
+    const result = await response.json();
+    const barangays = result.data || [];
+    const barangaySelect = document.getElementById('edit_barangay');
+    
+    // Clear existing options except the first one
+    barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+    barangaySelect.disabled = false;
+    
+    barangays.forEach(barangay => {
+      const option = document.createElement('option');
+      option.value = barangay;
+      option.textContent = barangay;
+      barangaySelect.appendChild(option);
+    });
+    
+    // Set current barangay if exists
+    const currentBarangay = <?php echo json_encode($tutor_data['barangay'] ?? ''); ?>;
+    if (currentBarangay) {
+      barangaySelect.value = currentBarangay;
+    }
+  } catch (error) {
+    console.error('Error loading barangays:', error);
+  }
+}
+
+function generateCompleteAddress() {
+  const houseNumber = document.getElementById('edit_house_number').value.trim();
+  const street = document.getElementById('edit_street').value.trim();
+  const subdivision = document.getElementById('edit_subdivision').value.trim();
+  const barangay = document.getElementById('edit_barangay').value.trim();
+  const city = document.getElementById('edit_city').value.trim();
+  const province = document.getElementById('edit_province').value.trim();
+  const zipCode = document.getElementById('edit_zip_code').value.trim();
+  
+  let address = '';
+  
+  if (houseNumber) address += houseNumber;
+  if (street) address += (address ? ' ' : '') + street;
+  if (subdivision) address += (address ? ', ' : '') + subdivision;
+  if (barangay) address += (address ? ', ' : '') + 'Brgy. ' + barangay;
+  if (city) address += (address ? ', ' : '') + city;
+  if (province) address += (address ? ', ' : '') + province;
+  if (zipCode) address += (address ? ' ' : '') + zipCode;
+  
+  return address;
+}
+
+function updateCompleteAddress() {
+  const completeAddress = generateCompleteAddress();
+  const addressField = document.getElementById('edit_address');
+  if (addressField) {
+    addressField.value = completeAddress;
+  }
 }
 
 // Form Submission
@@ -515,7 +695,14 @@ document.getElementById('editProfileForm').addEventListener('submit', function(e
     gender: document.getElementById('edit_gender').value,
     suffix: document.getElementById('edit_suffix').value,
     contact_number: document.getElementById('edit_contact_number').value,
-    address: document.getElementById('edit_address').value,
+    address: generateCompleteAddress(),
+    province: document.getElementById('edit_province').value,
+    city: document.getElementById('edit_city').value,
+    barangay: document.getElementById('edit_barangay').value,
+    zip_code: document.getElementById('edit_zip_code').value,
+    subdivision: document.getElementById('edit_subdivision').value,
+    street: document.getElementById('edit_street').value,
+    house_number: document.getElementById('edit_house_number').value,
     bachelor_degree: document.getElementById('edit_bachelor_degree').value,
     specializations: document.getElementById('edit_specializations').value,
     bio: document.getElementById('edit_bio').value
@@ -535,7 +722,22 @@ document.getElementById('editProfileForm').addEventListener('submit', function(e
     },
     body: JSON.stringify(formData)
   })
-  .then(response => response.json())
+  .then(response => {
+    // Check if response is ok
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    // Get the raw text first to handle potential HTML errors
+    return response.text().then(text => {
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        console.error('Response is not valid JSON:', text);
+        throw new Error('Server returned invalid JSON. Response: ' + text.substring(0, 200));
+      }
+    });
+  })
   .then(data => {
     if (data.success) {
       // Show success message
@@ -621,381 +823,72 @@ document.addEventListener('keydown', function(e) {
     closeEditModal();
   }
 });
+
+// Initialize address functionality when page loads
+document.addEventListener('DOMContentLoaded', function() {
+  // Load provinces when modal is opened
+  const editButtons = document.querySelectorAll('[onclick="editProfile()"]');
+  editButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      // Small delay to ensure modal is visible before loading provinces
+      setTimeout(() => {
+        loadProvinces();
+      }, 100);
+    });
+  });
+  
+  // Set up address field event listeners
+  document.getElementById('edit_province').addEventListener('change', async function() {
+    const selectedProvince = this.value;
+    const citySelect = document.getElementById('edit_city');
+    const barangaySelect = document.getElementById('edit_barangay');
+    
+    // Reset city and barangay
+    citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+    citySelect.disabled = true;
+    barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+    barangaySelect.disabled = true;
+    
+    if (selectedProvince) {
+      await loadCities(selectedProvince);
+    }
+    updateCompleteAddress();
+  });
+
+  document.getElementById('edit_city').addEventListener('change', async function() {
+    const selectedCity = this.value;
+    const selectedProvince = document.getElementById('edit_province').value;
+    const barangaySelect = document.getElementById('edit_barangay');
+    
+    // Reset barangay
+    barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+    barangaySelect.disabled = true;
+    
+    if (selectedCity && selectedProvince) {
+      await loadBarangays(selectedProvince, selectedCity);
+    }
+    updateCompleteAddress();
+  });
+
+  document.getElementById('edit_barangay').addEventListener('change', function() {
+    updateCompleteAddress();
+  });
+
+  // Auto-update complete address when address fields change
+  const addressFields = [
+    'edit_house_number', 'edit_street', 'edit_subdivision', 
+    'edit_zip_code'
+  ];
+  
+  addressFields.forEach(fieldId => {
+    const field = document.getElementById(fieldId);
+    if (field) {
+      field.addEventListener('input', updateCompleteAddress);
+      field.addEventListener('change', updateCompleteAddress);
+    }
+  });
+});
 </script>
 
-</body>
-</html>
-                  <?= htmlspecialchars($tutor_data['first_name'] . ' ' . $tutor_data['last_name']) ?>
-                  <?php if (!empty($tutor_data['suffix'])): ?>
-                    <?= ' ' . htmlspecialchars($tutor_data['suffix']) ?>
-                  <?php endif; ?>
-                </h1>
-                <p class="text-tplearn-gray mb-2"><?= htmlspecialchars($tutor_data['user_email']) ?></p>
-                <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                  <span class="flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
-                    </svg>
-                    Member since <?= htmlspecialchars($tutor_data['member_since']) ?>
-                  </span>
-                  <?php if (!empty($tutor_data['gender'])): ?>
-                  <span class="flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
-                    </svg>
-                    <?= htmlspecialchars($tutor_data['gender']) ?>
-                  </span>
-                  <?php endif; ?>
-                </div>
-              </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex flex-col sm:flex-row gap-3 mt-4 lg:mt-0">
-              <button onclick="editProfile()" class="btn-primary flex items-center justify-center">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                </svg>
-                Edit Profile
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <!-- Main Profile Information -->
-          <div class="lg:col-span-2 space-y-6">
-            <!-- Personal Information -->
-            <div class="profile-card p-6">
-              <h2 class="text-xl font-semibold text-gray-900 mb-6">Personal Information</h2>
-              
-              <div class="grid md:grid-cols-2 gap-6">
-                <div class="mb-6">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                  <div class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-
-
-      <!-- Modal Content -->
-      <form id="editProfileForm" class="p-6">
-        <!-- Personal Information Section -->
-        <div class="mb-8">
-          <h2 class="text-xl font-semibold mb-6 text-gray-800">Personal Information</h2>
-
-          <!-- Name Fields -->
-          <div class="grid md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label class="block mb-1 text-sm">First Name <span class="text-red-500">*</span></label>
-              <input type="text" id="edit_first_name" value="<?php echo htmlspecialchars($tutor_data['first_name']); ?>" 
-                required maxlength="50" pattern="[a-zA-Z\s'-]{2,50}"
-                class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter first name">
-            </div>
-            <div>
-              <label class="block mb-1 text-sm">Last Name <span class="text-red-500">*</span></label>
-              <input type="text" id="edit_last_name" value="<?php echo htmlspecialchars($tutor_data['last_name']); ?>" 
-                required maxlength="50" pattern="[a-zA-Z\s'-]{2,50}"
-                class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter last name">
-            </div>
-            <div>
-              <label class="block mb-1 text-sm">Middle Name</label>
-              <input type="text" id="edit_middle_name" value="<?php echo htmlspecialchars($tutor_data['middle_name']); ?>" 
-                maxlength="50" pattern="[a-zA-Z\s'-]{1,50}"
-                class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter middle name (optional)">
-            </div>
-          </div>
-
-          <!-- Gender and Suffix -->
-          <div class="grid md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label class="block mb-1 text-sm">Gender</label>
-              <select id="edit_gender" 
-                class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                <option value="">Select Gender</option>
-                <option value="Male" <?php echo ($tutor_data['gender'] === 'Male') ? 'selected' : ''; ?>>Male</option>
-                <option value="Female" <?php echo ($tutor_data['gender'] === 'Female') ? 'selected' : ''; ?>>Female</option>
-                <option value="Other" <?php echo ($tutor_data['gender'] === 'Other') ? 'selected' : ''; ?>>Other</option>
-              </select>
-            </div>
-            <div>
-              <label class="block mb-1 text-sm">Suffix</label>
-              <input type="text" id="edit_suffix" value="<?php echo htmlspecialchars($tutor_data['suffix']); ?>" 
-                maxlength="20" pattern="[a-zA-Z\s.]{1,20}"
-                class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Jr., Sr., III, etc. (optional)">
-            </div>
-          </div>
-
-          <!-- Contact Information -->
-          <div class="grid md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label class="block mb-1 text-sm">Contact Number</label>
-              <input type="text" id="edit_contact_number" value="<?php echo htmlspecialchars($tutor_data['contact_number']); ?>" 
-                maxlength="20" pattern="[\+]?[0-9\s\-\(\)]{10,20}"
-                class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter contact number">
-            </div>
-            <div>
-              <label class="block mb-1 text-sm">Email Address</label>
-              <input type="email" id="edit_email" value="<?php echo htmlspecialchars($tutor_data['user_email']); ?>" 
-                readonly
-                class="w-full border border-gray-300 px-3 py-2 rounded bg-gray-100 cursor-not-allowed"
-                placeholder="Email address (read-only)">
-              <small class="text-gray-500">Email cannot be changed. Contact support if needed.</small>
-            </div>
-          </div>
-
-          <!-- Address -->
-          <div class="mb-4">
-            <label class="block mb-1 text-sm">Address</label>
-            <textarea id="edit_address" rows="3" 
-              class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter full address"><?php echo htmlspecialchars($tutor_data['address']); ?></textarea>
-          </div>
-        </div>
-
-        <!-- Professional Information Section -->
-        <div class="mb-8">
-          <h2 class="text-xl font-semibold mb-6 text-gray-800">Professional Information</h2>
-
-          <!-- Bachelor's Degree -->
-          <div class="mb-4">
-            <label class="block mb-1 text-sm">Bachelor's Degree</label>
-            <input type="text" id="edit_bachelor_degree" value="<?php echo htmlspecialchars($tutor_data['bachelor_degree']); ?>" 
-              maxlength="100"
-              class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter your bachelor's degree">
-          </div>
-
-          <!-- Specializations -->
-          <div class="mb-4">
-            <label class="block mb-1 text-sm">Specializations</label>
-            <textarea id="edit_specializations" rows="3" 
-              class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter your specializations and expertise areas"><?php echo htmlspecialchars($tutor_data['specializations']); ?></textarea>
-          </div>
-
-          <!-- Bio -->
-          <div class="mb-4">
-            <label class="block mb-1 text-sm">Bio</label>
-            <textarea id="edit_bio" rows="4" 
-              class="w-full border border-gray-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Tell us about yourself, your teaching experience, and approach"><?php echo htmlspecialchars($tutor_data['bio']); ?></textarea>
-          </div>
-        </div>
-
-        <!-- Modal Footer -->
-        <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
-          <button type="button" onclick="closeEditModal()" 
-            class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
-            Cancel
-          </button>
-          <button type="button" onclick="saveProfile()" 
-            class="px-6 py-2 bg-tplearn-green text-white rounded-lg hover:bg-green-700 transition-colors">
-            Save Changes
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script>
-    // Profile editing functions
-    function editProfile() {
-      document.getElementById('editModal').classList.remove('hidden');
-      document.getElementById('editModal').classList.add('flex');
-      document.body.style.overflow = 'hidden';
-    }
-
-    function closeEditModal() {
-      document.getElementById('editModal').classList.add('hidden');
-      document.getElementById('editModal').classList.remove('flex');
-      document.body.style.overflow = 'auto';
-    }
-
-    function changeProfilePicture() {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = function(e) {
-        const file = e.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = function(e) {
-            const avatarDiv = document.querySelector('.w-24.h-24.bg-tplearn-green');
-            avatarDiv.innerHTML = `<img src="${e.target.result}" alt="Profile Picture" class="w-full h-full object-cover rounded-full">`;
-            showSuccessMessage('Profile picture updated successfully!');
-          };
-          reader.readAsDataURL(file);
-        }
-      };
-      input.click();
-    }
-
-    async function saveProfile() {
-      try {
-        // Show loading state
-        const saveButton = document.querySelector('button[onclick="saveProfile()"]');
-        const originalText = saveButton.textContent;
-        saveButton.textContent = 'Saving...';
-        saveButton.disabled = true;
-
-        // Get all form values
-        const formData = {
-          first_name: document.getElementById('edit_first_name').value.trim(),
-          middle_name: document.getElementById('edit_middle_name').value.trim(),
-          last_name: document.getElementById('edit_last_name').value.trim(),
-          gender: document.getElementById('edit_gender').value.trim(),
-          suffix: document.getElementById('edit_suffix').value.trim(),
-          contact_number: document.getElementById('edit_contact_number').value.trim(),
-          address: document.getElementById('edit_address').value.trim(),
-          bachelor_degree: document.getElementById('edit_bachelor_degree').value.trim(),
-          specializations: document.getElementById('edit_specializations').value.trim(),
-          bio: document.getElementById('edit_bio').value.trim()
-        };
-
-        // Client-side validation
-        if (!formData.first_name || !formData.last_name) {
-          throw new Error('First Name and Last Name are required.');
-        }
-
-        // Send update request
-        const response = await fetch('../../api/tutor-profile.php', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData)
-        });
-
-        const result = await response.json();
-
-        if (response.ok && result.success) {
-          showSuccessMessage('Profile updated successfully!');
-          closeEditModal();
-          
-          // Refresh the page to show updated data
-          setTimeout(() => {
-            window.location.reload();
-          }, 1000);
-        } else {
-          throw new Error(result.error || 'Failed to update profile');
-        }
-
-      } catch (error) {
-        console.error('Error updating profile:', error);
-        showErrorMessage(error.message || 'Failed to update profile. Please try again.');
-      } finally {
-        // Reset button state
-        const saveButton = document.querySelector('button[onclick="saveProfile()"]');
-        if (saveButton) {
-          saveButton.textContent = 'Save Changes';
-          saveButton.disabled = false;
-        }
-      }
-    }
-
-    // Notification functions
-    function showSuccessMessage(message) {
-      showNotification(message, 'success');
-    }
-
-    function showErrorMessage(message) {
-      showNotification(message, 'error');
-    }
-
-    function showNotification(message, type = 'success') {
-      const notification = document.createElement('div');
-      notification.className = `fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white transform transition-transform duration-300 translate-x-full ${
-        type === 'success' ? 'bg-green-500' : 'bg-red-500'
-      }`;
-      notification.innerHTML = `
-        <div class="flex items-center justify-between">
-          <span>${message}</span>
-          <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-            </svg>
-          </button>
-        </div>
-      `;
-      
-      document.body.appendChild(notification);
-      
-      // Show notification
-      setTimeout(() => {
-        notification.classList.remove('translate-x-full');
-      }, 100);
-      
-      // Auto remove after 5 seconds
-      setTimeout(() => {
-        if (notification.parentElement) {
-          notification.classList.add('translate-x-full');
-          setTimeout(() => notification.remove(), 300);
-        }
-      }, 5000);
-    }
-
-    // Quick action functions
-    function openChangePasswordModal() {
-      showNotification('Change password feature coming soon!', 'info');
-    }
-
-    // Mobile menu functionality
-    document.addEventListener('DOMContentLoaded', function() {
-      const mobileMenuButton = document.getElementById('mobile-menu-button');
-      const mobileCloseButton = document.getElementById('mobile-close-button');
-      const sidebar = document.getElementById('sidebar');
-      const overlay = document.getElementById('mobile-menu-overlay');
-      
-      function openMobileMenu() {
-        if (sidebar && overlay) {
-          sidebar.classList.remove('-translate-x-full');
-          overlay.classList.remove('hidden');
-        }
-      }
-
-      function closeMobileMenu() {
-        if (sidebar && overlay) {
-          sidebar.classList.add('-translate-x-full');
-          overlay.classList.add('hidden');
-        }
-      }
-
-      // Event listeners
-      if (mobileMenuButton) {
-        mobileMenuButton.addEventListener('click', openMobileMenu);
-      }
-      
-      if (mobileCloseButton) {
-        mobileCloseButton.addEventListener('click', closeMobileMenu);
-      }
-      
-      if (overlay) {
-        overlay.addEventListener('click', closeMobileMenu);
-      }
-
-      // Close mobile menu when clicking on a navigation link
-      if (sidebar) {
-        const navLinks = sidebar.querySelectorAll('a');
-        navLinks.forEach(link => {
-          link.addEventListener('click', () => {
-            if (window.innerWidth < 1024) { // Only on mobile
-              setTimeout(closeMobileMenu, 100);
-            }
-          });
-        });
-      }
-
-      // Close mobile menu on window resize to desktop
-      window.addEventListener('resize', () => {
-        if (window.innerWidth >= 1024) {
-          closeMobileMenu();
-        }
-      });
-    });
-  </script>
 </body>
 </html>
