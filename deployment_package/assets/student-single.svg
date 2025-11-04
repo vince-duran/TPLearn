@@ -1,0 +1,7 @@
+<!-- This is a placeholder for student-single.jpg -->
+<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg">
+  <rect width="150" height="150" fill="#F59E0B"/>
+  <circle cx="75" cy="60" r="20" fill="#FCD34D"/>
+  <rect x="55" y="80" width="40" height="50" fill="#FCD34D" rx="5"/>
+  <text x="75" y="140" text-anchor="middle" fill="white" font-family="Arial" font-size="12">Learning</text>
+</svg>

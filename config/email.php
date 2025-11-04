@@ -54,10 +54,10 @@ return array (
     'from_name' => 'TPLearn',
     'from_email' => '',
   ),
-  'templates' => 
+    'templates' => 
   array (
     'verification_subject' => 'Verify Your Email Address - TPLearn',
-    'base_url' => 'http://localhost/TPLearn',
+    'base_url' => $_ENV['APP_URL'] ?? ($_ENV['RAILWAY_PUBLIC_DOMAIN'] ? 'https://' . $_ENV['RAILWAY_PUBLIC_DOMAIN'] : 'http://localhost/TPLearn'),
   ),
   'debug' => 
   array (

@@ -1,0 +1,56 @@
+# TPLearn .htaccess Configuration for Local Development (XAMPP)
+
+# Enable Rewrite Engine
+RewriteEngine On
+
+# For local development - don't force HTTPS
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Security: Block access to sensitive files
+<FilesMatch "\.(env|log|sql|md|json|lock|gitignore)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Block access to git directory
+RedirectMatch 404 /\.git
+
+# Pretty URLs for different sections (optional for local)
+# Dashboard URLs
+RewriteRule ^student/?$ dashboards/student/student.php [L]
+RewriteRule ^student/(.+)$ dashboards/student/$1.php [L]
+RewriteRule ^tutor/?$ dashboards/tutor/tutor.php [L]
+RewriteRule ^tutor/(.+)$ dashboards/tutor/$1.php [L]
+RewriteRule ^admin/?$ dashboards/admin/admin.php [L]
+RewriteRule ^admin/(.+)$ dashboards/admin/$1.php [L]
+
+# API URLs
+RewriteRule ^api/(.+)$ api/$1.php [L]
+
+# Authentication URLs
+RewriteRule ^login/?$ login.php [L]
+RewriteRule ^register/?$ register.php [L]
+RewriteRule ^logout/?$ logout.php [L]
+RewriteRule ^forgot-password/?$ forgot-password.php [L]
+RewriteRule ^reset-password/?$ reset-password.php [L]
+RewriteRule ^verify-email/?$ verify-email.php [L]
+
+# Remove .php extension from URLs (optional)
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^([^\.]+)$ $1.php [NC,L]
+
+# PHP Configuration for local development
+<IfModule mod_php.c>
+    php_value upload_max_filesize 50M
+    php_value post_max_size 50M
+    php_value max_execution_time 300
+    php_value max_input_vars 3000
+    php_value memory_limit 256M
+    
+    # Show errors for development
+    php_flag display_errors On
+    php_flag display_startup_errors On
+    php_value error_reporting "E_ALL"
+</IfModule>

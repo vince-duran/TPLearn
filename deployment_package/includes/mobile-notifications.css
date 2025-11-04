@@ -1,0 +1,55 @@
+/* Mobile-responsive notification dropdown styles */
+@media (max-width: 768px) {
+  #notification-dropdown {
+    /* On mobile, position the dropdown to avoid going off-screen */
+    right: -20px;
+    left: auto;
+    transform: translateX(-10px);
+    max-width: calc(100vw - 40px);
+    width: auto !important;
+    min-width: 320px;
+  }
+  
+  /* Make notification items more touch-friendly on mobile */
+  .notification-item {
+    padding: 12px 16px;
+  }
+  
+  /* Adjust spacing for mobile */
+  .notification-item .flex {
+    gap: 8px;
+  }
+  
+  /* Make text smaller on very small screens */
+  @media (max-width: 480px) {
+    .notification-item .text-sm {
+      font-size: 0.8rem;
+    }
+    
+    .notification-item .text-xs {
+      font-size: 0.7rem;
+    }
+    
+    /* Make filter buttons even smaller on very small screens */
+    #filter-all, #filter-unread {
+      padding: 4px 8px;
+      font-size: 0.7rem;
+    }
+  }
+}
+
+/* Improve dropdown positioning for better mobile experience */
+.notification-dropdown-container {
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  #notification-dropdown {
+    /* On small screens, make dropdown full width with margins */
+    right: 0;
+    left: 0;
+    margin: 8px;
+    width: calc(100% - 16px) !important;
+    max-width: none;
+  }
+}

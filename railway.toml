@@ -1,0 +1,52 @@
+[build]
+command = "echo 'Building TPLearn for Railway deployment...'"
+
+[deploy]
+startCommand = "php -S 0.0.0.0:$PORT -t ."
+
+[[services]]
+name = "web"
+
+[services.web]
+source = "."
+
+[services.web.environment]
+PORT = { default = "8080" }
+RAILWAY_ENVIRONMENT = "production"
+
+[services.web.domains]
+# Your custom domain will be configured through Railway dashboard
+
+[services.web.variables]
+# Database variables (will be set in Railway dashboard)
+DB_HOST = { default = "localhost" }
+DB_USER = "root"
+DB_PASS = ""
+DB_NAME = "tplearn"
+
+# Application settings
+APP_NAME = "TPLearn"
+APP_ENV = "production"
+APP_DEBUG = "false"
+APP_URL = "https://your-domain.com"
+
+# Email settings
+MAIL_MAILER = "smtp"
+MAIL_HOST = "smtp.gmail.com"
+MAIL_PORT = "587"
+MAIL_USERNAME = "tplearnph@gmail.com"
+MAIL_ENCRYPTION = "tls"
+
+# Session settings
+SESSION_DRIVER = "file"
+SESSION_LIFETIME = "120"
+
+[services.web.healthcheck]
+path = "/health-check.php"
+interval = "30s"
+timeout = "10s"
+retries = 3
+
+[services.web.deploy]
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 3

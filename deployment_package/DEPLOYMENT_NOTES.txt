@@ -1,0 +1,17 @@
+TPLearn Deployment Package 
+Generated: 04/11/2025  9:06:58.20 
+ 
+DEPLOYMENT STEPS: 
+1. Upload all files to public_html/ directory 
+2. Create MySQL database in hosting control panel 
+3. Import database.sql via phpMyAdmin 
+4. Update includes/db.php with production database credentials 
+5. Set permissions: uploads/ and logs/ to 755 
+6. Test connection with check_db_connection.php 
+7. Delete check_db_connection.php after testing 
+ 
+EXCLUDED FROM PACKAGE: 
+- .git/ directory 
+- node_modules/ directory 
+- Development documentation 
+- Test files 
