@@ -2,7 +2,7 @@
 command = "echo 'Building TPLearn for Railway deployment...' && php -v"
 
 [deploy]
-startCommand = "php -S 0.0.0.0:$PORT -t . -d auto_prepend_file=railway-bootstrap.php"
+startCommand = "php -S 0.0.0.0:$PORT -t . -d auto_prepend_file=bootstrap.php"
 
 [[services]]
 name = "web"
