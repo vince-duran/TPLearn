@@ -1,8 +1,8 @@
 [build]
-command = "echo 'Building TPLearn for Railway deployment...'"
+command = "echo 'Building TPLearn for Railway deployment...' && php -v"
 
 [deploy]
-startCommand = "php -S 0.0.0.0:$PORT -t ."
+startCommand = "php -S 0.0.0.0:$PORT -t . -d auto_prepend_file=railway-bootstrap.php"
 
 [[services]]
 name = "web"
@@ -13,6 +13,7 @@ source = "."
 [services.web.environment]
 PORT = { default = "8080" }
 RAILWAY_ENVIRONMENT = "production"
+PHP_INI_SCAN_DIR = "/app"
 
 [services.web.domains]
 # Your custom domain will be configured through Railway dashboard

@@ -1,14 +1,33 @@
 <?php
 // Show errors during development (remove in production)
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+if (!isset($_ENV['RAILWAY_ENVIRONMENT'])) {
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
+}
 
 session_start();
-require_once __DIR__ . '/includes/db.php'; // provides $conn (mysqli)
-require_once __DIR__ . '/includes/data-helpers.php'; // provides duplicate checking functions
-require_once __DIR__ . '/includes/email-verification.php'; // provides email verification functions
-require_once __DIR__ . '/assets/icons.php'; // provides standardized icon functions
+
+// Include Railway path configuration
+require_once __DIR__ . '/config/railway-paths.php';
+
+// Use safe includes for Railway compatibility
+try {
+    safe_require('includes/db.php'); // provides $conn (mysqli)
+    safe_require('includes/data-helpers.php'); // provides duplicate checking functions
+    safe_require('includes/email-verification.php'); // provides email verification functions
+    safe_require('assets/icons.php'); // provides standardized icon functions
+} catch (Exception $e) {
+    // Fallback for Railway deployment
+    if (isset($_ENV['RAILWAY_ENVIRONMENT'])) {
+        require_once '/app/includes/db.php';
+        require_once '/app/includes/data-helpers.php';
+        require_once '/app/includes/email-verification.php';
+        require_once '/app/assets/icons.php';
+    } else {
+        die("Configuration error: " . $e->getMessage());
+    }
+}
 
 /* ---------- Helpers ---------- */
 function csrf_token()

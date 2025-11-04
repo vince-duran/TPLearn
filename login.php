@@ -1,14 +1,32 @@
 <?php
 // (Dev only) show errors; comment in prod
-// ini_set('display_errors', 1); ini_set('display_startup_errors', 1); error_reporting(E_ALL);
+if (!isset($_ENV['RAILWAY_ENVIRONMENT'])) {
+    // ini_set('display_errors', 1); ini_set('display_startup_errors', 1); error_reporting(E_ALL);
+}
 
 // Start buffering BEFORE any includes to prevent accidental output (BOM/whitespace) from breaking redirects
 ob_start();
 
 session_start();
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/email-verification.php';
-require_once __DIR__ . '/assets/icons.php';
+
+// Include Railway path configuration
+require_once __DIR__ . '/config/railway-paths.php';
+
+// Use safe includes for Railway compatibility
+try {
+    safe_require('includes/db.php');
+    safe_require('includes/email-verification.php');
+    safe_require('assets/icons.php');
+} catch (Exception $e) {
+    // Fallback for Railway deployment
+    if (isset($_ENV['RAILWAY_ENVIRONMENT'])) {
+        require_once '/app/includes/db.php';
+        require_once '/app/includes/email-verification.php';
+        require_once '/app/assets/icons.php';
+    } else {
+        die("Configuration error: " . $e->getMessage());
+    }
+}
 
 $error = '';
 
